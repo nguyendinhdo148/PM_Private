@@ -3,7 +3,7 @@ services:
     name: backend
     runtime: node
     buildCommand: npm run build
-    startCommand: node backend/src/index.js
+    startCommand: bash -c "cd backend && npm start"
     env: production
     envVars:
       - key: PORT
