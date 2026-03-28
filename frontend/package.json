@@ -16,8 +16,10 @@
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
+    "@react-router/dev": "7.12.0",
     "@react-router/node": "7.12.0",
     "@react-router/serve": "7.12.0",
+    "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.90.20",
     "axios": "^1.13.4",
     "class-variance-authority": "^0.7.1",
@@ -41,8 +43,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@react-router/dev": "7.12.0",
-    "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^22",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
