@@ -5,8 +5,13 @@ import morgan from "morgan";
 import http from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
+import { fileURLToPath } from "url";
+import path from "path";
 import connectDB from "./utils/db.js";
 import routes from "./routes/index.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -36,12 +41,17 @@ app.set("io", io);
 
 const PORT = process.env.PORT || 5001;
 
-app.get("/", async (req, res) => {
-  res.status(200).json({ message: "API is running..." });
-});
-
 // API Routes
 app.use("/api-v1", routes);
+
+// Serve frontend static files
+const frontendBuildPath = path.join(__dirname, "../../frontend/build/client");
+app.use(express.static(frontendBuildPath));
+
+// SPA fallback - return index.html for all non-API routes
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendBuildPath, "index.html"));
+});
 
 // Socket.IO authentication
 io.use((socket, next) => {
@@ -102,11 +112,6 @@ io.on("connection", (socket) => {
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: "Internal Server Error" });
-});
-
-// 404 middleware
-app.use((req, res) => {
-  res.status(404).json({ message: "Not Found" });
 });
 
 server.listen(PORT, () => {
