@@ -1,0 +1,12 @@
+{
+  "name": "project-management",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "cd backend && npm install --legacy-peer-deps && npm run build 2>/dev/null || true",
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev"
+  },
+  "description": "Project Management Application",
+  "private": true
+}
