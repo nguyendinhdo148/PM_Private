@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "cd backend && npm install --legacy-peer-deps && npm run build 2>/dev/null || true",
+    "build": "cd frontend && npm install --legacy-peer-deps && npm run build && cd ../backend && npm install --legacy-peer-deps",
     "start": "cd backend && npm start",
     "dev": "cd backend && npm run dev"
   },
