@@ -9,5 +9,6 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), reactRouter(), tsconfigPaths()],
   build: {
     sourcemap: false,
+    copyPublicDir: true,
   },
 });
