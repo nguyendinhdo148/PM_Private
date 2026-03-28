@@ -8,3 +8,12 @@ services:
     envVars:
       - key: PORT
         value: "5000"
+
+  - type: static
+    name: frontend
+    buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
+    staticPublishPath: frontend/build/client
+    envVars:
+      - key: VITE_API_URL
+        value: https://pm-private-1.onrender.com/api-v1
+
