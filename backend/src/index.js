@@ -45,7 +45,11 @@ const PORT = process.env.PORT || 5001;
 app.use("/api-v1", routes);
 
 // Serve frontend static files
-const frontendBuildPath = path.join(__dirname, "../../frontend/build/client");
+// Works from both root and backend directory
+const frontendBuildPath = path.join(
+  process.cwd(),
+  "frontend/build/client"
+);
 app.use(express.static(frontendBuildPath));
 
 // SPA fallback - return index.html for all non-API routes
