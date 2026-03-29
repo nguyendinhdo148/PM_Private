@@ -1,7 +1,5 @@
-"use client"
-
 import * as React from "react"
-import type * as LabelPrimitive from "@radix-ui/react-label"
+import * as LabelPrimitive from "@radix-ui/react-label"
 import { Slot } from "@radix-ui/react-slot"
 import {
   Controller,
@@ -149,9 +147,7 @@ function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
       id={formMessageId}
       className={cn("text-destructive text-sm", className)}
       {...props}
-    >
-      {body}
-    </p>
+    />
   )
 }
 
