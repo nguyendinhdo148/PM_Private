@@ -44,17 +44,13 @@ const PORT = process.env.PORT || 5001;
 // API Routes
 app.use("/api-v1", routes);
 
-// Serve frontend static files
-// Works from both root and backend directory
-const frontendBuildPath = path.join(
-  process.cwd(),
-  "frontend/build/client"
-);
-app.use(express.static(frontendBuildPath));
-
-// SPA fallback - return index.html for all non-API routes
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendBuildPath, "index.html"));
+// ĐÃ SỬA: Xóa phần phục vụ file tĩnh (static files) của Frontend
+// Thêm một route gốc để kiểm tra Backend xem đã chạy thành công chưa
+app.get("/", (req, res) => {
+  res.status(200).json({ 
+    status: "success",
+    message: "Backend API is running successfully!" 
+  });
 });
 
 // Socket.IO authentication
