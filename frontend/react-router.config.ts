@@ -1,6 +1,6 @@
 import type { Config } from "@react-router/dev/config";
 
 export default {
-  // Static Site deployment - use SPA mode
+  // Bật chế độ SPA (Single Page Application) cho Static Site
   ssr: false,
 } satisfies Config;
