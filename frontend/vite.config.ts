@@ -7,7 +7,7 @@ export default defineConfig({
   base: "/",
   plugins: [
     tailwindcss(), 
-    reactRouter(), // reactRouter đã bao gồm React, không dùng thêm plugin react() nữa
+    reactRouter(), // Trả lại em nó về nguyên vẹn 0 tham số
     tsconfigPaths()
   ],
   build: {
