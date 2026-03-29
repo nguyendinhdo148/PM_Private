@@ -1,5 +1,14 @@
 services:
   - type: web
+    name: frontend
+    runtime: static
+    buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
+    staticPublishPath: frontend/build/client
+    routes:
+      - path: /api-v1/*
+        destination: backend:5000
+
+  - type: web
     name: backend
     runtime: node
     buildCommand: npm run build
