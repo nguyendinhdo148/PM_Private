@@ -1,6 +1,6 @@
 import type { Config } from "@react-router/dev/config";
 
 export default {
+  // Tắt SSR để chạy dạng SPA
   ssr: false,
-  prerender: ["/"], // Ép nó phải tạo file index.html cho trang chủ
 } satisfies Config;
