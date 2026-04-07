@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, select: false },
     name: { type: String, required: true, trim: true },
     profilePicture: { type: String },
+    profilePicturePublicId: { type: String, select: false },
     isEmailVerified: { type: Boolean, default: false },
     lastLogin: { type: Date },
     is2FAEnabled: { type: Boolean, default: false },

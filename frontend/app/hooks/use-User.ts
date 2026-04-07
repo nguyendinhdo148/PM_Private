@@ -3,7 +3,12 @@ import type {
   ChangePasswordFormData,
   ProfileFormData,
 } from "@/routes/dashboard/settings";
-import { useMutation, useQuery, type QueryKey } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 const queryKey: QueryKey = ["user"];
 
@@ -21,8 +26,15 @@ export const useChangePassword = () => {
   });
 };
 
+
 export const useUpdateUserProfile = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: (data: ProfileFormData) => updateData("/users/profile", data),
+    mutationFn: (data: ProfileFormData | FormData) =>
+      updateData("/users/profile", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
   });
 };

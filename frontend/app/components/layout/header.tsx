@@ -1,5 +1,6 @@
 // components/header/Header.tsx
 import { useAuth } from "@/provider/auth-context";
+import { useUserProfileQuery } from "@/hooks/use-User";
 import type { Workspace } from "@/types";
 import { Button } from "../ui/button";
 import { PlusCircle } from "lucide-react";
@@ -30,8 +31,10 @@ export const Header = ({
 }: HeaderProps) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { data: profile } = useUserProfileQuery() as { data?: any };
   const { workspaces } = useLoaderData() as { workspaces: Workspace[] };
   const isOnWorkspacePage = useLocation().pathname.includes("/workspaces");
+  const currentUser = profile || user;
 
   const handleOnClick = (workspace: Workspace) => {
     onWorkspaceSelected(workspace);
@@ -103,20 +106,25 @@ export const Header = ({
               <button className="rounded-full border size-8">
                 <Avatar className="size-8">
                   <AvatarImage
-                    src={user?.profilePicture}
-                    alt={user?.name}
+                    src={currentUser?.profilePicture}
+                    alt={currentUser?.name}
                     className="object-cover"
                   />
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user?.name?.charAt(0).toUpperCase()}
+                    {currentUser?.name?.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => navigate("/settings")}
+                className="cursor-pointer"
+              >
+                My Account
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={logout} className="cursor-pointer">
                 Logout
               </DropdownMenuItem>

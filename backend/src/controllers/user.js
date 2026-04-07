@@ -1,6 +1,27 @@
 import { User } from "../models/user.js";
 import bcrypt from "bcrypt";
+import cloudinary from "../libs/cloudinary.js";
 
+const PROFILE_PICTURE_UPLOAD_FOLDER =
+  process.env.CLOUDINARY_PROFILE_PICTURE_FOLDER || "projectmanager";
+
+const uploadBufferToCloudinary = (fileBuffer, folder) =>
+  new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error) {
+          return reject(error);
+        }
+        return resolve(result);
+      },
+    );
+
+    uploadStream.end(fileBuffer);
+  });
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
@@ -23,18 +44,36 @@ const updateUserProfile = async (req, res) => {
   try {
     const { name, profilePicture } = req.body;
 
-    const user = await User.findById(req.user._id);
+     const user = await User.findById(req.user._id).select(
+      "+profilePicturePublicId",
+    );
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    if (req.file) {
+      if (user.profilePicturePublicId) {
+        await cloudinary.uploader.destroy(user.profilePicturePublicId);
+      }
+
+      const uploadedImage = await uploadBufferToCloudinary(
+        req.file.buffer,
+        PROFILE_PICTURE_UPLOAD_FOLDER,
+      );
+
+      user.profilePicture = uploadedImage.secure_url;
+      user.profilePicturePublicId = uploadedImage.public_id;
+    }
 
     user.name = name;
-    user.profilePicture = profilePicture;
+    if (!req.file && typeof profilePicture === "string") {
+      user.profilePicture = profilePicture;
+    }
 
     await user.save();
-
-    res.status(200).json(user);
+    const updatedUser = user.toObject();
+    delete updatedUser.profilePicturePublicId;
+    res.status(200).json(updatedUser);
   } catch (error) {
     console.error("Error updating user profile:", error);
 

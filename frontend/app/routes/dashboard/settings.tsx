@@ -29,6 +29,7 @@ import { useAuth } from "@/provider/auth-context";
 import type { User } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Loader, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -63,7 +64,7 @@ const Settings = () => {
     data: User;
     isPending: boolean;
   };
-  const { logout } = useAuth();
+  const { logout, updateCurrentUser } = useAuth();
   const navigate = useNavigate();
 
   const form = useForm<ChangePasswordFormData>({
@@ -93,6 +94,24 @@ const Settings = () => {
     isPending: isChangingPassword,
     error,
   } = useChangePassword();
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+
+  const avatarPreview = useMemo(() => {
+    if (!selectedAvatar) {
+      return "";
+    }
+
+    return URL.createObjectURL(selectedAvatar);
+  }, [selectedAvatar]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   const handlePasswordChange = (values: ChangePasswordFormData) => {
     changePassword(values, {
@@ -115,22 +134,63 @@ const Settings = () => {
       },
     });
   };
+  const handleAvatarSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
 
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be smaller than 5MB");
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedAvatar(file);
+  };
   const handleProfileFormSubmit = (values: ProfileFormData) => {
-    updateUserProfile(
-      { name: values.name, profilePicture: values.profilePicture || "" },
-      {
-        onSuccess: () => {
-          toast.success("Profile updated successfully");
-        },
-        onError: (error: any) => {
-          const errorMessage =
-            error.response?.data?.error || "Failed to update profile";
-          toast.error(errorMessage);
-          console.log(error);
-        },
+    const payload: ProfileFormData | FormData = selectedAvatar
+      ? (() => {
+          const formData = new FormData();
+          formData.append("name", values.name);
+          formData.append("profilePicture", selectedAvatar);
+          return formData;
+        })()
+      : { name: values.name, profilePicture: values.profilePicture || "" };
+
+    updateUserProfile(payload, {
+      onSuccess: (updatedUser: any) => {
+        updateCurrentUser({
+          name: updatedUser?.name,
+          profilePicture: updatedUser?.profilePicture,
+        });
+
+        if (updatedUser?.profilePicture) {
+          profileForm.setValue("profilePicture", updatedUser.profilePicture);
+        }
+
+        setSelectedAvatar(null);
+
+        if (avatarInputRef.current) {
+          avatarInputRef.current.value = "";
+        }
+
+        toast.success("Profile updated successfully");
+  },
+  onError: (error: any) => {
+        const errorMessage =
+          error.response?.data?.error || "Failed to update profile";
+        toast.error(errorMessage);
+        console.log(error);
       },
-    );
+    });
   };
 
   if (isPending)
@@ -177,6 +237,7 @@ const Settings = () => {
                     <Avatar className="h-24 w-24 bg-primary/10 flex-shrink-0">
                       <AvatarImage
                         src={
+                          avatarPreview ||
                           profileForm.watch("profilePicture") ||
                           user?.profilePicture
                         }
@@ -191,15 +252,15 @@ const Settings = () => {
                         id="avatar-upload"
                         type="file"
                         accept="image/*"
+                        onChange={handleAvatarSelect}
+                        ref={avatarInputRef}
                         style={{ display: "none" }}
                       />
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() =>
-                          document.getElementById("avatar-upload")?.click()
-                        }
+                        onClick={() => avatarInputRef.current?.click()}
                         className="h-9"
                       >
                         Change Avatar

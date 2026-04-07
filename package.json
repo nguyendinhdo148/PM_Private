@@ -10,5 +10,9 @@
     "dev": "cd backend && npm run dev"
   },
   "description": "Project Management Application",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "cloudinary": "^2.9.0",
+    "multer": "^2.1.1"
+  }
 }

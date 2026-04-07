@@ -39,7 +39,14 @@ const fetchData = async <T>(path: string): Promise<T> => {
 };
 
 const updateData = async <T>(path: string, data: unknown): Promise<T> => {
-  const response = await api.put(path, data);
+  const response = await api.put(path, data, {
+    headers:
+      data instanceof FormData
+        ? {
+            "Content-Type": "multipart/form-data",
+          }
+        : undefined,
+  });
   return response.data;
 };
 
@@ -76,7 +83,11 @@ export const createWorkspace = async (data: any) => {
   return postData("/workspaces", data);
 };
 
-export const inviteToWorkspace = async (workspaceId: string, email: string, role: string) => {
+export const inviteToWorkspace = async (
+  workspaceId: string,
+  email: string,
+  role: string,
+) => {
   return postData(`/workspaces/${workspaceId}/invite-member`, { email, role });
 };
 
@@ -97,7 +108,11 @@ export const getProjectTasks = async (projectId: string) => {
   return fetchData(`/projects/${projectId}/tasks`);
 };
 
-export const getWorkspaceProjectTasks = async (workspaceId: string, projectId: string) => {
+
+export const getWorkspaceProjectTasks = async (
+  workspaceId: string,
+  projectId: string,
+) => {
   // ✅ Sửa đường dẫn đúng với backend
   return fetchData(`/projects/${projectId}/tasks`);
 };
@@ -119,61 +134,163 @@ export const archiveProject = async (projectId: string) => {
 };
 
 // ============= EPICS =============
-export const getProjectEpics = async (workspaceId: string, projectId: string) => {
-  return fetchData(`/epics/workspace/${workspaceId}/projects/${projectId}/epics`);
+
+export const getProjectEpics = async (
+  workspaceId: string,
+  projectId: string,
+) => {
+  return fetchData(
+    `/epics/workspace/${workspaceId}/projects/${projectId}/epics`,
+  );
 };
 
-export const getEpicDetails = async (workspaceId: string, projectId: string, epicId: string) => {
-  return fetchData(`/epics/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}`);
+export const getEpicDetails = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+) => {
+  return fetchData(
+    `/epics/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}`,
+  );
 };
 
-export const createEpic = async (workspaceId: string, projectId: string, data: any) => {
-  return postData(`/epics/workspace/${workspaceId}/projects/${projectId}/epics`, data);
+export const createEpic = async (
+  workspaceId: string,
+  projectId: string,
+  data: any,
+) => {
+  return postData(
+    `/epics/workspace/${workspaceId}/projects/${projectId}/epics`,
+    data,
+  );
 };
 
-export const updateEpic = async (workspaceId: string, projectId: string, epicId: string, data: any) => {
-  return updateData(`/epics/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}`, data);
+export const updateEpic = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+  data: any,
+) => {
+  return updateData(
+    `/epics/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}`,
+    data,
+  );
 };
 
-export const deleteEpic = async (workspaceId: string, projectId: string, epicId: string) => {
-  return deleteData(`/epics/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}`);
+export const deleteEpic = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+) => {
+  return deleteData(
+    `/epics/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}`,
+  );
 };
 
-export const archiveEpic = async (workspaceId: string, projectId: string, epicId: string) => {
-  return updateData(`/epics/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/archive`, {});
+export const archiveEpic = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+) => {
+  return updateData(
+    `/epics/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/archive`,
+    {},
+  );
 };
 
 // ============= STORIES =============
-export const getEpicStories = async (workspaceId: string, projectId: string, epicId: string) => {
-  return fetchData(`/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories`);
+export const getEpicStories = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+) => {
+  return fetchData(
+    `/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories`,
+  );
 };
 
-export const getStoryDetails = async (workspaceId: string, projectId: string, epicId: string, storyId: string) => {
-  return fetchData(`/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}`);
+export const getStoryDetails = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+  storyId: string,
+) => {
+  return fetchData(
+    `/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}`,
+  );
 };
 
-export const createStory = async (workspaceId: string, projectId: string, epicId: string, data: any) => {
-  return postData(`/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories`, data);
+export const createStory = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+  data: any,
+) => {
+  return postData(
+    `/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories`,
+    data,
+  );
 };
 
-export const updateStory = async (workspaceId: string, projectId: string, epicId: string, storyId: string, data: any) => {
-  return updateData(`/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}`, data);
+export const updateStory = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+  storyId: string,
+  data: any,
+) => {
+  return updateData(
+    `/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}`,
+    data,
+  );
 };
 
-export const deleteStory = async (workspaceId: string, projectId: string, epicId: string, storyId: string) => {
-  return deleteData(`/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}`);
+export const deleteStory = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+  storyId: string,
+) => {
+  return deleteData(
+    `/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}`,
+  );
 };
 
-export const archiveStory = async (workspaceId: string, projectId: string, epicId: string, storyId: string) => {
-  return updateData(`/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}/archive`, {});
+export const archiveStory = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+  storyId: string,
+) => {
+  return updateData(
+    `/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}/archive`,
+    {},
+  );
 };
 
-export const addTaskToStory = async (workspaceId: string, projectId: string, epicId: string, storyId: string, taskId: string) => {
-  return postData(`/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}/tasks`, { taskId });
+export const addTaskToStory = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+  storyId: string,
+  taskId: string,
+) => {
+  return postData(
+    `/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}/tasks`,
+    { taskId },
+  );
 };
 
-export const removeTaskFromStory = async (workspaceId: string, projectId: string, epicId: string, storyId: string, taskId: string) => {
-  return deleteData(`/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}/tasks/${taskId}`);
+export const removeTaskFromStory = async (
+  workspaceId: string,
+  projectId: string,
+  epicId: string,
+  storyId: string,
+  taskId: string,
+) => {
+  return deleteData(
+    `/stories/workspace/${workspaceId}/projects/${projectId}/epics/${epicId}/stories/${storyId}/tasks/${taskId}`,
+  );
 };
 
 // ============= TASKS =============
@@ -193,7 +310,10 @@ export const updateTaskTitle = async (taskId: string, title: string) => {
   return updateData(`/tasks/${taskId}/title`, { title });
 };
 
-export const updateTaskDescription = async (taskId: string, description: string) => {
+export const updateTaskDescription = async (
+  taskId: string,
+  description: string,
+) => {
   return updateData(`/tasks/${taskId}/description`, { description });
 };
 
@@ -213,8 +333,14 @@ export const addSubTask = async (taskId: string, title: string) => {
   return postData(`/tasks/${taskId}/create-subtask`, { title });
 };
 
-export const updateSubTask = async (taskId: string, subTaskId: string, completed: boolean) => {
-  return updateData(`/tasks/${taskId}/update-subtask/${subTaskId}`, { completed });
+export const updateSubTask = async (
+  taskId: string,
+  subTaskId: string,
+  completed: boolean,
+) => {
+  return updateData(`/tasks/${taskId}/update-subtask/${subTaskId}`, {
+    completed,
+  });
 };
 
 export const addComment = async (taskId: string, text: string) => {
@@ -258,8 +384,16 @@ export const resetPasswordRequest = async (email: string) => {
   return postData("/auth/reset-password-request", { email });
 };
 
-export const resetPassword = async (token: string, newPassword: string, confirmPassword: string) => {
-  return postData("/auth/reset-password", { token, newPassword, confirmPassword });
+export const resetPassword = async (
+  token: string,
+  newPassword: string,
+  confirmPassword: string,
+) => {
+  return postData("/auth/reset-password", {
+    token,
+    newPassword,
+    confirmPassword,
+  });
 };
 
 // ============= USER =============
@@ -271,6 +405,14 @@ export const updateUserProfile = async (data: any) => {
   return updateData("/users/profile", data);
 };
 
-export const changePassword = async (currentPassword: string, newPassword: string, confirmPassword: string) => {
-  return updateData("/users/change-password", { currentPassword, newPassword, confirmPassword });
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string,
+) => {
+  return updateData("/users/change-password", {
+    currentPassword,
+    newPassword,
+    confirmPassword,
+  });
 };

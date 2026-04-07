@@ -39,8 +39,7 @@ app.use(express.json());
 // Attach io to app for access in controllers
 app.set("io", io);
 
-const PORT = process.env.PORT || 5001;
-
+const PORT = process.env.PORT || 5000;
 // API Routes
 app.use("/api-v1", routes);
 

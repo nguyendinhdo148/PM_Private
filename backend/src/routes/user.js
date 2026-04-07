@@ -5,6 +5,7 @@ import {
   getUserProfile,
   updateUserProfile,
 } from "../controllers/user.js";
+import upload from "../middleware/upload-middleware.js";
 import { z } from "zod";
 import { validateRequest } from "zod-express-middleware";
 
@@ -14,6 +15,7 @@ router.get("/profile", authenticateUser, getUserProfile);
 router.put(
   "/profile",
   authenticateUser,
+  upload.single("profilePicture"),
   validateRequest({
     body: z.object({
       name: z.string(),
