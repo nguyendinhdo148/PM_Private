@@ -87,7 +87,7 @@ export const TaskBoardView = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <TaskColumn
           id="To Do"
-          title="To Do"
+          title="Chưa trả"
           icon={<Circle className="w-4 h-4" />}
           color="slate"
           tasks={todoTasks}
@@ -95,7 +95,7 @@ export const TaskBoardView = ({
         />
         <TaskColumn
           id="In Progress"
-          title="In Progress"
+          title="Trả một phần"
           icon={<Clock className="w-4 h-4" />}
           color="blue"
           tasks={inProgressTasks}
@@ -103,7 +103,7 @@ export const TaskBoardView = ({
         />
         <TaskColumn
           id="Done"
-          title="Done"
+          title="Hoàn thành"
           icon={<CheckCircle className="w-4 h-4" />}
           color="green"
           tasks={doneTasks}
@@ -125,12 +125,12 @@ export const TaskBoardView = ({
                       : "bg-green-50 text-green-700 border-green-200",
                 )}
               >
-                {activeTask.priority}
+                {activeTask.priority === "High" ? "Cao" : activeTask.priority === "Medium" ? "TB" : "Thấp"}
               </span>
               <GripVertical className="w-3 h-3 text-slate-400" />
             </div>
-            <h4 className="font-medium text-sm text-slate-900 mt-2">
-              {activeTask.title}
+            <h4 className="font-semibold text-sm text-destructive mt-2">
+              {Number(activeTask.title).toLocaleString("vi-VN")} ₫
             </h4>
           </div>
         ) : null}

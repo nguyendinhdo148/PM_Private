@@ -23,14 +23,14 @@ export const TaskListView = ({
               <Target className="w-8 h-8 text-slate-400" />
             </div>
             <h3 className="text-lg font-medium text-slate-900 mb-1">
-              No tasks found
+              Chưa có công nợ nào
             </h3>
             <p className="text-slate-500 text-sm">
-              Create a new task to get started
+              Tạo một công nợ mới để bắt đầu theo dõi
             </p>
             <Button onClick={onCreateTask} className="mt-4">
               <Plus className="w-4 h-4 mr-2" />
-              New Task
+              Tạo công nợ
             </Button>
           </div>
         ) : (

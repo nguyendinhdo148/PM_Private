@@ -62,12 +62,12 @@ export const CommentSection = ({
 
   return (
     <div className="bg-card rounded-lg p-6 shadow-sm">
-      <h3 className="text-lg font-medium mb-4">Comments</h3>
+      <h3 className="text-lg font-medium mb-4">Ghi chú</h3>
 
       <ScrollArea className="h-[300px] mb-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <p className="text-sm text-muted-foreground">Loading comments...</p>
+            <p className="text-sm text-muted-foreground">Đang tải ghi chú...</p>
           </div>
         ) : comments?.length > 0 ? (
           comments.map((comment) => (
@@ -103,7 +103,7 @@ export const CommentSection = ({
           ))
         ) : (
           <div className="flex items-center justify-center py-8">
-            <p className="text-sm text-muted-foreground">No comment yet</p>
+            <p className="text-sm text-muted-foreground">Chưa có ghi chú nào</p>
           </div>
         )}
       </ScrollArea>
@@ -112,7 +112,7 @@ export const CommentSection = ({
 
       <div className="mt-4">
         <Textarea
-          placeholder="Add a comment"
+          placeholder="Thêm ghi chú mới..."
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           className="w-full p-2 border rounded-md mb-2"
@@ -122,7 +122,7 @@ export const CommentSection = ({
             disabled={!newComment.trim() || isPending}
             onClick={handleAddComment}
           >
-            Post Comment
+            Thêm nhận xét
           </Button>
         </div>
       </div>

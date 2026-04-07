@@ -22,9 +22,9 @@ export const ProjectList = ({
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {projects.length === 0 ? (
           <NoDataFound
-            title="No projects found"
-            description="Create a project to get started"
-            buttonText="Create Project"
+            title="Không có thành viên công nợ nào"
+            description="Tạo một thành viên công nợ mới để bắt đầu"
+            buttonText="Tạo thành viên công nợ"
             buttonAction={onCreateProject}
           />
         ) : (

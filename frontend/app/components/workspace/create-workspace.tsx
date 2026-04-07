@@ -83,7 +83,7 @@ const CreateWorkspace = ({
     >
       <DialogContent className="max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Workspace</DialogTitle>
+          <DialogTitle>Tạo tháng công nợ</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -94,9 +94,9 @@ const CreateWorkspace = ({
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>Tên tháng công nợ</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Workspace Name" />
+                      <Input {...field} placeholder="Tên tháng công nợ" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -108,11 +108,11 @@ const CreateWorkspace = ({
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>Mô tả</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder="Workspace Description"
+                        placeholder="Mô tả tháng công nợ"
                         rows={3}
                       />
                     </FormControl>

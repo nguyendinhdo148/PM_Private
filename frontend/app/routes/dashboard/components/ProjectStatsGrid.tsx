@@ -21,28 +21,21 @@ export const ProjectStatsGrid = ({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
       <StatCard
         icon={<TrendingUp className="w-5 h-5" />}
-        title="Overall Progress"
+        title="Tiến độ tổng thể"
         value={`${projectProgress}%`}
         color="blue"
         progress={projectProgress}
       />
       <StatCard
         icon={<Target className="w-5 h-5" />}
-        title="Total Tasks"
+        title="Tổng công nợ"
         value={tasks.length.toString()}
         color="purple"
-        badge={`${taskCounts.todo} todo · ${taskCounts.inProgress} in progress · ${taskCounts.done} done`}
-      />
-      <StatCard
-        icon={<FolderTree className="w-5 h-5" />}
-        title="Backlog Items"
-        value={`${epicStats.totalEpics} Epics`}
-        color="green"
-        badge={`${epicStats.totalStories} Stories`}
+        badge={`${taskCounts.todo} cần xử lý · ${taskCounts.inProgress} đang xử lý · ${taskCounts.done} hoàn thành`}
       />
       <StatCard
         icon={<Users className="w-5 h-5" />}
-        title="Team Members"
+        title="Người theo dõi công nợ"
         value={(members?.length || 0).toString()}
         color="orange"
         avatars={members}

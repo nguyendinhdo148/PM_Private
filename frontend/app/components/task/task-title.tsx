@@ -51,7 +51,7 @@ export const TaskTitle = ({
           onClick={updateTitle}
           disabled={isPending}
         >
-          Save
+          
         </Button>
       ) : (
         <Edit

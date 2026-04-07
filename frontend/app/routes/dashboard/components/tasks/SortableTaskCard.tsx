@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
 import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import {
   FolderTree,
   BookOpen,
@@ -44,6 +45,19 @@ export const SortableTaskCard = ({ task, onClick }: SortableTaskCardProps) => {
     Low: "bg-green-50 text-green-700 border-green-200",
   };
 
+  const priorityLabels = {
+    High: "Cao",
+    Medium: "TB",
+    Low: "Thấp",
+  };
+
+  // Tính toán số tiền còn lại
+  const totalDebt = Number(task.title) || 0;
+  const totalPaid = (task.subtasks || []).reduce((sum, sub) => {
+    return sub.completed ? sum + (Number(sub.title) || 0) : sum;
+  }, 0);
+  const remainingDebt = totalDebt - totalPaid;
+
   return (
     <div
       ref={setNodeRef}
@@ -63,14 +77,21 @@ export const SortableTaskCard = ({ task, onClick }: SortableTaskCardProps) => {
                   "bg-slate-100",
               )}
             >
-              {task.priority}
+              {priorityLabels[task.priority as keyof typeof priorityLabels] || task.priority}
             </span>
             <GripVertical className="w-3 h-3 text-slate-400" />
           </div>
 
-          <h4 className="font-medium text-sm text-slate-900 line-clamp-2">
-            {task.title}
-          </h4>
+          <div className="flex flex-col gap-0.5">
+             <h4 className="font-semibold text-sm text-destructive line-clamp-2">
+               Còn lại: {remainingDebt.toLocaleString("vi-VN")} ₫
+             </h4>
+             {totalPaid > 0 && (
+                 <span className="text-[10px] text-muted-foreground line-through">
+                    Tổng nợ: {totalDebt.toLocaleString("vi-VN")} ₫
+                 </span>
+             )}
+          </div>
 
           {epic && (
             <div className="flex items-center gap-1.5 text-xs">
@@ -122,7 +143,7 @@ export const SortableTaskCard = ({ task, onClick }: SortableTaskCardProps) => {
             {task.dueDate && (
               <div className="flex items-center gap-1 text-xs text-slate-500">
                 <Calendar className="w-3 h-3" />
-                {format(new Date(task.dueDate), "MMM d")}
+                {format(new Date(task.dueDate), "d MMM, yyyy", { locale: vi })}
               </div>
             )}
           </div>

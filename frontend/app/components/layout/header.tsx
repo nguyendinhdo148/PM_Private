@@ -65,13 +65,13 @@ export const Header = ({
                   <span className="font-medium">{selectedWorkspace?.name}</span>
                 </>
               ) : (
-                <span className="font-medium">Select Workspace</span>
+                <span className="font-medium">Chọn tháng công nợ</span>
               )}
             </Button>
           </DropdownMenuTrigger>
 
           <DropdownMenuContent>
-            <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+            <DropdownMenuLabel>Công nợ</DropdownMenuLabel>
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
@@ -91,7 +91,7 @@ export const Header = ({
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={onCreateWorkspace}>
                 <PlusCircle className="size-4 mr-2" />
-                Create Workspace
+                Tạo tháng công nợ
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>

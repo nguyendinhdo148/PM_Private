@@ -86,7 +86,7 @@ export const TaskColumn = ({
                   isOver ? "text-blue-500" : "text-slate-400",
                 )}
               >
-                {isOver ? "Release to move here" : "Drop tasks here"}
+                {isOver ? "Thả công nợ vào đây" : "Kéo thả công nợ vào đây"}
               </div>
             </div>
           ) : (

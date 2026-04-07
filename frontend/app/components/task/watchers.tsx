@@ -6,7 +6,7 @@ export const Watchers = ({ watchers }: { watchers: User[] }) => {
   return (
     <div className="bg-card rounded-lg p-6 shadow-sm mb-6">
       <h3 className="text-base font-bold text-muted-foreground mb-4">
-        Watchers
+        Người theo dõi
       </h3>
 
       <div className="space-y-2">
@@ -14,17 +14,18 @@ export const Watchers = ({ watchers }: { watchers: User[] }) => {
           watchers.map((watcher) => (
             <div key={watcher._id} className="flex items-center gap-2">
               <Avatar className="size-6">
-                <AvatarImage src={watcher.profilePicture}>
-                  <AvatarFallback>
-                    {watcher.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </AvatarImage>
+                {/* Đã sửa: AvatarImage thành thẻ tự đóng đứng độc lập */}
+                <AvatarImage src={watcher.profilePicture} alt={watcher.name} />
+                
+                {/* Đã sửa: AvatarFallback nằm ngang hàng với AvatarImage */}
+                <AvatarFallback>
+                  {watcher.name.charAt(0).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
-              <p className="text-sm text-muted-foreground">{watcher.name}</p>
             </div>
           ))
         ) : (
-          <p className="text-sm text-muted-foreground">No watchers</p>
+          <p className="text-sm text-muted-foreground">Không có người theo dõi</p>
         )}
       </div>
     </div>

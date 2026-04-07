@@ -123,13 +123,13 @@ const ProjectDetails = () => {
       const story = data?.project?.epics
         ?.flatMap((e: any) => e.stories)
         .find((s: any) => s._id === selectedStoryId);
-      return `Showing tasks in story: ${story?.title}`;
+      return `Đang hiển thị công nợ trong story: ${story?.title}`;
     }
     if (selectedEpicId) {
       const epic = data?.project?.epics?.find(
         (e: any) => e._id === selectedEpicId,
       );
-      return `Showing tasks in epic: ${epic?.title}`;
+      return `Đang hiển thị công nợ trong epic: ${epic?.title}`;
     }
   };
 
@@ -145,9 +145,9 @@ const ProjectDetails = () => {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
         <div className="text-2xl font-bold text-muted-foreground">
-          Project not found
+          Không tìm thấy dự án
         </div>
-        <Button onClick={() => navigate(-1)}>Go Back</Button>
+        <Button onClick={() => navigate(-1)}>Quay lại</Button>
       </div>
     );
   }
@@ -180,6 +180,7 @@ const ProjectDetails = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <TaskToolbar
+           tasks={filteredTasks}
           epics={data.project.epics}
           selectedEpicId={selectedEpicId}
           selectedStoryId={selectedStoryId}

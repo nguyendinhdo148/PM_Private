@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { TaskStatus } from "@/types";
+import type { Task, TaskStatus } from "@/types";
+import { useMemo } from "react";
 import {
   FolderTree,
   BookOpen,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 interface TaskToolbarProps {
+  tasks: Task[]; 
   epics?: any[];
   selectedEpicId: string | null;
   selectedStoryId: string | null;
@@ -26,6 +28,7 @@ interface TaskToolbarProps {
 }
 
 export const TaskToolbar = ({
+  tasks,
   epics,
   selectedEpicId,
   selectedStoryId,
@@ -38,9 +41,39 @@ export const TaskToolbar = ({
   onViewModeChange,
   getFilterLabel,
 }: TaskToolbarProps) => {
+
+  // THUẬT TOÁN TÍNH TỔNG TIỀN THÔNG MINH
+  const { totalRemaining, totalPaid } = useMemo(() => {
+    let remaining = 0;
+    let paid = 0;
+
+    tasks.forEach((task) => {
+      const taskDebt = Number(task.title) || 0;
+
+      if (task.status === "Done") {
+        // NẾU ĐÃ HOÀN THÀNH: Tự động cộng full 100% tiền nợ vào "Đã thu"
+        paid += taskDebt;
+      } else {
+        // NẾU CHƯA HOÀN THÀNH: Tính theo số tiền thực tế đã tick
+        const taskPaid = (task.subtasks || []).reduce(
+          (sum, sub) => (sub.completed ? sum + (Number(sub.title) || 0) : sum),
+          0
+        );
+
+        paid += taskPaid;
+        // Cần thu = Tổng nợ - Đã trả
+        remaining += (taskDebt - taskPaid);
+      }
+    });
+
+    return { totalRemaining: remaining, totalPaid: paid };
+  }, [tasks]);
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 mb-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        
+        {/* BỘ LỌC BÊN TRÁI */}
         <div className="flex items-center gap-2 flex-wrap">
           {epics && epics.length > 0 && (
             <div className="relative group">
@@ -50,9 +83,7 @@ export const TaskToolbar = ({
                 className="gap-2 border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-slate-600"
               >
                 <FolderTree className="w-4 h-4" />
-                {selectedEpicId || selectedStoryId
-                  ? "Filtered"
-                  : "Filter by Epic"}
+                {selectedEpicId || selectedStoryId ? "Đã lọc" : "Lọc theo Epic"}
                 {(selectedEpicId || selectedStoryId) && (
                   <X
                     className="w-3 h-3 ml-1 cursor-pointer hover:text-red-500"
@@ -70,7 +101,7 @@ export const TaskToolbar = ({
                     className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 flex items-center gap-2"
                   >
                     <Sparkles className="w-4 h-4 text-purple-500" />
-                    <span>All Tasks</span>
+                    <span>Tất cả công nợ</span>
                   </button>
                   {epics.map((epic: any) => (
                     <div key={epic._id} className="relative">
@@ -129,19 +160,45 @@ export const TaskToolbar = ({
                       : "text-slate-500 hover:text-slate-700",
                   )}
                 >
-                  {status}
+                  {status === "All"
+                    ? "Tất cả"
+                    : status === "To Do"
+                    ? "Chưa trả"
+                    : status === "In Progress"
+                    ? "Trả một phần"
+                    : "Hoàn thành"}
                 </button>
               ),
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+        {/* THỐNG KÊ TIỀN VÀ VIEW MODE BÊN PHẢI */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          
+          {/* BẢNG TỔNG KẾT TIỀN */}
+          <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 w-full sm:w-auto justify-between">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] uppercase font-bold text-slate-500">Đã thu</span>
+              <span className="text-sm md:text-base font-bold text-green-600">
+                {totalPaid.toLocaleString("vi-VN")} ₫
+              </span>
+            </div>
+            <div className="w-px h-8 bg-slate-300"></div>
+            <div className="flex flex-col items-start">
+              <span className="text-[10px] uppercase font-bold text-slate-500">Cần thu</span>
+              <span className="text-sm md:text-base font-bold text-destructive">
+                {totalRemaining.toLocaleString("vi-VN")} ₫
+              </span>
+            </div>
+          </div>
+
+          {/* VIEW MODE TOGGLES */}
+          <div className="flex gap-1 bg-slate-100 rounded-lg p-1 self-end sm:self-auto">
             <button
               onClick={() => onViewModeChange("board")}
               className={cn(
-                "p-1.5 rounded-md transition-all",
+                "p-2 rounded-md transition-all",
                 viewMode === "board"
                   ? "bg-white shadow-sm text-slate-900"
                   : "text-slate-500",
@@ -152,7 +209,7 @@ export const TaskToolbar = ({
             <button
               onClick={() => onViewModeChange("list")}
               className={cn(
-                "p-1.5 rounded-md transition-all",
+                "p-2 rounded-md transition-all",
                 viewMode === "list"
                   ? "bg-white shadow-sm text-slate-900"
                   : "text-slate-500",
@@ -162,6 +219,7 @@ export const TaskToolbar = ({
             </button>
           </div>
         </div>
+
       </div>
 
       {(selectedEpicId || selectedStoryId) && (
@@ -175,7 +233,7 @@ export const TaskToolbar = ({
             className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
           >
             <X className="w-3 h-3" />
-            Clear
+            Xóa bộ lọc
           </button>
         </div>
       )}

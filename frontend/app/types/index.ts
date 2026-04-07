@@ -32,7 +32,6 @@ export enum ProjectStatus {
 }
 export interface Project {
   epics: any;
-  epics: any;
   _id: string;
   title: string;
   description?: string;
@@ -67,7 +66,6 @@ export interface SubTask {
 }
 
 export interface Task {
-  story: any;
   story: any;
   _id: string;
   title: string;

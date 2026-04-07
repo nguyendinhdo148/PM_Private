@@ -2,7 +2,8 @@ import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true, trim: true },
+    // Đã đổi thành Number và xóa trim: true
+    title: { type: Number, required: true }, 
     description: { type: String, trim: true },
     project: {
       type: mongoose.Schema.Types.ObjectId,
@@ -34,7 +35,7 @@ const taskSchema = new mongoose.Schema(
     subtasks: [
       {
         title: {
-          type: String,
+          type: Number, // Đã đổi thành Number
           required: true,
         },
         completed: {

@@ -47,7 +47,7 @@ export const ProjectCard = ({
           <div className="space-y-4">
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
-                <span>Progress</span>
+                <span>Đã hoàn trả</span>
                 <span>{progress}%</span>
               </div>
 
@@ -57,7 +57,7 @@ export const ProjectCard = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center text-sm gap-2 text-muted-foreground">
                 <span>{project.tasks.length}</span>
-                <span>Tasks</span>
+                <span>người đang nợ</span>
               </div>
 
               {project.dueDate && (

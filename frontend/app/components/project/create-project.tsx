@@ -93,9 +93,9 @@ export const CreateProjectDialog = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-135">
         <DialogHeader>
-          <DialogTitle>Create Project</DialogTitle>
+          <DialogTitle>Thêm công nợ cho thành viên</DialogTitle>
           <DialogDescription>
-            Create a new project to get started
+            Thêm thành viên công nợ mới và bắt đầu theo dõi
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -105,9 +105,9 @@ export const CreateProjectDialog = ({
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Project Title</FormLabel>
+                  <FormLabel>Tên người nợ</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Project Title" />
+                    <Input {...field} placeholder="Tên người cần tạo công nợ" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -118,11 +118,11 @@ export const CreateProjectDialog = ({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Project Description</FormLabel>
+                  <FormLabel>Mô tả công nợ</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
-                      placeholder="Project Description"
+                      placeholder="Mô tả công nợ"
                       rows={3}
                     />
                   </FormControl>
@@ -135,7 +135,7 @@ export const CreateProjectDialog = ({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Project Status</FormLabel>
+                  <FormLabel>Trạng thái công nợ</FormLabel>
                   <FormControl>
                     <FormControl>
                       <Select
@@ -165,7 +165,7 @@ export const CreateProjectDialog = ({
                 name="startDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Date</FormLabel>
+                    <FormLabel>Ngày bắt đầu</FormLabel>
                     <FormControl>
                       <Popover modal={true}>
                         <PopoverTrigger asChild>
@@ -180,7 +180,7 @@ export const CreateProjectDialog = ({
                             {field.value ? (
                               format(new Date(field.value), "PPPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>Chọn ngày</span>
                             )}
                           </Button>
                         </PopoverTrigger>
@@ -207,7 +207,7 @@ export const CreateProjectDialog = ({
                 name="dueDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Due Date</FormLabel>
+                    <FormLabel>Ngày kết thúc</FormLabel>
                     <FormControl>
                       <Popover modal={true}>
                         <PopoverTrigger asChild>
@@ -222,7 +222,7 @@ export const CreateProjectDialog = ({
                             {field.value ? (
                               format(new Date(field.value), "PPPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>Chọn ngày</span>
                             )}
                           </Button>
                         </PopoverTrigger>
@@ -250,7 +250,7 @@ export const CreateProjectDialog = ({
               name="tags"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tags</FormLabel>
+                  <FormLabel>Thẻ</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="Tags separated by comma" />
                   </FormControl>
@@ -276,7 +276,7 @@ export const CreateProjectDialog = ({
                           >
                             {selectedMembers.length === 0 ? (
                               <span className="text-muted-foreground">
-                                Select Members
+                                Chọn thành viên theo dõi
                               </span>
                             ) : selectedMembers.length <= 2 ? (
                               selectedMembers.map((m) => {

@@ -29,7 +29,7 @@ export const SubTasksDetails = ({
       { taskId, subTaskId, completed: checked },
       {
         onSuccess: () => {
-          toast.success("Sub-task updated successfully");
+          toast.success("Đã cập nhật trạng thái khoản trả");
         },
         onError: (error: any) => {
           const errorMessage = error.response.data.message;
@@ -46,7 +46,7 @@ export const SubTasksDetails = ({
       {
         onSuccess: () => {
           setNewSubTask("");
-          toast.success("Sub-task added successfully");
+          toast.success("Đã thêm khoản trả thành công");
         },
         onError: (error: any) => {
           const errorMessage = error.response.data.message;
@@ -56,13 +56,14 @@ export const SubTasksDetails = ({
       },
     );
   };
+  
   return (
     <div className="mb-6">
       <h3 className="text-sm font-medium text-muted-foreground mb-0">
-        Sub-Tasks
+        Số tiền đã trả
       </h3>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 space-y-2 mb-4">
         {subTasks.length > 0 ? (
           subTasks.map((subTask) => (
             <div key={subTask._id} className="flex items-center space-x-2">
@@ -77,25 +78,26 @@ export const SubTasksDetails = ({
 
               <label
                 className={cn(
-                  "text-sm",
+                  "text-sm font-medium",
                   subTask.completed ? "line-through text-muted-foreground" : "",
                 )}
               >
-                {subTask.title}
+                {Number(subTask.title).toLocaleString("vi-VN")} ₫
               </label>
             </div>
           ))
         ) : (
-          <div className="text-sm text-muted-foreground">No sub tasks</div>
+          <div className="text-sm text-muted-foreground">Chưa có khoản trả nào</div>
         )}
       </div>
 
       <div className="flex">
         <Input
+          type="number"
           value={newSubTask}
           onChange={(e) => setNewSubTask(e.target.value)}
-          placeholder="Add a sub-task"
-          className="mr-1"
+          placeholder="Nhập số tiền đã trả..."
+          className="mr-2"
           disabled={isPending}
         />
 
@@ -103,7 +105,7 @@ export const SubTasksDetails = ({
           onClick={handldeAddSubTask}
           disabled={isPending || newSubTask.length === 0}
         >
-          Add
+          Thêm
         </Button>
       </div>
     </div>

@@ -68,12 +68,12 @@ export const TaskAssigneesSelector = ({
   return (
     <div className="mb-6">
       <h3 className="text-sm font-medium text-muted-foreground mb-2">
-        Assignees
+        Người theo dõi
       </h3>
 
       <div className="flex flex-wrap gap-2 mb-2">
         {selectedIds.length === 0 ? (
-          <span className="text-xs text-muted-foreground">No assignees</span>
+          <span className="text-xs text-muted-foreground">Không có người theo dõi</span>
         ) : (
           projectMembers
             .filter((member) => selectedIds.includes(member.user._id))
@@ -110,13 +110,13 @@ export const TaskAssigneesSelector = ({
                 className="text-xs text-blue-600"
                 onClick={handleSelectAll}
               >
-                Select All
+                Chọn tất cả
               </button>
               <button
                 className="text-xs text-red-600"
                 onClick={handleUnselectAll}
               >
-                Unselect All
+                Bỏ chọn tất cả
               </button>
             </div>
 
@@ -148,7 +148,7 @@ export const TaskAssigneesSelector = ({
                 onClickCapture={() => setDropdownOpen(false)}
                 disabled={isPending}
               >
-                Cancel
+                Huỷ
               </Button>
               <Button
                 size="sm"
@@ -156,7 +156,7 @@ export const TaskAssigneesSelector = ({
                 onClickCapture={() => handleSave()}
                 disabled={isPending}
               >
-                Save
+                Lưu
               </Button>
             </div>
           </div>

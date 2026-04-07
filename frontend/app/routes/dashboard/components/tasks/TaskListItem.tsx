@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
 import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import {
   FolderTree,
   BookOpen,
@@ -26,6 +27,19 @@ export const TaskListItem = ({ task, onClick }: TaskListItemProps) => {
     Done: "bg-green-100 text-green-700",
   };
 
+  const statusLabels = {
+    "To Do": "Chưa trả",
+    "In Progress": "Trả một phần",
+    Done: "Hoàn thành",
+  };
+
+  // Tính toán số tiền còn lại
+  const totalDebt = Number(task.title) || 0;
+  const totalPaid = (task.subtasks || []).reduce((sum, sub) => {
+    return sub.completed ? sum + (Number(sub.title) || 0) : sum;
+  }, 0);
+  const remainingDebt = totalDebt - totalPaid;
+
   return (
     <div
       onClick={onClick}
@@ -39,7 +53,7 @@ export const TaskListItem = ({ task, onClick }: TaskListItemProps) => {
               statusColors[task.status as keyof typeof statusColors],
             )}
           >
-            {task.status}
+            {statusLabels[task.status as keyof typeof statusLabels]}
           </span>
           <span
             className={cn(
@@ -51,7 +65,7 @@ export const TaskListItem = ({ task, onClick }: TaskListItemProps) => {
                   : "bg-green-50 text-green-700",
             )}
           >
-            {task.priority}
+            {task.priority === "High" ? "Ưu tiên Cao" : task.priority === "Medium" ? "Ưu tiên TB" : "Ưu tiên Thấp"}
           </span>
           {epic && (
             <div className="flex items-center gap-1">
@@ -75,7 +89,18 @@ export const TaskListItem = ({ task, onClick }: TaskListItemProps) => {
             </div>
           )}
         </div>
-        <h4 className="font-medium text-slate-900 mb-1">{task.title}</h4>
+        
+        <div className="flex items-baseline gap-2 mb-1">
+            <h4 className="font-semibold text-destructive">
+                Còn lại: {remainingDebt.toLocaleString("vi-VN")} ₫
+            </h4>
+            {totalPaid > 0 && (
+                 <span className="text-xs text-muted-foreground line-through">
+                    {totalDebt.toLocaleString("vi-VN")} ₫
+                 </span>
+            )}
+        </div>
+
         {task.description && (
           <p className="text-sm text-slate-500 line-clamp-1">
             {task.description}
@@ -96,7 +121,7 @@ export const TaskListItem = ({ task, onClick }: TaskListItemProps) => {
         {task.dueDate && (
           <div className="flex items-center gap-1 text-xs text-slate-500">
             <Calendar className="w-3 h-3" />
-            {format(new Date(task.dueDate), "MMM d")}
+            {format(new Date(task.dueDate), "d MMM, yyyy", { locale: vi })}
           </div>
         )}
         <ArrowUpRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />

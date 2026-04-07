@@ -4,11 +4,12 @@ import type { Project, Task } from "@/types";
 import { Loader } from "@/components/loader";
 import { useAuth } from "@/provider/auth-context";
 import { BackButton } from "@/components/workspace/back-button";
-import { Eye, EyeOff, FolderTree, BookOpen, ChevronRight } from "lucide-react";
+import { Eye, EyeOff, FolderTree, BookOpen, ChevronRight, Wallet, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TaskTitle } from "@/components/task/task-title";
 import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
 import { TaskStatusSelector } from "@/components/task/task-status-selector";
 import { TaskDescription } from "@/components/task/task-description";
 import { TaskAssigneesSelector } from "@/components/task/task-assignees-selectort";
@@ -52,7 +53,7 @@ const TaskDetails = () => {
     if (!data) {
         return (
             <div className = "flex items-center justify-center h-screen"> 
-                <div className = "text-2xl font-bold">Task not found</div>
+                <div className = "text-2xl font-bold">Không tìm thấy công nợ</div>
             </div>
         );
     }
@@ -63,15 +64,21 @@ const TaskDetails = () => {
         (watcher) => watcher._id.toString() === user?._id.toString()
     );
     
-    const goBack = () => navigate(-1);
+    // THUẬT TOÁN TÍNH TIỀN TỰ ĐỘNG
+    const totalDebt = Number(task.title) || 0;
+    const totalPaid = task.subtasks.reduce((sum, sub) => {
+        // Chỉ cộng những khoản trả đã được tick hoàn thành (completed: true)
+        return sub.completed ? sum + (Number(sub.title) || 0) : sum;
+    }, 0);
+    const remainingDebt = totalDebt - totalPaid;
 
     const handleWatchTask = () => {
         watchTask({ taskId: task._id }, {
             onSuccess: () => {
-                toast.success("Task watched");
+                toast.success(isUserWatching ? "Đã ngừng theo dõi công nợ" : "Đã bắt đầu theo dõi công nợ");
             },
             onError: () => {
-                toast.error("Failed to watch task");
+                toast.error("Lỗi khi cập nhật trạng thái theo dõi");
             }
         });
     }
@@ -79,10 +86,10 @@ const TaskDetails = () => {
     const handleAchievedTask = () => {
         achievedTask({ taskId: task._id }, {
             onSuccess: () => {
-                toast.success("Task archived");
+                toast.success("Đã cập nhật trạng thái lưu trữ");
             },
             onError: () => {
-                toast.error("Failed to archive task");
+                toast.error("Lỗi khi lưu trữ công nợ");
             }
         });
     }
@@ -92,11 +99,11 @@ const TaskDetails = () => {
             { taskId: task._id },
             {
                 onSuccess: () => {
-                    toast.success("Task deleted");
+                    toast.success("Đã xóa công nợ thành công");
                     navigate(`/workspaces/${workspaceId}/projects/${projectId}`);
                 },
                 onError: () => {
-                    toast.error("Failed to delete task");
+                    toast.error("Lỗi khi xóa công nợ");
                 },
             }
         );
@@ -107,7 +114,7 @@ const TaskDetails = () => {
             {/* Navigation Breadcrumb */}
             <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <Link to={`/workspaces/${workspaceId}`} className="hover:text-foreground">
-                    Workspace
+                    Công nợ
                 </Link>
                 <ChevronRight className="w-4 h-4" />
                 <Link to={`/workspaces/${workspaceId}/projects/${projectId}`} className="hover:text-foreground">
@@ -142,11 +149,44 @@ const TaskDetails = () => {
             <div className="flex flex-col md:flex-row items-center justify-between mb-6">
                 <div className="flex flex-col md:flex-row md:items-center">
                     <BackButton />
-                    <h1 className="text-xl md:text-2xl font-bold">{task.title}</h1>
+                    
+                    {/* KHU VỰC HIỂN THỊ TỔNG KẾT TIỀN */}
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 ml-2">
+                        <div className="flex flex-col">
+                            <span className="text-xs text-muted-foreground uppercase font-semibold">Tổng nợ</span>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-800">
+                                {totalDebt.toLocaleString("vi-VN")} ₫
+                            </h1>
+                        </div>
+
+                        {totalPaid > 0 && (
+                            <>
+                                <div className="hidden md:block h-8 border-l border-slate-300"></div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
+                                        <Wallet className="w-3 h-3 text-green-600"/> Đã trả
+                                    </span>
+                                    <h1 className="text-xl md:text-2xl font-bold text-green-600">
+                                        {totalPaid.toLocaleString("vi-VN")} ₫
+                                    </h1>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="hidden md:block h-8 border-l border-slate-300"></div>
+                        <div className="flex flex-col">
+                            <span className="text-xs text-muted-foreground uppercase font-semibold flex items-center gap-1">
+                                <TrendingDown className="w-3 h-3 text-destructive"/> Còn lại
+                            </span>
+                            <h1 className="text-xl md:text-2xl font-bold text-destructive">
+                                {remainingDebt.toLocaleString("vi-VN")} ₫
+                            </h1>
+                        </div>
+                    </div>
 
                     {task.isArchived && (
-                        <Badge className="ml-2" variant={"outline"}>
-                            Archived
+                        <Badge className="ml-4 mt-2 md:mt-0" variant={"outline"}>
+                            Đã lưu trữ
                         </Badge>
                     )}
                 </div>
@@ -161,24 +201,16 @@ const TaskDetails = () => {
                         {isUserWatching ? (
                             <>
                                 <EyeOff className="mr-2 size-4" />
-                                Unwatch
+                                Ngừng theo dõi
                             </>
                         ) : (
                             <> 
                                 <Eye className="mr-2 size-4" />
-                                Watch
+                                Theo dõi
                             </>
                         )}
                     </Button>
 
-                    <Button 
-                        variant={"outline"} 
-                        size="sm" 
-                        onClick={handleAchievedTask}
-                        className="w-fit"
-                        disabled={isAchieved}>
-                        {task.isArchived ? "Unarchive" : "Archive"}
-                    </Button>
                 </div>
             </div>    
 
@@ -210,7 +242,7 @@ const TaskDetails = () => {
                                         task.story.epic.priority === "High" ? "destructive" : 
                                         task.story.epic.priority === "Medium" ? "default" : "outline"
                                     } className="text-xs">
-                                        {task.story.epic.priority}
+                                        {task.story.epic.priority === "High" ? "Cao" : task.story.epic.priority === "Medium" ? "Trung bình" : "Thấp"}
                                     </Badge>
                                 )}
                             </div>
@@ -241,12 +273,12 @@ const TaskDetails = () => {
                                     task.story.priority === "High" ? "destructive" : 
                                     task.story.priority === "Medium" ? "default" : "outline"
                                 } className="text-xs">
-                                    {task.story.priority}
+                                    {task.story.priority === "High" ? "Cao" : task.story.priority === "Medium" ? "Trung bình" : "Thấp"}
                                 </Badge>
                             )}
                             {task.story.storyPoints > 0 && (
                                 <Badge variant="outline" className="text-xs bg-white">
-                                    {task.story.storyPoints} pts
+                                    {task.story.storyPoints} điểm
                                 </Badge>
                             )}
                         </div>
@@ -263,14 +295,15 @@ const TaskDetails = () => {
                                     task.priority === "High" ? "destructive" : 
                                     task.priority === "Medium" ? "default" : "outline"
                                 } className="mb-2 capitalize">
-                                    {task.priority} Priority
+                                    Ưu tiên {task.priority === "High" ? "Cao" : task.priority === "Medium" ? "Trung bình" : "Thấp"}
                                 </Badge>
+                                
                                 <TaskTitle title={task.title} taskId={task._id}/>
 
-                                <div className="text-sm md:text-base text-muted-foreground">
-                                    Created at:{" "}
+                                <div className="text-sm md:text-base text-muted-foreground mt-2">
+                                    Tạo lúc:{" "}
                                     {formatDistanceToNow(new Date(task.createdAt), 
-                                    { addSuffix: true })}
+                                    { addSuffix: true, locale: vi })}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 mt-4 md:mt-0">
@@ -282,14 +315,14 @@ const TaskDetails = () => {
                                     className="hidden md:block"
                                     disabled={isDeleting}
                                 >
-                                    Delete Task
+                                    Xóa công nợ
                                 </Button>
                             </div>
                         </div>
 
                         <div className="mb-6">
-                            <h3 className="text-sm font-medium text-muted-foreground mb-0">
-                                Description
+                            <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                Ghi chú
                             </h3>
                             <TaskDescription description={task.description || ""} taskId={task._id} />
                         </div>

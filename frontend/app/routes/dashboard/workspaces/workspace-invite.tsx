@@ -100,13 +100,13 @@ const WorkspaceInvite = () => {
           <CardHeader>
             <CardTitle>Invalid Invitation</CardTitle>
             <CardDescription>
-              This workspace invitation is invalid or has expired
+              Mời thành viên xem danh sách công nợ
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             <Button onClick={() => navigate("/workspaces")} className="w-full">
-              Go to Workspaces
+              Đi đến trang công nợ
             </Button>
           </CardContent>
         </Card>
@@ -123,8 +123,8 @@ const WorkspaceInvite = () => {
             <CardTitle>{workspace.name}</CardTitle>
           </div>
           <CardDescription>
-            You've been invited to join the "<strong>{workspace.name}</strong>"
-            workspace.
+            Bạn đã mời thành viên này tham gia"<strong>{workspace.name}</strong>"
+            Công nợ
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -154,7 +154,7 @@ const WorkspaceInvite = () => {
                 isAcceptInviteByTokenPending || isAcceptGenerateInvitePending
               }
             >
-              Decline
+              Từ chối
             </Button>
           </div>
         </CardContent>

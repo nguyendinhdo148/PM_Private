@@ -90,7 +90,7 @@ export const CreateTaskDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Task</DialogTitle>
+          <DialogTitle>Tạo công nợ mới</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -102,9 +102,9 @@ export const CreateTaskDialog = ({
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Title</FormLabel>
+                      <FormLabel>Số tiền</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter task title" />
+                        <Input {...field} placeholder="Nhập số tiền" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -115,11 +115,11 @@ export const CreateTaskDialog = ({
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>Mô tả</FormLabel>
                       <FormControl>
                         <Textarea
                           {...field}
-                          placeholder="Enter task description"
+                          placeholder="Nhập mô tả công nợ"
                         />
                       </FormControl>
                       <FormMessage />
@@ -133,7 +133,7 @@ export const CreateTaskDialog = ({
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status</FormLabel>
+                        <FormLabel>Trạng thái</FormLabel>
                         <FormControl>
                           <Select
                             onValueChange={field.onChange}
@@ -147,11 +147,11 @@ export const CreateTaskDialog = ({
                               </FormControl>
 
                               <SelectContent>
-                                <SelectItem value="To Do">To Do</SelectItem>
+                                <SelectItem value="To Do">Chưa trả</SelectItem>
                                 <SelectItem value="In Progress">
-                                  In Progress
+                                  Trả một phần
                                 </SelectItem>
-                                <SelectItem value="Done">Done</SelectItem>
+                                <SelectItem value="Done">Đã trả</SelectItem>
                               </SelectContent>
                             </FormItem>
                           </Select>
@@ -166,7 +166,7 @@ export const CreateTaskDialog = ({
                     name="priority"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Priority</FormLabel>
+                        <FormLabel>Mức độ hoàn trả</FormLabel>
                         <FormControl>
                           <Select
                             onValueChange={field.onChange}
@@ -180,9 +180,9 @@ export const CreateTaskDialog = ({
                               </FormControl>
 
                               <SelectContent>
-                                <SelectItem value="Low">Low</SelectItem>
-                                <SelectItem value="Medium">Medium</SelectItem>
-                                <SelectItem value="High">High</SelectItem>
+                                <SelectItem value="Low">Thấp</SelectItem>
+                                <SelectItem value="Medium">Trung Bình</SelectItem>
+                                <SelectItem value="High">Gấp</SelectItem>
                               </SelectContent>
                             </FormItem>
                           </Select>
@@ -198,7 +198,7 @@ export const CreateTaskDialog = ({
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Due Date</FormLabel>
+                      <FormLabel>Ngày hết hạn</FormLabel>
                       <FormControl>
                         <Popover modal={true}>
                           <PopoverTrigger asChild>
@@ -213,7 +213,7 @@ export const CreateTaskDialog = ({
                               {field.value ? (
                                 format(new Date(field.value), "PPPP")
                               ) : (
-                                <span>Pick a date</span>
+                                <span>Chọn một ngày</span>
                               )}
                             </Button>
                           </PopoverTrigger>
@@ -246,7 +246,7 @@ export const CreateTaskDialog = ({
 
                     return (
                       <FormItem>
-                        <FormLabel>Assignees</FormLabel>
+                        <FormLabel>Người theo dõi</FormLabel>
                         <FormControl>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -256,7 +256,7 @@ export const CreateTaskDialog = ({
                               >
                                 {selectedMembers.length === 0 ? (
                                   <span className="text-muted-foreground">
-                                    Select assignees
+                                    Chọn người theo dõi công nợ
                                   </span>
                                 ) : selectedMembers.length <= 2 ? (
                                   selectedMembers
@@ -326,7 +326,7 @@ export const CreateTaskDialog = ({
 
             <DialogFooter>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Creating..." : "Create Task"}
+                {isPending ? "Đang tạo công nợ ..." : "Tạo công nợ"}
               </Button>
             </DialogFooter>
           </form>

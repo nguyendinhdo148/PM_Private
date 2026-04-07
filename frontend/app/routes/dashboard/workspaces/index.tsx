@@ -33,11 +33,11 @@ const Workspaces = () => {
     <>
       <div className="space-y-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl md:text-3xl font-bold">Workspaces</h2>
+          <h2 className="text-xl md:text-3xl font-bold">Công nợ</h2>
 
           <Button onClick={() => setIsCreatingWorkspace(true)}>
             <PlusCircle className="size-4 mr-2" />
-            New Workspace
+            Thêm tháng công nợ
           </Button>
         </div>
 
@@ -48,9 +48,9 @@ const Workspaces = () => {
 
           {workspaces.length === 0 && (
             <NoDataFound
-              title="No workspaces found"
-              description="Create a new workspace to get started"
-              buttonText="Create Workspace"
+              title="Không có tháng công nợ nào"
+              description="Tạo một tháng công nợ mới để bắt đầu"
+              buttonText="Tạo tháng công nợ"
               buttonAction={() => setIsCreatingWorkspace(true)}
             />
           )}
@@ -93,7 +93,7 @@ const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
         </CardHeader>
         <CardContent>
           <div className="text-sm text-muted-foreground">
-            View Workspace details and projects
+            Xem chi tiết công nợ và người theo dõi công nợ
           </div>
         </CardContent>
       </Card>

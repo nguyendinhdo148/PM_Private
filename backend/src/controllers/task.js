@@ -12,7 +12,7 @@ const createTask = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -23,18 +23,18 @@ const createTask = async (req, res) => {
 
     if (!currentMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
     // chặn viewer
     if (currentMember.role === "viewer") {
       return res.status(403).json({
-        message: "You do not have permission to create task",
+        message: "Bạn không có quyền tạo công nợ",
       });
     }
 
-    // tạo task
+    // tạo task (công nợ)
     const task = await Task.create({
       ...req.body,
       project: projectId,
@@ -48,7 +48,7 @@ const createTask = async (req, res) => {
     return res.status(201).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -68,7 +68,7 @@ const getTaskById = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -80,7 +80,7 @@ const getTaskById = async (req, res) => {
     res.status(200).json({ task, project });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -93,7 +93,7 @@ const updateTaskTitle = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -101,7 +101,7 @@ const updateTaskTitle = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -110,7 +110,7 @@ const updateTaskTitle = async (req, res) => {
     );
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -119,15 +119,18 @@ const updateTaskTitle = async (req, res) => {
     task.title = title;
     await task.save();
 
+    const formattedOldAmount = Number(oldTitle).toLocaleString("vi-VN");
+    const formattedNewAmount = Number(title).toLocaleString("vi-VN");
+
     //record activity
     await recordActivity(req.user._id, "updated_task", "Task", task._id, {
-      description: `Updated task title from "${oldTitle}" to "${title}"`,
+      description: `Đã cập nhật số tiền nợ từ "${formattedOldAmount} ₫" thành "${formattedNewAmount} ₫"`,
     });
 
     res.status(200).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -140,7 +143,7 @@ const updateTaskDescription = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -148,7 +151,7 @@ const updateTaskDescription = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -157,7 +160,7 @@ const updateTaskDescription = async (req, res) => {
     );
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -174,13 +177,13 @@ const updateTaskDescription = async (req, res) => {
 
     //record activity
     await recordActivity(req.user._id, "updated_task", "Task", task._id, {
-      description: `Updated task description from "${oldDescription}" to "${newDescription}"`,
+      description: `Đã cập nhật ghi chú từ "${oldDescription}" thành "${newDescription}"`,
     });
 
     res.status(200).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -193,7 +196,7 @@ const updateTaskStatus = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -201,7 +204,7 @@ const updateTaskStatus = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -210,7 +213,7 @@ const updateTaskStatus = async (req, res) => {
     );
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -221,13 +224,13 @@ const updateTaskStatus = async (req, res) => {
 
     //record activity
     await recordActivity(req.user._id, "updated_task", "Task", task._id, {
-      description: `Updated task status from "${oldStatus}" to "${status}"`,
+      description: `Đã cập nhật trạng thái công nợ từ "${oldStatus}" sang "${status}"`,
     });
 
     res.status(200).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -240,7 +243,7 @@ const updateTaskAssignees = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -248,7 +251,7 @@ const updateTaskAssignees = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -257,7 +260,7 @@ const updateTaskAssignees = async (req, res) => {
     );
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -268,13 +271,13 @@ const updateTaskAssignees = async (req, res) => {
 
     //record activity
     await recordActivity(req.user._id, "updated_task", "Task", task._id, {
-      description: `Updated task assignees from "${oldAssignees.length}" to "${assignees}"`,
+      description: `Đã cập nhật người liên quan từ "${oldAssignees.length}" thành "${assignees.length}" người`,
     });
 
     res.status(200).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -287,7 +290,7 @@ const updateTaskPriority = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -295,7 +298,7 @@ const updateTaskPriority = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -304,7 +307,7 @@ const updateTaskPriority = async (req, res) => {
     );
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -315,13 +318,13 @@ const updateTaskPriority = async (req, res) => {
 
     //record activity
     await recordActivity(req.user._id, "updated_task", "Task", task._id, {
-      description: `Updated task priority from "${oldPriority}" to "${priority}"`,
+      description: `Đã cập nhật mức độ ưu tiên của công nợ từ "${oldPriority}" đến "${priority}"`,
     });
 
     res.status(200).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -333,7 +336,7 @@ const deleteTask = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -341,7 +344,7 @@ const deleteTask = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -351,7 +354,7 @@ const deleteTask = async (req, res) => {
 
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -365,13 +368,13 @@ const deleteTask = async (req, res) => {
     await Task.findByIdAndDelete(task._id);
 
     return res.status(200).json({
-      message: "Task deleted successfully",
+      message: "Đã xóa công nợ thành công",
       taskId: task._id,
       projectId: project._id,
     });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -384,14 +387,14 @@ const addSubTask = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
     const project = await Project.findById(task.project);
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -401,7 +404,7 @@ const addSubTask = async (req, res) => {
 
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -413,15 +416,17 @@ const addSubTask = async (req, res) => {
     task.subtasks.push(newSubTask);
     await task.save();
 
+    const formattedAmount = Number(title).toLocaleString("vi-VN");
+
     //record activity
     await recordActivity(req.user._id, "created_subtask", "Task", task._id, {
-      description: `created sub-task "${title}"`,
+      description: `Đã thêm khoản trả: ${formattedAmount} ₫`,
     });
 
     res.status(201).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -434,7 +439,7 @@ const updateSubTask = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -443,22 +448,27 @@ const updateSubTask = async (req, res) => {
     );
     if (!subTask) {
       return res.status(404).json({
-        message: "Sub-task not found",
+        message: "Không tìm thấy khoản trả này",
       });
     }
 
+    // Cập nhật trạng thái completed
     subTask.completed = completed;
 
     await task.save();
 
-    //record activity
+    // Format số tiền kiểu 1.000.000
+    const formattedAmount = Number(subTask.title).toLocaleString("vi-VN");
+
+    // Ghi activity
     await recordActivity(req.user._id, "updated_subtask", "Task", task._id, {
-      description: `Updated sub-task "${subTask.title}"`,
+      description: `Đã ${completed ? "xác nhận" : "hủy xác nhận"} khoản trả: ${formattedAmount} ₫`,
     });
+
     res.status(200).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -473,7 +483,7 @@ const getActivityByResourceId = async (req, res) => {
     res.status(200).json(activity);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -486,7 +496,7 @@ const addComment = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -494,7 +504,7 @@ const addComment = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -504,7 +514,7 @@ const addComment = async (req, res) => {
 
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -519,7 +529,7 @@ const addComment = async (req, res) => {
 
     //record activity
     await recordActivity(req.user._id, "added_comment", "Task", task._id, {
-      description: `Added comment "${text.substring(
+      description: `Đã thêm bình luận: "${text.substring(
         0,
         50,
       )}${text.length > 50 ? "..." : ""}"`,
@@ -528,7 +538,7 @@ const addComment = async (req, res) => {
     res.status(201).json(newComment);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -542,14 +552,14 @@ const getCommentsByTaskId = async (req, res) => {
 
     if (!comments) {
       return res.status(404).json({
-        message: "Comments not found",
+        message: "Không tìm thấy bình luận",
       });
     }
 
     res.status(200).json(comments);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -561,7 +571,7 @@ const watchTask = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
 
@@ -569,7 +579,7 @@ const watchTask = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -579,7 +589,7 @@ const watchTask = async (req, res) => {
 
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -595,14 +605,16 @@ const watchTask = async (req, res) => {
 
     await task.save();
 
+    const formattedAmount = Number(task.title).toLocaleString("vi-VN");
+
     await recordActivity(req.user._id, "updated_task", "Task", task._id, {
-      description: `${isWatching ? "stopped watching" : "started watching"} task "${task.title}"`,
+      description: `${isWatching ? "Đã ngừng theo dõi" : "Đã bắt đầu theo dõi"} công nợ: ${formattedAmount} ₫`,
     });
 
     res.status(200).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -614,14 +626,14 @@ const achievedTask = async (req, res) => {
 
     if (!task) {
       return res.status(404).json({
-        message: "Task not found",
+        message: "Không tìm thấy công nợ",
       });
     }
     const project = await Project.findById(task.project);
 
     if (!project) {
       return res.status(404).json({
-        message: "Project not found",
+        message: "Không tìm thấy dự án",
       });
     }
 
@@ -631,7 +643,7 @@ const achievedTask = async (req, res) => {
 
     if (!isMember) {
       return res.status(403).json({
-        message: "You are not a member of this project",
+        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -641,14 +653,16 @@ const achievedTask = async (req, res) => {
 
     await task.save();
 
+    const formattedAmount = Number(task.title).toLocaleString("vi-VN");
+
     await recordActivity(req.user._id, "updated_task", "Task", task._id, {
-      description: `${isAchieved ? "unachieved" : "achieved"} task "${task.title}"`,
+      description: `${isAchieved ? "Đã bỏ lưu trữ" : "Đã lưu trữ"} công nợ: ${formattedAmount} ₫`,
     });
 
     res.status(200).json(task);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 
@@ -663,7 +677,7 @@ const getMyTasks = async (req, res) => {
     res.status(200).json(tasks);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 };
 

@@ -41,9 +41,9 @@ export const TaskPrioritySelector = ({
       </SelectTrigger>
 
       <SelectContent>
-        <SelectItem value="Low">Low</SelectItem>
-        <SelectItem value="Medium">Medium</SelectItem>
-        <SelectItem value="High">High</SelectItem>
+        <SelectItem value="Low">Thấp</SelectItem>
+        <SelectItem value="Medium">Trung bình</SelectItem>
+        <SelectItem value="High">Gấp</SelectItem>
       </SelectContent>
     </Select>
   );

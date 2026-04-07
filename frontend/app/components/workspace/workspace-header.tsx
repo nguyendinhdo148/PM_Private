@@ -37,11 +37,11 @@ export const WorkspaceHeader = ({
           <div className="flex items-center gap-3 justify-between md:justify-start mb-4 md:mb-0">
             <Button variant={"outline"} onClick={onInviteMember}>
               <UserPlus className="size-4 mr-2" />
-              Invite
+              Mời người theo dõi công nợ
             </Button>
             <Button onClick={onCreateProject}>
               <Plus className="size-4 mr-2" />
-              Create Project
+              Thêm thành viên công nợ
             </Button>
           </div>
         </div>

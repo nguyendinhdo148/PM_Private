@@ -54,7 +54,7 @@ export const TaskDescription = ({
           onClick={updateDescription}
           disabled={isPending}
         >
-          Save
+          Lưu
         </Button>
       ) : (
         <Edit

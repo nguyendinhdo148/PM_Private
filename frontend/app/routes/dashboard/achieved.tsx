@@ -158,7 +158,7 @@ const createWorkspaceChat = async (workspaceId: string) => {
     setShowNewChatModal(false);
   } catch (err) {
     console.error("Error creating workspace chat:", err);
-    setError("Failed to create workspace chat");
+    setError("Failed to create  chat");
   }
 };
 
@@ -651,7 +651,7 @@ const createWorkspaceChat = async (workspaceId: string) => {
                 <div style={{ marginBottom: "24px" }}>
                   <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>Nhắn tin với thành viên</label>
                   <select value={selectedWorkspace} onChange={(e) => handleWorkspaceChange(e.target.value)} style={{ width: "100%", padding: "12px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "16px", fontSize: "14px", outline: "none" }}>
-                    <option value="">Chọn workspace...</option>
+                    <option value="">Chọn tháng công nợ...</option>
                     {workspaces.map((workspace) => <option key={workspace._id} value={workspace._id}>{workspace.name}</option>)}
                   </select>
 
@@ -678,7 +678,7 @@ const createWorkspaceChat = async (workspaceId: string) => {
                 <div>
                   <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>Tạo nhóm Workspace</label>
                   <select onChange={(e) => { if (e.target.value) createWorkspaceChat(e.target.value); }} style={{ width: "100%", padding: "12px", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", outline: "none" }}>
-                    <option value="">Chọn workspace để tạo nhóm...</option>
+                    <option value="">Chọn tháng công nợ để tạo...</option>
                     {workspaces.map((workspace) => <option key={workspace._id} value={workspace._id}>{workspace.name}</option>)}
                   </select>
                 </div>

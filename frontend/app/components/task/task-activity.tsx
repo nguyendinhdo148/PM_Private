@@ -17,7 +17,7 @@ export const TaskActivity = ({ resourceId }: { resourceId: string }) => {
 
   return (
     <div className="bg-card rounded-lg p-6 shadow-sm">
-      <h3 className="text-lg text-muted-foreground mb-4">Activity</h3>
+      <h3 className="text-lg text-muted-foreground mb-4">Lịch sử người dùng</h3>
 
       <div className="space-y-4">
         {data?.map((activity) => (

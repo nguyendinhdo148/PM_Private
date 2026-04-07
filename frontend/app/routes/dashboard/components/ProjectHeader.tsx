@@ -39,7 +39,7 @@ export const ProjectHeader = ({
         size="sm"
       >
         <Plus className="w-4 h-4 mr-2" />
-        New Task
+        Tạo công nợ
       </Button>
     </div>
   );
