@@ -54,7 +54,7 @@ export const WorkspaceHeader = ({
 
       {members.length > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Members</span>
+          <span className="text-sm text-muted-foreground">Người theo dõi</span>
           <div className="flex space-x-2">
             {members.map((member) => (
               <Avatar

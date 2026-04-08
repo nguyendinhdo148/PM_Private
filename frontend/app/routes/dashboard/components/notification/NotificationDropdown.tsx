@@ -17,6 +17,14 @@ import { useSocket } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Notification {
   _id: string;
@@ -55,6 +63,7 @@ export const NotificationDropdown = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -215,7 +224,7 @@ export const NotificationDropdown = ({
   // Request notification permission
   useEffect(() => {
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
+      setShowPermissionDialog(true);
     }
   }, []);
 
@@ -401,6 +410,28 @@ export const NotificationDropdown = ({
           </div>
         </>
       )}
+
+      <Dialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Permission Request</DialogTitle>
+            <DialogDescription>
+              Allow notifications to stay updated with your tasks and messages.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPermissionDialog(false)}>
+              Not Now
+            </Button>
+            <Button onClick={() => {
+              Notification.requestPermission().catch(() => {});
+              setShowPermissionDialog(false);
+            }}>
+              Allow
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

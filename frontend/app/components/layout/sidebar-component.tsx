@@ -31,7 +31,7 @@ export const SidebarComponent = ({
   const navItems = [
     { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { title: "Công nợ", href: "/workspaces", icon: Users },
-    { title: "My Tasks", href: "/my-tasks", icon: ListCheck },
+    { title: "Báo cáo doanh thu", href: "/my-tasks", icon: ListCheck },
     { title: "Backlog", href: "/backlog", icon: FolderTree },
     { title: "Members", href: "/members", icon: Users },
     { title: "Messenger", href: "/achieved", icon: MessageCircle },

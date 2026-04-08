@@ -18,7 +18,7 @@ export const ProjectList = ({
 }: ProjectListProps) => {
   return (
     <div className="">
-      <h3 className="text-xl font-medium mb-4">Projects</h3>
+      <h3 className="text-xl font-medium mb-4">Công nợ</h3>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {projects.length === 0 ? (
           <NoDataFound
