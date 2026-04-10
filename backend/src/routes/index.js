@@ -1,4 +1,3 @@
-// routes/index.js
 import express from "express";
 import authRoutes from "./auth.js";
 import workspaceRoutes from "./workspace.js";
@@ -9,10 +8,15 @@ import epicRoutes from "./epic.js";
 import storyRoutes from "./story.js";
 import chatRoutes from "./chat.js"; 
 import notificationRoutes from "./notification.js";
-
-// <-- IMPORT 2 FILE MỚI -->
 import monthlyReportRoutes from "./monthlyReport.js"; 
-import dailyRevenueRoutes from "./dailyRevenue.js";   
+import dailyRevenueRoutes from "./dailyRevenue.js"; 
+import invoiceMonthRoutes from "./invoiceMonth.js";
+import invoiceRoutes from "./invoice.js"; 
+import staffRoutes from "./staff.js";
+import tipRoutes from "./tip.js"; 
+
+// <-- IMPORT ROUTE HOA HỒNG RƯỢU -->
+import wineCommissionRoutes from "./wineCommission.js";
 
 const router = express.Router();
 
@@ -25,9 +29,14 @@ router.use("/epics", epicRoutes);
 router.use("/stories", storyRoutes);
 router.use("/chat", chatRoutes); 
 router.use("/notifications", notificationRoutes);
-
-// <-- GẮN ROUTE VÀO API -->
 router.use("/monthly-reports", monthlyReportRoutes); 
-router.use("/daily-revenues", dailyRevenueRoutes);   
+router.use("/daily-revenues", dailyRevenueRoutes); 
+router.use("/invoice-months", invoiceMonthRoutes);
+router.use("/invoices", invoiceRoutes); 
+router.use("/tips", tipRoutes);
+router.use("/staff", staffRoutes);
+
+// <-- GẮN VÀO API -->
+router.use("/wine-commission", wineCommissionRoutes);
 
 export default router;

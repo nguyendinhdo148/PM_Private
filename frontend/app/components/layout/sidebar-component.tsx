@@ -12,7 +12,8 @@ import {
   Users,
   Wrench,
   FolderTree,
-  MessageCircle, // ✅ THÊM icon cho Backlog
+  MessageCircle,
+  GlassWater, // <-- THÊM ICON NÀY
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -32,8 +33,10 @@ export const SidebarComponent = ({
     { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { title: "Công nợ", href: "/workspaces", icon: Users },
     { title: "Báo cáo doanh thu", href: "/my-tasks", icon: ListCheck },
-    { title: "Backlog", href: "/backlog", icon: FolderTree },
-    { title: "Members", href: "/members", icon: Users },
+    { title: "Đã post & Chưa post", href: "/backlog", icon: FolderTree },
+    { title: "Chia Tips", href: "/members", icon: Users },
+    // <-- THÊM DÒNG HOA HỒNG RƯỢU VÀO MENU -->
+    { title: "Hoa Hồng Rượu", href: "/wine-commission", icon: GlassWater },
     { title: "Messenger", href: "/achieved", icon: MessageCircle },
     { title: "Settings", href: "/settings", icon: Settings },
   ];
