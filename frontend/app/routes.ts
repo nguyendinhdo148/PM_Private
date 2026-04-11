@@ -39,6 +39,9 @@ export default [
     // <-- THÊM ROUTE CHO HOA HỒNG RƯỢU TẠI ĐÂY -->
     route("wine-commission", "routes/dashboard/WineCommission.tsx"),
 
+    // <-- THÊM ROUTE CHO QUẢN LÝ HỦY MÓN TẠI ĐÂY -->
+    route("cancel-report", "routes/dashboard/cancel-report.tsx"),
+
     route("achieved", "routes/dashboard/achieved.tsx"),
     route("settings", "routes/dashboard/settings.tsx"),
   ]),

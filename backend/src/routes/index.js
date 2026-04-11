@@ -18,6 +18,9 @@ import tipRoutes from "./tip.js";
 // <-- IMPORT ROUTE HOA HỒNG RƯỢU -->
 import wineCommissionRoutes from "./wineCommission.js";
 
+// <-- IMPORT ROUTE QUẢN LÝ HỦY MÓN -->
+import cancelReportRoutes from "./cancelReport.js";
+
 const router = express.Router();
 
 router.use("/auth", authRoutes);
@@ -38,5 +41,6 @@ router.use("/staff", staffRoutes);
 
 // <-- GẮN VÀO API -->
 router.use("/wine-commission", wineCommissionRoutes);
+router.use("/cancel-reports", cancelReportRoutes);
 
 export default router;

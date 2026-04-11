@@ -44,12 +44,16 @@ export const createCommissionBill = async (req, res) => {
 
     // Server tự tính toán lại để tránh gian lận từ client
     const calcResult = calculateCommissionLogic(items);
+    
+    // Tự động cắt chuỗi "2026-03-15" thành "2026-03" để truyền cho Mongoose
+    const monthStr = date.substring(0, 7);
 
     const newBill = new WineCommission({
       date,
+      monthStr, // <--- ĐÃ BỔ SUNG TRƯỜNG NÀY VÀO ĐỂ FIX LỖI
       staffName,
-      customerName,
-      invoiceNumber,
+      customerName: customerName || "",
+      invoiceNumber: invoiceNumber || "",
       items: items.map(item => ({
         ...item,
         totalPrice: item.price * item.quantity
@@ -62,14 +66,22 @@ export const createCommissionBill = async (req, res) => {
     await newBill.save();
     return res.status(201).json({ success: true, data: newBill });
   } catch (error) {
+    console.error("Lưu Bill Lỗi:", error);
     return res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
   }
 };
 
-// [READ ALL] Lấy danh sách toàn bộ lịch sử Bill
+// [READ ALL] Lấy danh sách toàn bộ lịch sử Bill (Hỗ trợ lọc)
 export const getAllCommissionBills = async (req, res) => {
   try {
-    const bills = await WineCommission.find().sort({ date: -1, createdAt: -1 });
+    const { month } = req.query; 
+    let query = {};
+    
+    if (month) {
+      query.date = { $regex: `^${month}` }; 
+    }
+
+    const bills = await WineCommission.find(query).sort({ date: -1, createdAt: -1 });
     return res.status(200).json({ success: true, data: bills });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
@@ -83,12 +95,14 @@ export const updateCommissionBill = async (req, res) => {
     const { date, staffName, customerName, invoiceNumber, items } = req.body;
 
     const calcResult = calculateCommissionLogic(items);
+    const monthStr = date.substring(0, 7);
 
     const updatedData = {
       date,
+      monthStr, // <--- ĐÃ BỔ SUNG TRƯỜNG NÀY
       staffName,
-      customerName,
-      invoiceNumber,
+      customerName: customerName || "",
+      invoiceNumber: invoiceNumber || "",
       items: items.map(item => ({
         ...item,
         totalPrice: item.price * item.quantity
@@ -114,6 +128,20 @@ export const deleteCommissionBill = async (req, res) => {
     const { id } = req.params;
     await WineCommission.findByIdAndDelete(id);
     return res.status(200).json({ success: true, message: "Xóa thành công" });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
+  }
+};
+
+// [DELETE THÁNG] Xóa toàn bộ Bill trong tháng
+export const deleteCommissionByMonth = async (req, res) => {
+  try {
+    const { month } = req.params; 
+    if (!month) return res.status(400).json({ success: false, message: "Thiếu tháng cần xóa" });
+
+    const result = await WineCommission.deleteMany({ date: { $regex: `^${month}` } });
+    
+    return res.status(200).json({ success: true, message: `Đã xóa ${result.deletedCount} bill của tháng ${month}` });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
   }
