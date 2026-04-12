@@ -199,7 +199,8 @@ const wineData = [
   { id: "W187", name: "RƯỢU BAILEYS GLASS", price: 220000 },
   { id: "W188A", name: "RƯỢU SAKE Kubota Senju Ginjo 15% 720ml", price: 2100000 },
   { id: "W188B", name: "Sake Kubota Junmai Daiginjo 300ml", price: 1100000 },
-  { id: "W188C", name: "MACALLAN 18 DOUBLE CASK GLASS", price: 2200000 }
+  { id: "W188C", name: "MACALLAN 18 DOUBLE CASK GLASS", price: 2200000 },
+  { id: "W189", name: "RƯỢU Vang F Negroamaro", price: 2800000 },
 ];
 
 export default function WineCommissionPage() {

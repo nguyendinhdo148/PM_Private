@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select as SelectUI, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Search, Calendar, RefreshCcw, FileWarning, Trash2, CheckSquare, Minus, Plus, Edit3, XCircle, FileText, ClipboardList, PlusCircle } from "lucide-react";
+import { Save, Search, Calendar, RefreshCcw, FileWarning, Trash2, CheckSquare, Minus, Plus, Edit3, XCircle, FileText, ClipboardList, PlusCircle, ArrowUpDown, Receipt } from "lucide-react";
 import { fetchData, postData, updateData, deleteData } from "@/lib/fetch-util";
 
 // ==========================================
@@ -975,6 +975,9 @@ export default function CancelReportPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
   const [isLoading, setIsLoading] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
+  
+  // Trạng thái sắp xếp thời gian (Mới nhất / Cũ nhất)
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   // Quản lý danh sách món (bao gồm món mặc định + món tự thêm mới)
   const [availableItems, setAvailableItems] = useState<any[]>(initialCancelData);
@@ -1012,6 +1015,15 @@ export default function CancelReportPage() {
   useEffect(() => { loadData(); }, [selectedMonth]);
 
   const formatVND = (num: number) => Math.round(num).toLocaleString("vi-VN") + "đ";
+
+  // Danh sách log đã được sắp xếp theo thời gian
+  const sortedLogs = useMemo(() => {
+    return [...logs].sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.date).getTime();
+      const timeB = new Date(b.createdAt || b.date).getTime();
+      return sortOrder === "desc" ? timeB - timeA : timeA - timeB;
+    });
+  }, [logs, sortOrder]);
 
   // ==========================================
   // THAO TÁC GIỎ HÀNG (CART POS)
@@ -1065,13 +1077,9 @@ export default function CancelReportPage() {
       price: Number(newItemPrice) || 0
     };
 
-    // Bổ sung vào danh sách gợi ý chung để lát gõ tìm kiếm sẽ ra
     setAvailableItems(prev => [newItem, ...prev]);
-    
-    // Đẩy thẳng vào giỏ hàng của phiếu đang nhập
     handleSelectItem(newItem);
     
-    // Đóng form tạo món mới
     setIsAddingNew(false);
     setNewItemName("");
     setNewItemPrice("");
@@ -1083,7 +1091,6 @@ export default function CancelReportPage() {
   const handleSaveLog = async () => {
     if (cartItems.length === 0) return alert("Phiếu chưa có món nào!");
 
-    // Cấu trúc data gửi đi siêu gọn (mỗi lần click là tạo 1 phiếu hoàn toàn mới)
     const payload = { date, type, items: cartItems };
 
     try {
@@ -1137,9 +1144,12 @@ export default function CancelReportPage() {
         }
         if (log.type === "UNPOSTED") {
           map[item.name].unpostedQty += item.quantity;
+          // Cộng dồn vào tổn thất nếu là phiếu hủy chưa post
           totalLostValue += (item.quantity * item.price);
         } else if (log.type === "POSTED") {
           map[item.name].postedQty += item.quantity;
+          // Trừ bớt khỏi tổn thất nếu là phiếu đã post
+          totalLostValue -= (item.quantity * item.price);
         }
       });
     });
@@ -1156,6 +1166,10 @@ export default function CancelReportPage() {
   }, [logs]);
 
   const filteredSuggestions = availableItems.filter(w => w.name.toLowerCase().includes(itemSearch.toLowerCase()));
+
+  // Hàm tính tổng tiền của 1 bill
+  const calculateBillTotal = (items: any[]) => items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
+  const calculateBillQty = (items: any[]) => items.reduce((sum, it) => sum + it.quantity, 0);
 
   return (
     <div className="h-full overflow-auto bg-slate-50 p-2 sm:p-6 text-sm font-sans">
@@ -1196,20 +1210,24 @@ export default function CancelReportPage() {
         <Tabs defaultValue="manage" className="w-full">
           <TabsList className="mb-4 h-10 bg-white border border-slate-200 shadow-xs w-full sm:w-auto p-1 rounded-lg">
             <TabsTrigger value="manage" className="text-sm px-6 rounded-md data-[state=active]:bg-rose-600 data-[state=active]:text-white transition-all font-medium">
-              Ghi Nhận & Lịch Sử (Theo Ngày)
+              Ghi Nhận & Lịch Sử
             </TabsTrigger>
             <TabsTrigger value="summary" className="text-sm px-6 rounded-md data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-medium">
-              Thống Kê Tổng Hợp (Tháng)
+              Thống Kê Tổng Hợp
+            </TabsTrigger>
+            <TabsTrigger value="bills" className="text-sm px-6 rounded-md data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-all font-medium">
+              Chi Tiết Các Bill
             </TabsTrigger>
           </TabsList>
 
+          {/* ========================================= */}
+          {/* TAB 1: GHI NHẬN & LỊCH SỬ */}
+          {/* ========================================= */}
           <TabsContent value="manage" className="space-y-4 m-0">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
               
-              {/* ========================================= */}
-              {/* CỘT TRÁI: FORM NHẬP PHIẾU                 */}
-              {/* ========================================= */}
-              <div className="lg:col-span-5 flex flex-col gap-4">
+              {/* CỘT TRÁI: FORM NHẬP PHIẾU */}
+              <div className="lg:col-span-4 xl:col-span-5 flex flex-col gap-4">
                 <Card className={`shadow-md border-0 ring-1 ${editId ? 'ring-amber-400 bg-amber-50/10' : 'ring-slate-200 bg-white'} transition-all`}>
                   <CardHeader className="py-3 px-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50 rounded-t-xl">
                     <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-800">
@@ -1367,7 +1385,7 @@ export default function CancelReportPage() {
                                     >
                                         <Plus className="w-3 h-3"/>
                                     </button>
-                                    </div>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1383,70 +1401,80 @@ export default function CancelReportPage() {
                 </Card>
               </div>
 
-              {/* ========================================= */}
-              {/* CỘT PHẢI: LỊCH SỬ CÁC PHIẾU TRONG THÁNG   */}
-              {/* ========================================= */}
-              <div className="lg:col-span-7 flex flex-col h-full">
+              {/* CỘT PHẢI: LỊCH SỬ CÁC PHIẾU TRONG THÁNG */}
+              <div className="lg:col-span-8 xl:col-span-7 flex flex-col h-full">
                 <Card className="shadow-md border-0 ring-1 ring-slate-200 h-full flex flex-col bg-white overflow-hidden rounded-xl">
                   <div className="bg-slate-50/80 px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-widest flex justify-between border-b border-slate-100 items-center">
                     <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-blue-500"/> LỊCH SỬ NHẬP LIỆU THÁNG {selectedMonth}</span>
-                    <Badge variant="outline" className="bg-white border-slate-200 font-bold">{logs.length} PHIẾU</Badge>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setSortOrder(s => s === "desc" ? "asc" : "desc")} className="h-7 text-[10px] bg-white">
+                        <ArrowUpDown className="w-3 h-3 mr-1" />
+                        {sortOrder === "desc" ? "Mới nhất trước" : "Cũ nhất trước"}
+                      </Button>
+                      <Badge variant="outline" className="bg-white border-slate-200 font-bold">{logs.length} PHIẾU</Badge>
+                    </div>
                   </div>
                   
                   <div className="w-full overflow-x-auto">
                     <Table>
                       <TableHeader className="bg-slate-50/90 backdrop-blur-md sticky top-0 z-10 shadow-xs">
                         <TableRow className="border-b-slate-200">
-                          <TableHead className="w-[100px] p-3 text-[10px] font-bold uppercase text-slate-500">Ngày Tạo</TableHead>
-                          <TableHead className="w-[100px] p-3 text-[10px] font-bold uppercase text-slate-500 text-center">Loại Phiếu</TableHead>
+                          <TableHead className="w-[80px] p-3 text-[10px] font-bold uppercase text-slate-500">Ngày</TableHead>
+                          <TableHead className="w-[90px] p-3 text-[10px] font-bold uppercase text-slate-500 text-center">Loại</TableHead>
                           <TableHead className="p-3 text-[10px] font-bold uppercase text-slate-500">Chi tiết Món</TableHead>
+                          <TableHead className="text-right p-3 text-[10px] font-bold uppercase text-slate-500">Thành Tiền</TableHead>
                           <TableHead className="text-center w-[80px] p-3 text-[10px] font-bold uppercase text-slate-500">Sửa/Xóa</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {logs.length === 0 ? (
+                        {sortedLogs.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={4} className="text-center py-20 text-slate-400 bg-slate-50/30">
+                            <TableCell colSpan={5} className="text-center py-20 text-slate-400 bg-slate-50/30">
                               <FileText className="w-8 h-8 opacity-20 mx-auto mb-3"/>
                               <span className="font-semibold text-sm">Chưa có phiếu nào trong tháng.</span>
                             </TableCell>
                           </TableRow>
                         ) : 
-                          logs.map(log => (
-                            <TableRow key={log._id} className={`hover:bg-slate-50 border-b-slate-100 transition-colors ${editId === log._id ? 'bg-amber-50/50' : ''}`}>
-                              {/* THÊM GIỜ ĐỂ DỄ PHÂN BIỆT CÁC PHIẾU TRONG CÙNG 1 NGÀY */}
-                              <TableCell className="p-3 text-[11px] font-bold text-slate-600">
-                                <div>{log.date.split('-')[2]}/{log.date.split('-')[1]}</div>
-                                {log.createdAt && (
-                                  <div className="text-[9px] text-slate-400 font-normal mt-0.5">
-                                    {new Date(log.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell className="p-3 text-center">
-                                {log.type === "UNPOSTED" 
-                                  ? <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 shadow-none text-[9px] w-full justify-center">HỦY MÓN</Badge>
-                                  : <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-none text-[9px] w-full justify-center">ĐÃ POST</Badge>
-                                }
-                              </TableCell>
-                              <TableCell className="p-3 text-[11px] text-slate-600 leading-relaxed max-w-[250px]">
-                                <div className="space-y-1">
-                                  {log.items.map((it: any, idx: number) => (
-                                    <div key={idx} className="flex items-start gap-1.5">
-                                      <span className={`font-bold px-1.5 rounded text-[9px] ${log.type === "UNPOSTED" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>{it.quantity}</span>
-                                      <span className="truncate">{it.name}</span>
+                          sortedLogs.map(log => {
+                            const totalAmount = calculateBillTotal(log.items);
+                            return (
+                              <TableRow key={log._id} className={`hover:bg-slate-50 border-b-slate-100 transition-colors ${editId === log._id ? 'bg-amber-50/50' : ''}`}>
+                                <TableCell className="p-3 text-[11px] font-bold text-slate-600">
+                                  <div>{log.date.split('-')[2]}/{log.date.split('-')[1]}</div>
+                                  {log.createdAt && (
+                                    <div className="text-[9px] text-slate-400 font-normal mt-0.5 whitespace-nowrap">
+                                      {new Date(log.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
                                     </div>
-                                  ))}
-                                </div>
-                              </TableCell>
-                              <TableCell className="p-3 text-center">
-                                <div className="flex gap-1.5 justify-center">
-                                  <Button variant="ghost" size="icon" onClick={() => handleEditClick(log)} className="w-7 h-7 bg-blue-50 text-blue-600 hover:bg-blue-100 shadow-xs border border-blue-100"><Edit3 className="w-3.5 h-3.5"/></Button>
-                                  <Button variant="ghost" size="icon" onClick={() => handleDeleteLog(log._id)} className="w-7 h-7 bg-red-50 text-red-500 hover:bg-red-100 shadow-xs border border-red-100"><Trash2 className="w-3.5 h-3.5"/></Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
+                                  )}
+                                </TableCell>
+                                <TableCell className="p-3 text-center">
+                                  {log.type === "UNPOSTED" 
+                                    ? <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 shadow-none text-[9px] w-full justify-center">HỦY MÓN</Badge>
+                                    : <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-none text-[9px] w-full justify-center">ĐÃ POST</Badge>
+                                  }
+                                </TableCell>
+                                <TableCell className="p-3 text-[11px] text-slate-600 leading-relaxed max-w-[200px]">
+                                  <div className="space-y-1">
+                                    {log.items.map((it: any, idx: number) => (
+                                      <div key={idx} className="flex items-start gap-1.5">
+                                        <span className={`font-bold px-1.5 rounded text-[9px] ${log.type === "UNPOSTED" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>{it.quantity}</span>
+                                        <span className="truncate">{it.name}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="p-3 text-right font-bold text-slate-700">
+                                  {formatVND(totalAmount)}
+                                </TableCell>
+                                <TableCell className="p-3 text-center">
+                                  <div className="flex gap-1.5 justify-center">
+                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(log)} className="w-7 h-7 bg-blue-50 text-blue-600 hover:bg-blue-100 shadow-xs border border-blue-100"><Edit3 className="w-3.5 h-3.5"/></Button>
+                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteLog(log._id)} className="w-7 h-7 bg-red-50 text-red-500 hover:bg-red-100 shadow-xs border border-red-100"><Trash2 className="w-3.5 h-3.5"/></Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })
                         }
                       </TableBody>
                     </Table>
@@ -1461,7 +1489,7 @@ export default function CancelReportPage() {
           {/* ========================================= */}
           <TabsContent value="summary" className="m-0 pt-2">
             <Card className="shadow-xl border-0 ring-1 ring-slate-200 max-w-[1000px] mx-auto overflow-hidden rounded-2xl">
-              <div className="p-5 bg-linear-to-r from-indigo-900 to-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="p-5 bg-gradient-to-r from-indigo-900 to-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
                     <CheckSquare className="w-6 h-6 text-indigo-200" />
@@ -1475,7 +1503,7 @@ export default function CancelReportPage() {
                 </div>
                 <div className="md:text-right bg-black/20 p-3 rounded-xl border border-white/10 backdrop-blur-md">
                   <span className="text-[10px] block opacity-70 uppercase font-black tracking-widest text-indigo-200">TỔNG GIÁ TRỊ HỦY THỰC TẾ:</span>
-                  <span className="text-2xl font-black text-amber-400 drop-shadow-lg tracking-tighter">
+                  <span className={`text-2xl font-black drop-shadow-lg tracking-tighter ${summaryData.totalLostValue >= 0 ? "text-amber-400" : "text-emerald-400"}`}>
                     {formatVND(summaryData.totalLostValue)}
                   </span>
                 </div>
@@ -1509,7 +1537,6 @@ export default function CancelReportPage() {
                             return (
                               <TableRow key={idx} className="border-b border-slate-100 hover:bg-indigo-50/30">
                                 <TableCell className="font-bold text-slate-700 text-xs pl-6 py-3">{item.name}</TableCell>
-                                {/* THÊM CỘT GIÁ MÓN THEO YÊU CẦU */}
                                 <TableCell className="text-right py-3 text-xs font-medium text-slate-500">{formatVND(item.price)}</TableCell>
                                 <TableCell className="text-center py-3 font-black text-rose-600 text-sm bg-rose-50/10">{item.unpostedQty}</TableCell>
                                 <TableCell className="text-center py-3 font-black text-emerald-600 text-sm bg-emerald-50/10">{item.postedQty}</TableCell>
@@ -1538,6 +1565,79 @@ export default function CancelReportPage() {
                 )}
               </div>
             </Card>
+          </TabsContent>
+
+          {/* ========================================= */}
+          {/* TAB 3: CHI TIẾT CÁC BILL                  */}
+          {/* ========================================= */}
+          <TabsContent value="bills" className="m-0 pt-2">
+             <Card className="shadow-md border-0 ring-1 ring-slate-200 max-w-[1200px] mx-auto bg-white overflow-hidden rounded-xl">
+               <div className="bg-emerald-50/80 px-5 py-4 text-xs font-black text-emerald-800 uppercase tracking-widest flex justify-between border-b border-emerald-100 items-center">
+                  <span className="flex items-center gap-2"><Receipt className="w-5 h-5 text-emerald-600"/> DANH SÁCH BILL NHẬP LIỆU THÁNG {selectedMonth}</span>
+                  <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setSortOrder(s => s === "desc" ? "asc" : "desc")} className="h-7 text-[10px] bg-white border-emerald-200 text-emerald-700">
+                        <ArrowUpDown className="w-3 h-3 mr-1" />
+                        {sortOrder === "desc" ? "Mới nhất trước" : "Cũ nhất trước"}
+                      </Button>
+                      <Badge className="bg-emerald-600 hover:bg-emerald-700 font-bold">{logs.length} BILL</Badge>
+                  </div>
+               </div>
+               <div className="w-full overflow-x-auto">
+                 <Table>
+                    <TableHeader className="bg-emerald-50/30">
+                       <TableRow className="border-b-emerald-100">
+                         <TableHead className="w-[120px] p-4 text-[11px] font-bold uppercase text-emerald-700">Ngày / Giờ Tạo</TableHead>
+                         <TableHead className="w-[120px] p-4 text-[11px] font-bold uppercase text-emerald-700 text-center">Phân Loại</TableHead>
+                         <TableHead className="p-4 text-[11px] font-bold uppercase text-emerald-700 text-center">Tổng Số Món</TableHead>
+                         <TableHead className="text-right p-4 text-[11px] font-bold uppercase text-emerald-700">Tổng Thành Tiền</TableHead>
+                       </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedLogs.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-20 text-slate-400 bg-slate-50/30">
+                              <Receipt className="w-8 h-8 opacity-20 mx-auto mb-3"/>
+                              <span className="font-semibold text-sm">Tháng này chưa có bill nào.</span>
+                            </TableCell>
+                          </TableRow>
+                        ) :
+                        sortedLogs.map(log => {
+                          const billTotal = calculateBillTotal(log.items);
+                          const billQty = calculateBillQty(log.items);
+
+                          return (
+                            <TableRow key={log._id} className="hover:bg-slate-50 border-b-slate-100">
+                               <TableCell className="p-4 text-xs font-bold text-slate-700">
+                                  <span>{log.date.split('-').reverse().join('/')}</span>
+                                  {log.createdAt && (
+                                    <span className="ml-2 text-[10px] text-slate-400 font-medium">
+                                      {new Date(log.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
+                                    </span>
+                                  )}
+                               </TableCell>
+                               <TableCell className="p-4 text-center">
+                                  {log.type === "UNPOSTED" 
+                                    ? <Badge variant="outline" className="text-rose-600 border-rose-200 bg-rose-50 text-[10px]">HỦY MÓN</Badge>
+                                    : <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px]">ĐÃ POST</Badge>
+                                  }
+                               </TableCell>
+                               <TableCell className="p-4 text-center font-bold text-slate-600">
+                                  {billQty}
+                               </TableCell>
+                               <TableCell className="p-4 text-right font-black text-slate-800 text-sm">
+                                  <span className={log.type === "UNPOSTED" ? "text-rose-600" : "text-emerald-600"}>
+                                    {log.type === "POSTED" && "- "}
+                                    {formatVND(billTotal)}
+                                  </span>
+                               </TableCell>
+                            </TableRow>
+                          )
+                        })
+                      }
+                    </TableBody>
+                 </Table>
+               </div>
+             </Card>
           </TabsContent>
         </Tabs>
       </div>
