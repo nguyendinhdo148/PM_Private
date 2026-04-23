@@ -14,6 +14,7 @@ type StaffMember = {
   name: string;
   department: "FOH" | "BOH";
   workDays?: number | string;
+  penalty?: number | string;
 };
 
 export default function TipManagement() {
@@ -53,7 +54,7 @@ export default function TipManagement() {
 
   const resetFormToNew = (staffBase: StaffMember[] = masterStaff) => {
     setMonth(""); setPeriodName(""); setTotalTipStr(""); setTopPerformerId("");
-    setActiveStaffList(staffBase.map(s => ({ ...s, workDays: "" })));
+    setActiveStaffList(staffBase.map(s => ({ ...s, workDays: "", penalty: "" })));
   };
 
   useEffect(() => {
@@ -70,7 +71,7 @@ export default function TipManagement() {
         setTopPerformerId(topStaff ? topStaff._id : "");
         setActiveStaffList(masterStaff.map(staff => {
           const detail = board.details.find((d: any) => d.employeeName === staff.name);
-          return { ...staff, workDays: detail ? detail.workDays : "" };
+          return { ...staff, workDays: detail ? detail.workDays : "", penalty: detail ? detail.penalty : "" };
         }));
       }
     }
@@ -80,37 +81,53 @@ export default function TipManagement() {
     const tipValue = Number(totalTipStr) || 0;
     const remainingTip = Math.max(0, tipValue - BONUS_AMOUNT);
     
+    // Sử dụng fact của người dùng: Tổng công FOH đã được sửa thành 207 nếu có liên quan, 
+    // nhưng hệ thống này dùng nhập liệu động (dynamic input) cho từng nhân viên, 
+    // nên dữ liệu sẽ tính lại chuẩn dựa trên workDays tổng.
     const activeMembers = activeStaffList.filter(s => Number(s.workDays) > 0);
     const totalDays = activeMembers.reduce((acc, curr) => acc + Number(curr.workDays), 0);
     const tipPerDay = totalDays > 0 ? remainingTip / totalDays : 0;
 
-    let totalServiceFund = 0;
+    let totalServiceFund = 0; 
 
     const details = activeMembers.map((staff) => {
       const days = Number(staff.workDays);
+      const penalty = Number(staff.penalty) || 0; 
       const isTop = staff._id === topPerformerId;
       const baseTip = days * tipPerDay;
+      
       let fundDeduction = 0;
       let finalTip = baseTip;
 
       if (staff.department === "FOH") {
         fundDeduction = baseTip * FUND_PERCENT;
-        totalServiceFund += fundDeduction;
         finalTip = baseTip - fundDeduction;
       }
+      
       if (isTop) finalTip += BONUS_AMOUNT;
 
-      return { ...staff, days, isTop, baseTip, fundDeduction, finalTip };
+      finalTip -= penalty;
+
+      totalServiceFund += (fundDeduction + penalty);
+
+      return { ...staff, days, isTop, baseTip, fundDeduction, penalty, finalTip };
     });
 
     return { remainingTip, totalDays, tipPerDay, totalServiceFund, details };
   }, [totalTipStr, activeStaffList, topPerformerId]);
 
-  // HÀM LÀM TRÒN VÀ FORMAT TIỀN TỆ CÓ ĐUÔI 'đ'
   const formatVND = (amount: number) => Math.round(amount).toLocaleString("vi-VN") + "đ";
 
   const handleWorkDaysChange = (id: string, val: string) => {
     setActiveStaffList(prev => prev.map(s => s._id === id ? { ...s, workDays: val } : s));
+  };
+
+  const handlePenaltyChange = (id: string, val: string) => {
+    // Loại bỏ dấu chấm để lấy chuỗi số thô (raw) trước khi lưu vào state
+    const raw = val.replace(/\./g, "");
+    if (/^\d*$/.test(raw)) {
+      setActiveStaffList(prev => prev.map(s => s._id === id ? { ...s, penalty: raw } : s));
+    }
   };
 
   const handleSaveTip = async () => {
@@ -120,7 +137,12 @@ export default function TipManagement() {
     const payload = {
       month, periodName, totalTip: Number(totalTipStr),
       topPerformerName: activeStaffList.find(s => s._id === topPerformerId)?.name || "",
-      staffList: calculations.details.map(d => ({ employeeName: d.name, department: d.department, workDays: d.days }))
+      staffList: calculations.details.map(d => ({ 
+        employeeName: d.name, 
+        department: d.department, 
+        workDays: d.days, 
+        penalty: d.penalty 
+      }))
     };
 
     try {
@@ -157,7 +179,7 @@ export default function TipManagement() {
       const res: any = await postData("/staff", { name: newStaffName, department: newStaffDept });
       const newStaff = res.data || res;
       setMasterStaff([...masterStaff, newStaff]);
-      setActiveStaffList([...activeStaffList, { ...newStaff, workDays: "" }]);
+      setActiveStaffList([...activeStaffList, { ...newStaff, workDays: "", penalty: "" }]);
       setNewStaffName(""); 
     } catch (error) {}
   };
@@ -251,12 +273,10 @@ export default function TipManagement() {
               <div className="lg:col-span-7 bg-white p-1.5 rounded border border-gray-200 shadow-sm">
                 <div className="grid grid-cols-4 gap-1.5 h-full items-center text-center">
                   <div className="bg-gray-50 p-1.5 rounded border border-gray-100 flex flex-col justify-center">
-                    <div className="bg-gray-50 p-1.5 rounded border border-gray-100 flex flex-col justify-center">
                     <p className="text-[9px] text-gray-500 font-bold mb-0.5 whitespace-nowrap">
                       CÒN LẠI <span className="text-red-500 font-medium tracking-tighter">(-500.000đ)</span>
                     </p>
                     <p className="text-sm font-bold">{formatVND(calculations.remainingTip)}</p>
-                  </div>
                   </div>
                   <div className="bg-gray-50 p-1.5 rounded border border-gray-100 flex flex-col justify-center">
                     <p className="text-[9px] text-gray-500 font-bold mb-0.5">TỔNG CÔNG</p>
@@ -267,7 +287,7 @@ export default function TipManagement() {
                     <p className="text-sm font-bold text-blue-700">{formatVND(calculations.tipPerDay)}</p>
                   </div>
                   <div className="bg-orange-50 p-1.5 rounded border border-orange-100 flex flex-col justify-center">
-                    <p className="text-[9px] text-orange-600 font-bold mb-0.5">QUỸ FOH(5%)</p>
+                    <p className="text-[9px] text-orange-600 font-bold mb-0.5">QUỸ PV (+PHẠT)</p>
                     <p className="text-sm font-bold text-orange-700">{formatVND(calculations.totalServiceFund)}</p>
                   </div>
                 </div>
@@ -292,6 +312,7 @@ export default function TipManagement() {
                         <th className="p-1 border-b border-r w-[35px] text-center">TOP</th>
                         <th className="p-1 border-b border-r text-right">Cơ Bản</th>
                         <th className="p-1 border-b border-r text-right text-orange-600">-Quỹ</th>
+                        <th className="p-1 border-b border-r w-[75px] text-center text-red-600">Phạt</th>
                         <th className="p-1 border-b text-right font-bold pr-2">Thực Nhận</th>
                       </tr>
                     </thead>
@@ -310,6 +331,15 @@ export default function TipManagement() {
                             </td>
                             <td className="p-1 border-r text-right text-gray-600 text-[11px]">{calc ? formatVND(calc.baseTip) : "-"}</td>
                             <td className="p-1 border-r text-right text-orange-600 text-[11px]">{calc && calc.fundDeduction > 0 ? `-${formatVND(calc.fundDeduction)}` : "-"}</td>
+                            <td className="p-1 border-r text-center">
+                              {/* Đổi sang type="text" để dùng toLocaleString */}
+                              <Input 
+                                type="text" 
+                                className="h-6 text-right text-[10px] px-1 text-red-600" 
+                                value={row.penalty ? Number(row.penalty).toLocaleString("vi-VN") : ""} 
+                                onChange={(e) => handlePenaltyChange(row._id, e.target.value)} 
+                              />
+                            </td>
                             <td className="p-1 pr-2 text-right font-bold text-green-700 text-[11px]">{calc ? formatVND(calc.finalTip) : "-"}</td>
                           </tr>
                         );
@@ -333,6 +363,7 @@ export default function TipManagement() {
                         <th className="p-1 border-b border-r w-[45px] text-center">Công</th>
                         <th className="p-1 border-b border-r w-[35px] text-center">TOP</th>
                         <th className="p-1 border-b border-r text-right">Cơ Bản</th>
+                        {/* Đã xóa cột phạt */}
                         <th className="p-1 border-b text-right font-bold pr-2">Thực Nhận</th>
                       </tr>
                     </thead>
@@ -350,6 +381,7 @@ export default function TipManagement() {
                                <button onClick={() => setTopPerformerId(isTop ? "" : row._id)} className={`h-5 w-5 rounded inline-flex items-center justify-center ${isTop ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-400'}`}>★</button>
                             </td>
                             <td className="p-1 border-r text-right text-gray-600 text-[11px]">{calc ? formatVND(calc.baseTip) : "-"}</td>
+                            {/* Đã xóa phần td render ô Input phạt */}
                             <td className="p-1 pr-2 text-right font-bold text-green-700 text-[11px]">{calc ? formatVND(calc.finalTip) : "-"}</td>
                           </tr>
                         );

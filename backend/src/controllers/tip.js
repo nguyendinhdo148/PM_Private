@@ -7,33 +7,29 @@ export const createTipDistribution = async (req, res) => {
     const bonusAmount = 500000;
     const serviceFundPercent = 5;
 
-    // 1. Trừ 500k thưởng Top
     const remainingTip = Math.max(0, totalTip - bonusAmount);
-
-    // 2. Tính tổng công
     const totalDays = staffList.reduce((acc, staff) => acc + Number(staff.workDays), 0);
-
-    // 3. Tính tiền trung bình mỗi công
     const tipPerDay = totalDays > 0 ? remainingTip / totalDays : 0;
 
-    // 4. Tính toán chi tiết cho từng nhân viên
     const details = staffList.map((staff) => {
       const isTopPerformer = staff.employeeName === topPerformerName;
       const baseTip = staff.workDays * tipPerDay;
+      const penalty = Number(staff.penalty) || 0; // LẤY TIỀN PHẠT
       
       let fundDeduction = 0;
       let finalTip = baseTip;
 
-      // FOH thì trừ 5% quỹ phục vụ
       if (staff.department === "FOH") {
         fundDeduction = baseTip * (serviceFundPercent / 100);
         finalTip = baseTip - fundDeduction;
       }
 
-      // Cộng tiền thưởng nếu là Top
       if (isTopPerformer) {
         finalTip += bonusAmount;
       }
+
+      // TRỪ TIỀN PHẠT VÀO THỰC NHẬN
+      finalTip -= penalty;
 
       return {
         employeeName: staff.employeeName,
@@ -42,25 +38,18 @@ export const createTipDistribution = async (req, res) => {
         isTopPerformer,
         baseTip,
         fundDeduction,
+        penalty, // LƯU VÀO DB
         finalTip,
       };
     });
 
     const newDistribution = new TipDistribution({
-      month,
-      periodName,
-      totalTip,
-      bonusAmount,
-      serviceFundPercent,
-      totalDays,
-      tipPerDay,
-      details,
+      month, periodName, totalTip, bonusAmount, serviceFundPercent, totalDays, tipPerDay, details,
     });
 
     await newDistribution.save();
     return res.status(201).json({ success: true, data: newDistribution });
   } catch (error) {
-    console.error("Error creating tip distribution:", error);
     return res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
   }
 };
@@ -100,7 +89,6 @@ export const updateTipDistribution = async (req, res) => {
     const bonusAmount = 500000;
     const serviceFundPercent = 5;
 
-    // Tính toán lại y như lúc Create để đảm bảo số liệu luôn đúng
     const remainingTip = Math.max(0, totalTip - bonusAmount);
     const totalDays = staffList.reduce((acc, staff) => acc + Number(staff.workDays), 0);
     const tipPerDay = totalDays > 0 ? remainingTip / totalDays : 0;
@@ -108,6 +96,8 @@ export const updateTipDistribution = async (req, res) => {
     const details = staffList.map((staff) => {
       const isTopPerformer = staff.employeeName === topPerformerName;
       const baseTip = staff.workDays * tipPerDay;
+      const penalty = Number(staff.penalty) || 0; // LẤY TIỀN PHẠT
+      
       let fundDeduction = 0;
       let finalTip = baseTip;
 
@@ -120,6 +110,9 @@ export const updateTipDistribution = async (req, res) => {
         finalTip += bonusAmount;
       }
 
+      // TRỪ TIỀN PHẠT VÀO THỰC NHẬN
+      finalTip -= penalty;
+
       return {
         employeeName: staff.employeeName,
         department: staff.department,
@@ -127,38 +120,20 @@ export const updateTipDistribution = async (req, res) => {
         isTopPerformer,
         baseTip,
         fundDeduction,
+        penalty, // CẬP NHẬT VÀO DB
         finalTip,
       };
     });
 
-    // Bản ghi cập nhật
-    const updateData = {
-      month,
-      periodName,
-      totalTip,
-      bonusAmount,
-      serviceFundPercent,
-      totalDays,
-      tipPerDay,
-      details,
-    };
+    const updateData = { month, periodName, totalTip, bonusAmount, serviceFundPercent, totalDays, tipPerDay, details };
+    const updatedDistribution = await TipDistribution.findByIdAndUpdate(id, updateData, { new: true });
 
-    const updatedDistribution = await TipDistribution.findByIdAndUpdate(
-      id, 
-      updateData, 
-      { new: true, runValidators: true } // new: true trả về data sau khi update
-    );
-
-    if (!updatedDistribution) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy dữ liệu để cập nhật" });
-    }
-
+    if (!updatedDistribution) return res.status(404).json({ success: false, message: "Không tìm thấy dữ liệu" });
     return res.status(200).json({ success: true, data: updatedDistribution });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Lỗi server khi cập nhật", error: error.message });
   }
 };
-
 // [DELETE] Xóa 1 kỳ chia tip
 export const deleteTipDistribution = async (req, res) => {
   try {
