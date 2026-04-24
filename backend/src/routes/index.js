@@ -21,6 +21,9 @@ import wineCommissionRoutes from "./wineCommission.js";
 // <-- IMPORT ROUTE QUẢN LÝ HỦY MÓN -->
 import cancelReportRoutes from "./cancelReport.js";
 
+// <-- IMPORT ROUTE GỬI RƯỢU (BOTTLE KEEP) -->
+import bottleKeepRoutes from "./bottleKeep.js";
+
 const router = express.Router();
 
 router.use("/auth", authRoutes);
@@ -42,5 +45,8 @@ router.use("/staff", staffRoutes);
 // <-- GẮN VÀO API -->
 router.use("/wine-commission", wineCommissionRoutes);
 router.use("/cancel-reports", cancelReportRoutes);
+
+// <-- GẮN API GỬI RƯỢU VÀO ĐÂY -->
+router.use("/bottle-keep", bottleKeepRoutes);
 
 export default router;

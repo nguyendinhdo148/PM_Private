@@ -13,7 +13,10 @@ import {
   verifyEmail,
   resetPasswordRequest,
   verifyResetPasswordTokenAndResetPassword,
+  updateUserRole,
 } from "../controllers/auth-controller.js";
+import authMiddleware from "../middleware/auth-middleware.js";
+import roleMiddleware from "../middleware/role-middleware.js";
 import z from "zod";
 const router = express.Router();
 
@@ -56,6 +59,19 @@ router.post(
     body: resetPasswordSchema,
   }),
   verifyResetPasswordTokenAndResetPassword,
+);
+
+router.put(
+  "/update-role",
+  authMiddleware,
+  roleMiddleware(["admin"]), // Only admin can update roles
+  validateRequest({
+    body: z.object({
+      userId: z.string(),
+      role: z.enum(["user", "cashier", "bar", "admin"]),
+    }),
+  }),
+  updateUserRole,
 );
 
 export default router;

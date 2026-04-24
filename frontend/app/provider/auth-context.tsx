@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (data: any) => Promise<void>;
   logout: () => Promise<void>;
   updateCurrentUser: (data: Partial<User>) => void;
+  hasRole: (roles: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,6 +88,10 @@ const updateCurrentUser = (data: Partial<User>) => {
       return updatedUser;
     });
   };
+  const hasRole = (roles: string[]) => {
+    return user ? roles.includes(user.role) : false;
+  };
+
   const values = {
     user,
     isAuthenticated,
@@ -94,6 +99,7 @@ const updateCurrentUser = (data: Partial<User>) => {
     login,
     logout,
     updateCurrentUser,
+    hasRole,
   };
 
   return <AuthContext.Provider value={values}>{children}</AuthContext.Provider>;

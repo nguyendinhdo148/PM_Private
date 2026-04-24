@@ -6,7 +6,8 @@ const conversationSchema = new mongoose.Schema(
     // Type of conversation
     type: {
       type: String,
-      enum: ["direct", "workspace", "project"],
+      // Đã thêm "group" vào đây để hết lỗi Validation
+      enum: ["direct", "workspace", "project", "group"],
       required: true,
     },
     // For direct messages: array of two users

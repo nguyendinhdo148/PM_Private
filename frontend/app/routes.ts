@@ -42,6 +42,9 @@ export default [
     // <-- THÊM ROUTE CHO QUẢN LÝ HỦY MÓN TẠI ĐÂY -->
     route("cancel-report", "routes/dashboard/cancel-report.tsx"),
 
+    // <-- THÊM ROUTE CHO GUI RƯỢU (BAR ROLE) -->
+    route("gui-ruou", "routes/dashboard/bar/guiruou.tsx"),
+
     route("achieved", "routes/dashboard/achieved.tsx"),
     route("settings", "routes/dashboard/settings.tsx"),
   ]),

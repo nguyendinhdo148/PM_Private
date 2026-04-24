@@ -6,6 +6,7 @@ export interface User {
   isEmailVerified: boolean;
   updatedAt: Date;
   profilePicture: string;
+  role: "user" | "cashier" | "bar" | "admin";
 }
 
 export interface Workspace {

@@ -14,7 +14,8 @@ import {
   FolderTree,
   MessageCircle,
   GlassWater,
-  FileWarning, // <-- THÊM ICON NÀY CHO TRANG HỦY MÓN
+  FileWarning,
+  Wine, // <-- THÊM ICON NÀY CHO TRANG GUI RƯỢU
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -27,10 +28,10 @@ export const SidebarComponent = ({
 }: {
   currentWorkspace: Workspace | null;
 }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const navItems = [
+  const allNavItems = [
     { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { title: "Công nợ", href: "/workspaces", icon: Users },
     { title: "Báo cáo doanh thu", href: "/my-tasks", icon: ListCheck },
@@ -41,9 +42,30 @@ export const SidebarComponent = ({
     // <-- THÊM DÒNG QUẢN LÝ HỦY MÓN VÀO MENU -->
     { title: "Hệ Thống Hủy Món", href: "/cancel-report", icon: FileWarning },
     
+    // <-- THÊM DÒNG GUI RƯỢU CHO BAR ROLE -->
+    { title: "GUI Rượu", href: "/gui-ruou", icon: Wine, roles: ["bar", "admin"] },
+    
     { title: "Messenger", href: "/achieved", icon: MessageCircle },
     { title: "Settings", href: "/settings", icon: Settings },
   ];
+
+  // Filter nav items based on role
+  const navItems = allNavItems.filter((item) => {
+    // Everyone can see Dashboard, Messenger, and Settings
+    if (["Dashboard", "Messenger", "Settings"].includes(item.title)) {
+      return true;
+    }
+    // If item has specific roles requirement, check against those
+    if ((item as any).roles) {
+      return hasRole((item as any).roles);
+    }
+    // Cashier and admin see all other items
+    if (hasRole(["cashier", "admin"])) {
+      return true;
+    }
+    // Bar sees only the common ones (already included above)
+    return false;
+  });
 
   return (
     <div

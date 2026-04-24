@@ -153,7 +153,7 @@ const SignIn = () => {
           </Form>
         </CardContent>
 
-        <CardFooter className="flex justify-center">
+        {/* <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link
@@ -163,7 +163,7 @@ const SignIn = () => {
               Sign up
             </Link>
           </p>
-        </CardFooter>
+        </CardFooter> */}
       </Card>
     </div>
   );

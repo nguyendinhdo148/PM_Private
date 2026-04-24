@@ -6,7 +6,7 @@ import { User } from "../models/user.js";
 import { Workspace } from "../models/workspace.js";
 import { Project } from "../models/project.js";
 import { Notification } from "../models/notification.js";
-
+import { v2 as cloudinary } from "cloudinary";
 // Get or create direct conversation
 export const getOrCreateDirectConversation = async (req, res) => {
   try {
@@ -461,7 +461,177 @@ export const addReaction = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+export const getAllUsersForChat = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
 
+    // Lấy tất cả user ngoại trừ user đang đăng nhập
+    const users = await User.find({ _id: { $ne: currentUserId } })
+      .select("name email profilePicture"); // Chỉ lấy các trường cần thiết
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Get all users error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+// Thêm thành viên vào nhóm
+export const addMembersToGroup = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { userIds } = req.body; // Mảng chứa ID các user cần thêm
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Không tìm thấy hội thoại" });
+    }
+
+    // Lọc ra những user chưa có trong nhóm để tránh thêm trùng
+    const newParticipants = userIds
+      .filter(userId => !conversation.participants.some(p => p.user.toString() === userId))
+      .map(userId => ({
+        user: userId,
+        lastReadAt: new Date(),
+      }));
+
+    if (newParticipants.length === 0) {
+      return res.status(400).json({ message: "Các thành viên này đã có trong nhóm" });
+    }
+
+    // Push vào mảng participants hiện tại
+    conversation.participants.push(...newParticipants);
+    await conversation.save();
+
+    // Populate lại để trả về cho FE hiển thị thông tin user (tên, avatar)
+    await conversation.populate("participants.user", "name email profilePicture");
+
+    res.status(200).json(conversation);
+  } catch (error) {
+    console.error("Lỗi thêm thành viên:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+};
+
+// Xoá thành viên khỏi nhóm (hoặc tự rời nhóm)
+export const removeMemberFromGroup = async (req, res) => {
+  try {
+    const { conversationId, userId } = req.params;
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Không tìm thấy hội thoại" });
+    }
+
+    // Lọc bỏ user cần xoá ra khỏi mảng
+    conversation.participants = conversation.participants.filter(
+      (p) => p.user.toString() !== userId
+    );
+
+    await conversation.save();
+
+    res.status(200).json({ message: "Đã xoá thành viên thành công" });
+  } catch (error) {
+    console.error("Lỗi xoá thành viên:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+};
+// Hàm xử lý upload file lên Cloudinary
+export const uploadFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Không tìm thấy file tải lên" });
+    }
+
+    // 1. LẤY TÊN GỐC VÀ ĐUÔI FILE
+    const originalName = req.file.originalname;
+    const nameParts = originalName.split('.');
+    const ext = nameParts.pop(); // Đuôi file (VD: docx, pdf, png)
+    const nameWithoutExt = nameParts.join('.'); // Tên file bỏ đuôi
+
+    // 2. LÀM SẠCH TÊN FILE (Bỏ dấu Tiếng Việt, dấu cách, ký tự đặc biệt để URL không bị lỗi)
+    const safeName = nameWithoutExt
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Bỏ dấu Tiếng Việt
+      .replace(/[^a-zA-Z0-9]/g, '_') // Biến ký tự lạ/dấu cách thành dấu gạch dưới
+      .replace(/_+/g, '_'); // Gộp các dấu gạch dưới thừa
+
+    // 3. ĐẶT LẠI TÊN CHO CLOUDINARY (Tên file sạch + Mã thời gian chống trùng + Đuôi)
+    const publicId = `${safeName}_${Date.now()}.${ext}`;
+
+    // Chuyển buffer từ RAM thành chuỗi Base64
+    const b64 = Buffer.from(req.file.buffer).toString("base64");
+    let dataURI = "data:" + req.file.mimetype + ";base64," + b64;
+
+    // Upload lên Cloudinary kèm theo public_id vừa tạo
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: "chat_attachments",
+      resource_type: "auto", 
+      public_id: publicId // Ép Cloudinary phải dùng tên này
+    });
+
+    // Trả về dữ liệu cho Frontend
+    res.status(200).json({ 
+      url: result.secure_url,
+      format: result.format,
+      bytes: result.bytes
+    });
+
+  } catch (error) {
+    console.error("Lỗi upload Cloudinary:", error);
+    res.status(500).json({ message: "Lỗi tải file lên máy chủ", error: error.message });
+  }
+};
+// Giải tán / Xoá nhóm
+export const deleteGroupConversation = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    // Tuỳ chọn: Xoá luôn tất cả tin nhắn thuộc về nhóm này cho sạch Database
+    await Message.deleteMany({ conversation: conversationId });
+
+    // Xoá document nhóm
+    await Conversation.findByIdAndDelete(conversationId);
+
+    res.status(200).json({ message: "Đã giải tán nhóm" });
+  } catch (error) {
+    console.error("Lỗi xoá nhóm:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+};
+// Thêm hàm tạo nhóm chat tuỳ chọn
+export const createGroupConversation = async (req, res) => {
+  try {
+    const { name, participantIds } = req.body;
+    const currentUserId = req.user.id;
+
+    if (!participantIds || participantIds.length === 0) {
+      return res.status(400).json({ message: "Vui lòng chọn ít nhất 1 thành viên để tạo nhóm" });
+    }
+
+    // Gộp user hiện tại vào danh sách thành viên (lọc trùng bằng Set)
+    const uniqueParticipantIds = [...new Set([...participantIds, currentUserId])];
+    const participants = uniqueParticipantIds.map(id => ({
+      user: id,
+      lastReadAt: new Date(),
+    }));
+
+    const conversation = new Conversation({
+      type: "group", // Đổi type thành group
+      name: name || "Nhóm trò chuyện mới",
+      participants,
+      createdBy: currentUserId,
+    });
+
+    await conversation.save();
+    
+    // Populate dữ liệu để trả về cho Frontend hiển thị ngay
+    await conversation.populate("participants.user", "name email profilePicture");
+
+    res.status(201).json(conversation);
+  } catch (error) {
+    console.error("Create group conversation error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 // Mark conversation as read
 export const markConversationAsRead = async (req, res) => {
   try {

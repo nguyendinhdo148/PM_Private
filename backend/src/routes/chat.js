@@ -1,6 +1,7 @@
 // routes/chat.js
 import express from "express";
 import { z } from "zod";
+import multer from "multer";
 import { validateRequest } from "zod-express-middleware";
 import authMiddleware from "../middleware/auth-middleware.js";
 import {
@@ -14,8 +15,31 @@ import {
   deleteMessage,
   addReaction,
   markConversationAsRead,
+  getAllUsersForChat,
+  createGroupConversation,
+  addMembersToGroup,
+  removeMemberFromGroup,
+  deleteGroupConversation,
+  uploadFile,
 } from "../controllers/chat.js";
-
+const storage = multer.memoryStorage();
+const fileFilter = (req, file, cb) => {
+  // Cho phép ảnh
+  if (file.mimetype.startsWith("image/")) return cb(null, true);
+  
+  // Cho phép tài liệu
+  const allowedDocTypes = [
+    "application/pdf", "application/msword", 
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel", 
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain"
+  ];
+  if (allowedDocTypes.includes(file.mimetype)) return cb(null, true);
+  
+  return cb(new Error("Định dạng file không được hỗ trợ"));
+};
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter });
 const router = express.Router();
 
 // Get all conversations for current user
@@ -32,7 +56,44 @@ router.get(
   }),
   getOrCreateDirectConversation
 );
+router.post(
+  "/conversations/:conversationId/members",
+  authMiddleware,
+  validateRequest({
+    params: z.object({
+      conversationId: z.string(),
+    }),
+    body: z.object({
+      userIds: z.array(z.string()).min(1),
+    }),
+  }),
+  addMembersToGroup
+);
+router.post("/upload", authMiddleware, upload.single("file"), uploadFile);
+// Route Xoá thành viên khỏi nhóm
+router.delete(
+  "/conversations/:conversationId/members/:userId",
+  authMiddleware,
+  validateRequest({
+    params: z.object({
+      conversationId: z.string(),
+      userId: z.string(),
+    }),
+  }),
+  removeMemberFromGroup
+);
 
+// Route Giải tán / Xoá nhóm
+router.delete(
+  "/conversations/:conversationId",
+  authMiddleware,
+  validateRequest({
+    params: z.object({
+      conversationId: z.string(),
+    }),
+  }),
+  deleteGroupConversation
+);
 // Workspace chat routes
 router.get(
   "/conversations/workspace/:workspaceId",
@@ -44,7 +105,17 @@ router.get(
   }),
   getWorkspaceConversation
 );
-
+router.post(
+  "/conversations/group",
+  authMiddleware,
+  validateRequest({
+    body: z.object({
+      name: z.string().optional(),
+      participantIds: z.array(z.string()).min(1),
+    }),
+  }),
+  createGroupConversation
+);
 // Project chat routes
 router.get(
   "/conversations/project/:projectId",
@@ -114,6 +185,10 @@ router.put(
   updateMessage
 );
 
+router.get("/users", authMiddleware, getAllUsersForChat);
+
+// Get all conversations for current user
+router.get("/conversations", authMiddleware, getUserConversations);
 router.delete(
   "/messages/:messageId",
   authMiddleware,

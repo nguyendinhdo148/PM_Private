@@ -13,6 +13,11 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     profilePicture: { type: String },
     profilePicturePublicId: { type: String, select: false },
+    role: {
+      type: String,
+      enum: ["user", "cashier", "bar", "admin"],
+      default: "user",
+    },
     isEmailVerified: { type: Boolean, default: false },
     lastLogin: { type: Date },
     is2FAEnabled: { type: Boolean, default: false },

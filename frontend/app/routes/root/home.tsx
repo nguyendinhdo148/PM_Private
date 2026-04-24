@@ -28,11 +28,11 @@ const HomePage = () => {
           <Link to="/sign-in">
             <Button variant="ghost">Sign in</Button>
           </Link>
-          <Link to="/sign-up">
+          {/* <Link to="/sign-up">
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
               Get Started
             </Button>
-          </Link>
+          </Link> */}
         </div>
       </header>
 
@@ -51,11 +51,11 @@ const HomePage = () => {
         </p>
 
         <div className="flex gap-4 mt-8">
-          <Link to="/sign-up">
+          {/* <Link to="/sign-up">
             <Button className="px-6 py-5 text-base bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md">
               Get Started Free
             </Button>
-          </Link>
+          </Link> */}
 
           <Link to="/sign-in">
             <Button
@@ -121,11 +121,11 @@ const HomePage = () => {
           Join TaskHub and start managing your work efficiently today.
         </p>
 
-        <Link to="/sign-up">
+        {/* <Link to="/sign-up">
           <Button className="px-8 py-6 text-lg bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md">
             Get Started Now 🚀
           </Button>
-        </Link>
+        </Link> */}
       </section>
 
       {/* ================= FOOTER ================= */}

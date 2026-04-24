@@ -7,7 +7,7 @@ import { useAuth } from "@/provider/auth-context";
 import type { Workspace } from "@/types";
 import { Loader } from "lucide-react";
 import { useState } from "react";
-import { Navigate, Outlet, useNavigate } from "react-router";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 export const clientLoader = async () => {
   try {
@@ -21,7 +21,8 @@ export const clientLoader = async () => {
 
 const DashboardLayout = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  const { isAuthenticated, isLoading, hasRole } = useAuth();
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(
     null,
@@ -33,6 +34,26 @@ const DashboardLayout = () => {
 
   if (!isAuthenticated) {
     return <Navigate to="/sign-in" />;
+  }
+
+  // Define cashier-only routes
+  const cashierOnlyRoutes = [
+    "/workspaces",
+    "/my-tasks",
+    "/backlog",
+    "/members",
+    "/wine-commission",
+    "/cancel-report",
+  ];
+
+  // Check if current path requires cashier role
+  const isCashierOnlyRoute = cashierOnlyRoutes.some(route => 
+    location.pathname.startsWith(route)
+  );
+
+  if (isCashierOnlyRoute && !hasRole(["cashier", "admin"])) {
+    // Redirect to dashboard if not authorized
+    return <Navigate to="/dashboard" />;
   }
 
   const handleWorkspaceSelected = (workspace: Workspace) => {
