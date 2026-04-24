@@ -27,6 +27,7 @@ const DashboardLayout = () => {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(
     null,
   );
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   if (isLoading) {
     return <Loader />;
@@ -63,12 +64,32 @@ const DashboardLayout = () => {
 
   return (
     <div className="flex h-screen w-full">
-      <SidebarComponent currentWorkspace={currentWorkspace} />
-      <div className="flex flex-1 flex-col h-full">
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`fixed md:static inset-y-0 left-0 z-40 transition-all duration-300 ${
+          isMobileSidebarOpen ? "w-64" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        <SidebarComponent
+          currentWorkspace={currentWorkspace}
+          onMobileMenuClose={() => setIsMobileSidebarOpen(false)}
+        />
+      </div>
+
+      <div className="flex flex-1 flex-col h-full w-full">
         <Header
           onWorkspaceSelected={handleWorkspaceSelected}
           selectedWorkspace={currentWorkspace}
           onCreateWorkspace={() => setIsCreatingWorkspace(true)}
+          onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
 
         <main className="flex-1 overflow-y-auto w-full h-full">

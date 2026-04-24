@@ -25,8 +25,10 @@ import { SidebarNav } from "./sidebar-nav";
 
 export const SidebarComponent = ({
   currentWorkspace,
+  onMobileMenuClose,
 }: {
   currentWorkspace: Workspace | null;
+  onMobileMenuClose?: () => void;
 }) => {
   const { user, logout, hasRole } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -131,6 +133,7 @@ export const SidebarComponent = ({
             isCollapsed={isCollapsed}
             className={cn(isCollapsed && "items-center space-y-1")}
             currentWorkspace={currentWorkspace}
+            onNavigate={onMobileMenuClose}
           />
         </div>
       </ScrollArea>

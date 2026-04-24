@@ -3,7 +3,7 @@ import { useAuth } from "@/provider/auth-context";
 import { useUserProfileQuery } from "@/hooks/use-User";
 import type { Workspace } from "@/types";
 import { Button } from "../ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Menu } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,12 +22,14 @@ interface HeaderProps {
   onWorkspaceSelected: (workspace: Workspace) => void;
   selectedWorkspace: Workspace | null;
   onCreateWorkspace: () => void;
+  onMobileMenuToggle?: () => void;
 }
 
 export const Header = ({
   onWorkspaceSelected,
   selectedWorkspace,
   onCreateWorkspace,
+  onMobileMenuToggle,
 }: HeaderProps) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -51,6 +53,16 @@ export const Header = ({
   return (
     <div className="bg-background sticky top-0 z-40 border-b">
       <div className="flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMobileMenuToggle}
+          className="md:hidden"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant={"outline"}>

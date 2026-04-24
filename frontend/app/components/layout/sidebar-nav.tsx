@@ -12,6 +12,7 @@ interface SidebarNavProps extends React.HtmlHTMLAttributes<HTMLElement> {
   }[];
   isCollapsed: boolean;
   currentWorkspace: Workspace | null;
+  onNavigate?: () => void;
 }
 
 export const SidebarNav = ({
@@ -19,6 +20,7 @@ export const SidebarNav = ({
   isCollapsed,
   className,
   currentWorkspace,
+  onNavigate,
   ...props
 }: SidebarNavProps) => {
   const location = useLocation();
@@ -40,6 +42,7 @@ export const SidebarNav = ({
           } else {
             navigate(el.href);
           }
+          onNavigate?.();
         };
 
         return (
