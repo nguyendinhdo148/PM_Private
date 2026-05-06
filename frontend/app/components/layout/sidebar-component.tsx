@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/provider/auth-context";
+import { useChatUnreadCount } from "@/hooks/use-chat";
 import type { Workspace } from "@/types";
 import {
   CheckCircle2,
@@ -31,6 +32,7 @@ export const SidebarComponent = ({
   onMobileMenuClose?: () => void;
 }) => {
   const { user, logout, hasRole } = useAuth();
+  const { totalUnreadCount } = useChatUnreadCount();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const allNavItems = [
@@ -134,6 +136,7 @@ export const SidebarComponent = ({
             className={cn(isCollapsed && "items-center space-y-1")}
             currentWorkspace={currentWorkspace}
             onNavigate={onMobileMenuClose}
+            unreadMessageCount={totalUnreadCount}
           />
         </div>
       </ScrollArea>

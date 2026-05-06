@@ -305,6 +305,8 @@ const Achieved = () => {
     setCurrentConversation(conv);
     if (socketRef.current && socketConnected) {
       socketRef.current.emit("join-conversation", conv._id);
+      // Emit mark-read event for real-time updates
+      socketRef.current.emit("mark-read", { conversationId: conv._id });
     }
     await fetchMessages(conv._id);
     await postData(`/chat/conversations/${conv._id}/read`, {});

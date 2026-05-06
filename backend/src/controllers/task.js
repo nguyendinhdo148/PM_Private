@@ -670,7 +670,12 @@ const getMyTasks = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const tasks = await Task.find({ assignees: { $in: [req.user._id] } })
+    // Nếu là cashier thì xem tất cả tasks, ngược lại chỉ xem tasks được assign
+    const query = req.user.role === "cashier"
+      ? {} // Tất cả tasks
+      : { assignees: { $in: [req.user._id] } }; // Chỉ tasks được assign
+
+    const tasks = await Task.find(query)
       .populate("project", "title workspace")
       .sort({ createdAt: -1 });
 
