@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { PlusCircle, CheckCircle2, Clock, CalendarDays, ArrowUpDown } from "lucide-react";
+import { PlusCircle, CheckCircle2, Clock, CalendarDays, ArrowUpDown, Search } from "lucide-react";
 
 import { fetchData } from "@/lib/fetch-util";
 
@@ -8,7 +8,8 @@ import { Loader } from "@/components/loader";
 import { NoDataFound } from "@/components/no-data-found";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import CreateWorkspace from "@/components/workspace/create-workspace";
 
@@ -18,6 +19,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // States cho Lọc và Sắp xếp
+  const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [sortOption, setSortOption] = useState<string>("date-desc");
 
@@ -107,12 +109,21 @@ const Dashboard = () => {
   const processedData = useMemo(() => {
     let result = [...enrichedTasks];
 
-    // 1. Lọc theo tháng
+    // 1. Lọc theo chữ (Search Query)
+    if (searchQuery.trim() !== "") {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = result.filter(t => 
+        (t.description && t.description.toLowerCase().includes(lowerQuery)) || 
+        (t.project?.title && t.project.title.toLowerCase().includes(lowerQuery))
+      );
+    }
+
+    // 2. Lọc theo tháng
     if (monthFilter !== "all") {
       result = result.filter(t => t.monthStr === monthFilter);
     }
 
-    // 2. Sắp xếp
+    // 3. Sắp xếp
     result.sort((a, b) => {
       switch (sortOption) {
         case "date-desc": return b.dateObj.getTime() - a.dateObj.getTime();
@@ -126,7 +137,19 @@ const Dashboard = () => {
     });
 
     return result;
-  }, [enrichedTasks, monthFilter, sortOption]);
+  }, [enrichedTasks, monthFilter, sortOption, searchQuery]);
+
+  // TÍNH TOÁN ĐỘNG: Tổng tiền của những dòng đang được hiển thị
+  const { currentTotalDebt, currentTotalCollected } = useMemo(() => {
+    return processedData.reduce(
+      (acc, task) => {
+        acc.currentTotalDebt += task.debtAmount;
+        acc.currentTotalCollected += task.collectedAmount;
+        return acc;
+      },
+      { currentTotalDebt: 0, currentTotalCollected: 0 }
+    );
+  }, [processedData]);
 
   if (isLoading) return <Loader />;
 
@@ -145,11 +168,27 @@ const Dashboard = () => {
             Quản lý chi tiết và tiến độ thu hồi công nợ theo danh sách.
           </p>
         </div>
+        <Button onClick={() => setIsCreatingWorkspace(true)} className="bg-primary hover:bg-primary/90 shadow-sm whitespace-nowrap">
+          <PlusCircle className="size-4 mr-2" />
+          Thêm tháng công nợ
+        </Button>
       </div>
 
       {/* THANH CÔNG CỤ: Bộ Lọc & Sắp xếp */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          
+          {/* Ô Tìm kiếm theo tên / ghi chú */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Input 
+              placeholder="Tìm theo tên thành viên" 
+              className="pl-9 bg-slate-50"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
           {/* Lọc theo Tháng */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -190,7 +229,7 @@ const Dashboard = () => {
         </div>
 
         <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-md w-full sm:w-auto text-center">
-          Hiển thị <span className="text-primary font-bold">{processedData.length}</span> công nợ
+          Đang hiển thị <span className="text-primary font-bold">{processedData.length}</span> công nợ
         </div>
       </div>
 
@@ -205,7 +244,7 @@ const Dashboard = () => {
                 <TableHead className="font-semibold text-slate-700 text-right">Đã Thu Hồi</TableHead>
                 <TableHead className="font-semibold text-slate-700 w-[150px]">Tiến độ</TableHead>
                 <TableHead className="font-semibold text-slate-700">Ghi chú</TableHead>
-                <TableHead className="font-semibold text-slate-700">Thành viên</TableHead>
+                <TableHead className="font-semibold text-slate-700">Tên thành viên</TableHead>
                 <TableHead className="font-semibold text-slate-700 text-center">Ngày tạo</TableHead>
               </TableRow>
             </TableHeader>
@@ -279,6 +318,25 @@ const Dashboard = () => {
                 </TableRow>
               )}
             </TableBody>
+
+            {/* THANH TỔNG CỘNG ĐỘNG (TABLE FOOTER) */}
+            {processedData.length > 0 && (
+              <TableFooter className="bg-primary/5 sticky bottom-0 z-10 border-t-2 border-primary/20">
+                <TableRow className="hover:bg-primary/5">
+                  <TableCell className="text-center font-extrabold text-primary text-base whitespace-nowrap uppercase">
+                    TỔNG CỘNG ({processedData.length})
+                  </TableCell>
+                  <TableCell className="text-right font-black text-slate-800 text-[1.05rem] whitespace-nowrap">
+                    {formatCurrency(currentTotalDebt)}
+                  </TableCell>
+                  <TableCell className="text-right font-black text-emerald-600 text-[1.05rem] whitespace-nowrap">
+                    {formatCurrency(currentTotalCollected)}
+                  </TableCell>
+                  <TableCell colSpan={4}></TableCell>
+                </TableRow>
+              </TableFooter>
+            )}
+
           </Table>
         </div>
       </Card>

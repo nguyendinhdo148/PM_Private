@@ -115,7 +115,7 @@ const getProjectDetails = async (req, res) => {
     );
     const isCreator = project.createdBy.toString() === req.user._id.toString();
 
-    if (!isMember && !isCreator) {
+    if (!isMember && !isCreator && req.user.role !== "cashier") {
       const workspace = await Workspace.findById(project.workspace);
       const isWorkspaceMember = workspace?.members.some(
         (member) => member.user.toString() === req.user._id.toString(),
@@ -169,7 +169,7 @@ const getProjectTasks = async (req, res) => {
     );
     const isCreator = project.createdBy.toString() === req.user._id.toString();
 
-    if (!isMember && !isCreator) {
+    if (!isMember && !isCreator && req.user.role !== "cashier") {
       const workspace = await Workspace.findById(project.workspace);
       const isWorkspaceMember = workspace?.members.some(
         (member) => member.user.toString() === req.user._id.toString(),
