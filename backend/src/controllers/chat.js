@@ -338,6 +338,7 @@ export const getMessages = async (req, res) => {
 };
 
 // Get user conversations
+// Get user conversations
 export const getUserConversations = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -355,7 +356,18 @@ export const getUserConversations = async (req, res) => {
 
     // Calculate unread count for current user
     const conversationsWithUnread = await Promise.all(conversations.map(async (conv) => {
-      const participant = conv.participants.find(p => p.user._id.toString() === userId);
+      
+      // FIX 1: Lọc bỏ những participant bị null (do user đã bị xoá khỏi DB)
+      conv.participants = conv.participants.filter(p => p.user != null);
+
+      // FIX 2: Xử lý an toàn khi tìm participant hiện tại
+      const participant = conv.participants.find(p => {
+        if (!p.user) return false;
+        // Check nếu p.user đã được populate thành object thì lấy _id, nếu chưa thì lấy trực tiếp
+        const idToCheck = p.user._id ? p.user._id.toString() : p.user.toString();
+        return idToCheck === userId;
+      });
+      
       const unreadCount = await Message.countDocuments({
         conversation: conv._id,
         sender: { $ne: userId },

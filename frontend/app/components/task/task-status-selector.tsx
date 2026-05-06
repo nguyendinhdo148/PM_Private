@@ -41,7 +41,7 @@ export const TaskStatusSelector = ({
       </SelectTrigger>
 
       <SelectContent>
-        <SelectItem value="To Do">Đang nợ</SelectItem>
+        <SelectItem value="To do">Đang nợ</SelectItem>
         <SelectItem value="In Progress">Trả một phần</SelectItem>
         <SelectItem value="Done">Hoàn thành</SelectItem>
       </SelectContent>

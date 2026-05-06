@@ -148,7 +148,7 @@ export const TaskToolbar = ({
           )}
 
           <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
-            {(["All", "To Do", "In Progress", "Done"] as const).map(
+            {(["All", "To do", "In Progress", "Done"] as const).map(
               (status) => (
                 <button
                   key={status}
@@ -162,8 +162,8 @@ export const TaskToolbar = ({
                 >
                   {status === "All"
                     ? "Tất cả"
-                    : status === "To Do"
-                    ? "Chưa trả"
+                    : status === "To do"
+                    ? "To do"
                     : status === "In Progress"
                     ? "Trả một phần"
                     : "Hoàn thành"}

@@ -22,13 +22,13 @@ export const TaskListItem = ({ task, onClick }: TaskListItemProps) => {
   const epic = story?.epic;
 
   const statusColors = {
-    "To Do": "bg-slate-100 text-slate-700",
+    "To do": "bg-slate-100 text-slate-700",
     "In Progress": "bg-blue-100 text-blue-700",
     Done: "bg-green-100 text-green-700",
   };
 
   const statusLabels = {
-    "To Do": "Chưa trả",
+    "To do": "To do",
     "In Progress": "Trả một phần",
     Done: "Hoàn thành",
   };

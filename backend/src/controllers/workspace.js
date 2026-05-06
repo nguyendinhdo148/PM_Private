@@ -34,9 +34,11 @@ const createWorkspace = async (req, res) => {
 
 const getWorkspaces = async (req, res) => {
   try {
-    const workspaces = await Workspace.find({
-      "members.user": req.user._id,
-    }).sort({ createdAt: -1 });
+    let query = {};
+    if (req.user.role !== "cashier") {
+      query = { "members.user": req.user._id };
+    }
+    const workspaces = await Workspace.find(query).sort({ createdAt: -1 });
 
     res.status(201).json(workspaces);
   } catch (error) {
@@ -59,22 +61,42 @@ const getWorkspaceDetails = async (req, res) => {
       });
     }
 
+    // Allow access if user is cashier or a member
+    const isMember = workspace.members.some(
+      (member) => member.user.toString() === req.user._id.toString(),
+    );
+    if (req.user.role !== "cashier" && !isMember) {
+      return res.status(403).json({
+        message: "You are not authorized to view this workspace",
+      });
+    }
+
     res.status(200).json(workspace);
-  } catch (error) {}
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 const getWorkspaceProjects = async (req, res) => {
   try {
     const { workspaceId } = req.params;
 
-    const workspace = await Workspace.findOne({
-      _id: workspaceId,
-      "members.user": req.user._id,
-    }).populate("members.user", "name email profilePicture");
+    const workspace = await Workspace.findById(workspaceId).populate("members.user", "name email profilePicture");
 
     if (!workspace) {
       return res.status(404).json({
         message: "Workspace not found",
+      });
+    }
+
+    // Allow access if user is cashier or a member
+    const isMember = workspace.members.some(
+      (member) => member.user.toString() === req.user._id.toString(),
+    );
+    if (req.user.role !== "cashier" && !isMember) {
+      return res.status(403).json({
+        message: "You are not authorized to view this workspace",
       });
     }
 
@@ -104,13 +126,13 @@ const getWorkspacesStats = async (req, res) => {
       });
     }
 
+    // Allow access if user is cashier or a member
     const isMember = workspace.members.some(
       (member) => member.user.toString() === req.user._id.toString(),
     );
-
-    if (!isMember) {
+    if (req.user.role !== "cashier" && !isMember) {
       return res.status(403).json({
-        message: "You are not a member of this workspace",
+        message: "You are not authorized to view this workspace",
       });
     }
 
@@ -155,7 +177,7 @@ const getWorkspacesStats = async (req, res) => {
 
     const totalTaskToDo = projects.reduce((acc, project) => {
       return (
-        acc + project.tasks.filter((task) => task.status === "To Do").length
+        acc + project.tasks.filter((task) => task.status === "To do").length
       );
     }, 0);
 
@@ -223,7 +245,7 @@ const getWorkspacesStats = async (req, res) => {
               case "In Progress":
                 dayData.inProgress++;
                 break;
-              case "To Do":
+              case "To do":
                 dayData.toDo++;
                 break;
             }
@@ -588,7 +610,4 @@ export {
   getWorkspaceDetails,
   getWorkspacesStats,
   getWorkspaceProjects,
-  inviteUserToWorkspace,
-  acceptGenerateInvite,
-  acceptInviteByToken,
 };

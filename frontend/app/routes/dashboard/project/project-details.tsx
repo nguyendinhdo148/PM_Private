@@ -43,7 +43,7 @@ const ProjectDetails = () => {
 
   const taskCounts = useMemo(
     () => ({
-      todo: localTasks.filter((t) => t.status === "To Do").length,
+      todo: localTasks.filter((t) => t.status === "To do").length,
       inProgress: localTasks.filter((t) => t.status === "In Progress").length,
       done: localTasks.filter((t) => t.status === "Done").length,
     }),

@@ -13,7 +13,6 @@ interface ProjectStatsGridProps {
 export const ProjectStatsGrid = ({
   tasks,
   taskCounts,
-  epicStats,
   projectProgress,
   members,
 }: ProjectStatsGridProps) => {

@@ -1,6 +1,5 @@
 import { Loader } from "@/components/loader";
 import { CreateProjectDialog } from "@/components/project/create-project";
-import { InviteMemberDialog } from "@/components/workspace/invite-member";
 import ProjectList from "@/components/workspace/project-list";
 import { WorkspaceHeader } from "@/components/workspace/workspace-header";
 import { useGetWorkspaceQuery } from "@/hooks/use-Workspace";
@@ -12,7 +11,6 @@ import { useParams } from "react-router";
 const workspaceDetails = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [isCreateProject, setIsCreateProject] = useState(false);
-  const [isInviteMember, setIsInviteMember] = useState(false);
 
   if (!workspaceId) {
     return <div>No workspace found </div>;
@@ -35,7 +33,6 @@ const workspaceDetails = () => {
         workspace={data.workspace}
         members={data?.workspace.members as any}
         onCreateProject={() => setIsCreateProject(true)}
-        onInviteMember={() => setIsInviteMember(true)}
       />
       <ProjectList
         workspaceId={workspaceId}
@@ -48,12 +45,6 @@ const workspaceDetails = () => {
         onOpenChange={setIsCreateProject}
         workspaceId={workspaceId}
         workspaceMembers={data.workspace.members as any}
-      />
-
-      <InviteMemberDialog
-        isOpen={isInviteMember}
-        onOpenChange={setIsInviteMember}
-        workspaceId={workspaceId}
       />
     </div>
   );

@@ -56,7 +56,7 @@ export const CreateTaskDialog = ({
     defaultValues: {
       title: "",
       description: "",
-      status: "To Do",
+      status: "To do",
       priority: "Medium",
       dueDate: "",
       assignees: [],
@@ -147,7 +147,7 @@ export const CreateTaskDialog = ({
                               </FormControl>
 
                               <SelectContent>
-                                <SelectItem value="To Do">Chưa trả</SelectItem>
+                                <SelectItem value="To do">To do</SelectItem>
                                 <SelectItem value="In Progress">
                                   Trả một phần
                                 </SelectItem>
@@ -198,7 +198,7 @@ export const CreateTaskDialog = ({
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Ngày hết hạn</FormLabel>
+                      <FormLabel>Ngày tạo</FormLabel>
                       <FormControl>
                         <Popover modal={true}>
                           <PopoverTrigger asChild>

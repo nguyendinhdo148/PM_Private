@@ -73,7 +73,7 @@ router.put(
     body: z.object({
       title: z.string().optional(),
       description: z.string().optional(),
-      status: z.enum(["To Do", "In Progress", "Review", "Done"]).optional(),
+      status: z.enum(["To do", "In Progress", "Review", "Done"]).optional(),
       priority: z.enum(["Low", "Medium", "High"]).optional(),
       startDate: z.string().optional(),
       dueDate: z.string().optional(),

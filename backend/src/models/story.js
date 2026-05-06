@@ -23,8 +23,8 @@ const storySchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["To Do", "In Progress", "Review", "Done"],
-      default: "To Do",
+      enum: ["To do", "In Progress", "Review", "Done"],
+      default: "To do",
     },
     priority: {
       type: String,

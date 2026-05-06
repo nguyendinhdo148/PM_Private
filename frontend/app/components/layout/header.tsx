@@ -64,23 +64,20 @@ export const Header = ({
         </Button>
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant={"outline"}>
-              {selectedWorkspace ? (
-                <>
-                  {selectedWorkspace.color && (
-                    <WorkspaceAvatar
-                      color={selectedWorkspace.color}
-                      name={selectedWorkspace.name}
-                    />
-                  )}
-                  <span className="font-medium">{selectedWorkspace?.name}</span>
-                </>
-              ) : (
-                <span className="font-medium">Chọn tháng công nợ</span>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
+          {/* Gỡ bỏ <DropdownMenuTrigger> và <Button>, thay bằng 1 thẻ div bọc ngoài */}
+<div className="flex items-center gap-2 px-4 py-2 border border-transparent min-w-[150px]">
+  {selectedWorkspace && (
+    <>
+      {selectedWorkspace.color && (
+        <WorkspaceAvatar
+          color={selectedWorkspace.color}
+          name={selectedWorkspace.name}
+        />
+      )}
+      <span className="font-medium">{selectedWorkspace.name}</span>
+    </>
+  )}
+</div>
 
           <DropdownMenuContent>
             <DropdownMenuLabel>Công nợ</DropdownMenuLabel>

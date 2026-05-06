@@ -1,7 +1,7 @@
 import type { User, Workspace } from "@/types";
 import { WorkspaceAvatar } from "./workspace-avatar";
 import { Button } from "../ui/button";
-import { Plus, UserPlus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface WorkspaceHeaderProps {
@@ -13,14 +13,12 @@ interface WorkspaceHeaderProps {
     joinedAt: Date;
   }[];
   onCreateProject: () => void;
-  onInviteMember: () => void;
 }
 
 export const WorkspaceHeader = ({
   workspace,
   members,
   onCreateProject,
-  onInviteMember,
 }: WorkspaceHeaderProps) => {
   return (
     <div className="space-y-8">
@@ -35,10 +33,6 @@ export const WorkspaceHeader = ({
             </h2>
           </div>
           <div className="flex items-center gap-3 justify-between md:justify-start mb-4 md:mb-0">
-            <Button variant={"outline"} onClick={onInviteMember}>
-              <UserPlus className="size-4 mr-2" />
-              Mời người theo dõi công nợ
-            </Button>
             <Button onClick={onCreateProject}>
               <Plus className="size-4 mr-2" />
               Thêm thành viên công nợ

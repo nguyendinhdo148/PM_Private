@@ -52,7 +52,7 @@ export const StatsCard = ({ data }: { data: StatsCardProps }) => {
       <Card className="border-0 bg-gradient-to-br from-amber-50 to-amber-50 hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            To Do
+            To do
           </CardTitle>
           <ListTodo className="h-5 w-5 text-amber-500 flex-shrink-0" />
         </CardHeader>

@@ -36,7 +36,7 @@ export const TaskBoardView = ({
     }),
   );
 
-  const todoTasks = tasks.filter((t) => t.status === "To Do");
+  const todoTasks = tasks.filter((t) => t.status === "To do");
   const inProgressTasks = tasks.filter((t) => t.status === "In Progress");
   const doneTasks = tasks.filter((t) => t.status === "Done");
 
@@ -60,7 +60,7 @@ export const TaskBoardView = ({
       let targetStatus: TaskStatus | null = null;
 
       if (
-        over.id === "To Do" ||
+        over.id === "To do" ||
         over.id === "In Progress" ||
         over.id === "Done"
       ) {
@@ -86,8 +86,8 @@ export const TaskBoardView = ({
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <TaskColumn
-          id="To Do"
-          title="Chưa trả"
+          id="To do"
+          title="To do"
           icon={<Circle className="w-4 h-4" />}
           color="slate"
           tasks={todoTasks}
