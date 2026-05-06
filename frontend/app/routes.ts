@@ -49,8 +49,4 @@ export default [
     route("settings", "routes/dashboard/settings.tsx"),
   ]),
 
-  route(
-    "workspace-invite/:workspaceId",
-    "routes/dashboard/workspaces/workspace-invite.tsx",
-  ),
 ] satisfies RouteConfig;
