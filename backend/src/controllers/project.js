@@ -17,25 +17,7 @@ const createProject = async (req, res) => {
       });
     }
 
-    // check quyền
-    const isOwner = workspace.owner.toString() === req.user._id.toString();
-
-    const currentMember = workspace.members.find(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!isOwner && !currentMember) {
-      return res.status(403).json({
-        message: "You are not a member of this workspace",
-      });
-    }
-
-    // chặn member / viewer
-    if (!isOwner && currentMember.role !== "admin") {
-      return res.status(403).json({
-        message: "Only owner or admin can create project",
-      });
-    }
+    // Authenticated users may create projects in workspaces they can access
 
     // xử lý tags
     const tagArray = tags ? tags.split(",") : [];
@@ -110,23 +92,6 @@ const getProjectDetails = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    const isCreator = project.createdBy.toString() === req.user._id.toString();
-
-    if (!isMember && !isCreator && req.user.role !== "cashier") {
-      const workspace = await Workspace.findById(project.workspace);
-      const isWorkspaceMember = workspace?.members.some(
-        (member) => member.user.toString() === req.user._id.toString(),
-      );
-
-      if (!isWorkspaceMember) {
-        return res.status(403).json({
-          message: "You are not a member of this project or workspace",
-        });
-      }
-    }
 
     return res.status(200).json(project);
   } catch (error) {
@@ -164,23 +129,6 @@ const getProjectTasks = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user._id.toString() === req.user._id.toString(),
-    );
-    const isCreator = project.createdBy.toString() === req.user._id.toString();
-
-    if (!isMember && !isCreator && req.user.role !== "cashier") {
-      const workspace = await Workspace.findById(project.workspace);
-      const isWorkspaceMember = workspace?.members.some(
-        (member) => member.user.toString() === req.user._id.toString(),
-      );
-
-      if (!isWorkspaceMember) {
-        return res.status(403).json({
-          message: "You are not a member of this project or workspace",
-        });
-      }
-    }
 
     const tasks = await Task.find({
       project: projectId,
@@ -222,16 +170,6 @@ const updateProject = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!isMember) {
-      return res.status(403).json({
-        message: "You are not a member of this project",
-      });
-    }
-
     if (title) project.title = title;
     if (description) project.description = description;
     if (status) project.status = status;
@@ -261,15 +199,6 @@ const deleteProject = async (req, res) => {
       });
     }
 
-    const currentMember = project.members.find(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!currentMember || currentMember.role !== "manager") {
-      return res.status(403).json({
-        message: "You don't have permission to delete this project",
-      });
-    }
 
     // Xóa tất cả tasks của project
     await Task.deleteMany({ project: projectId });
@@ -305,16 +234,6 @@ const archiveProject = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!isMember) {
-      return res.status(403).json({
-        message: "You are not a member of this project",
-      });
-    }
-
     project.isArchived = !project.isArchived;
     await project.save();
 
@@ -340,15 +259,7 @@ const addMemberToProject = async (req, res) => {
       });
     }
 
-    const currentMember = project.members.find(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!currentMember || currentMember.role !== "manager") {
-      return res.status(403).json({
-        message: "Only manager can add members to project",
-      });
-    }
+    // Authenticated users may add project members
 
     const isAlreadyMember = project.members.some(
       (member) => member.user.toString() === userId
@@ -424,15 +335,7 @@ const removeMemberFromProject = async (req, res) => {
       });
     }
 
-    const currentMember = project.members.find(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!currentMember || currentMember.role !== "manager") {
-      return res.status(403).json({
-        message: "Only manager can remove members from project",
-      });
-    }
+    // Authenticated users may remove project members
 
     project.members = project.members.filter(
       (member) => member.user.toString() !== userId
@@ -460,15 +363,7 @@ const updateMemberRole = async (req, res) => {
       });
     }
 
-    const currentMember = project.members.find(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!currentMember || currentMember.role !== "manager") {
-      return res.status(403).json({
-        message: "Only manager can update member roles",
-      });
-    }
+    // Authenticated users may update project member roles
 
     const member = project.members.find(
       (member) => member.user.toString() === userId

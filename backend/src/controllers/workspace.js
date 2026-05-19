@@ -34,11 +34,7 @@ const createWorkspace = async (req, res) => {
 
 const getWorkspaces = async (req, res) => {
   try {
-    let query = {};
-    if (req.user.role !== "cashier") {
-      query = { "members.user": req.user._id };
-    }
-    const workspaces = await Workspace.find(query).sort({ createdAt: -1 });
+    const workspaces = await Workspace.find({}).sort({ createdAt: -1 });
 
     res.status(201).json(workspaces);
   } catch (error) {
@@ -61,16 +57,6 @@ const getWorkspaceDetails = async (req, res) => {
       });
     }
 
-    // Allow access if user is cashier or a member
-    const isMember = workspace.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    if (req.user.role !== "cashier" && !isMember) {
-      return res.status(403).json({
-        message: "You are not authorized to view this workspace",
-      });
-    }
-
     res.status(200).json(workspace);
   } catch (error) {
     console.log(error);
@@ -87,16 +73,6 @@ const getWorkspaceProjects = async (req, res) => {
     if (!workspace) {
       return res.status(404).json({
         message: "Workspace not found",
-      });
-    }
-
-    // Allow access if user is cashier or a member
-    const isMember = workspace.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    if (req.user.role !== "cashier" && !isMember) {
-      return res.status(403).json({
-        message: "You are not authorized to view this workspace",
       });
     }
 
@@ -126,37 +102,16 @@ const getWorkspacesStats = async (req, res) => {
       });
     }
 
-    // Allow access if user is cashier or a member
-    const isMember = workspace.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    if (req.user.role !== "cashier" && !isMember) {
-      return res.status(403).json({
-        message: "You are not authorized to view this workspace",
-      });
-    }
+    const projects = await Project.find({
+      workspace: workspaceId,
+    })
+      .populate(
+        "tasks",
+        "title status dueDate project updatedAt isArchived priority",
+      )
+      .sort({ createdAt: -1 });
 
-    const [totalProjects, projects] = await Promise.all([
-  Project.countDocuments({
-    workspace: workspaceId,
-    $or: [
-      { createdBy: req.user._id },
-      { "members.user": req.user._id },
-    ],
-  }),
-  Project.find({
-    workspace: workspaceId,
-    $or: [
-      { createdBy: req.user._id },
-      { "members.user": req.user._id },
-    ],
-  })
-    .populate(
-      "tasks",
-      "title status dueDate project updatedAt isArchived priority",
-    )
-    .sort({ createdAt: -1 }),
-]);
+    const totalProjects = projects.length;
 
     const totalTasks = projects.reduce((acc, project) => {
       return acc + project.tasks.length;

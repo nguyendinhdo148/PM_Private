@@ -26,15 +26,6 @@ const createEpic = async (req, res) => {
       return res.status(403).json({ message: "Project does not belong to this workspace" });
     }
 
-    // Kiểm tra quyền
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "You are not a member of this project" });
-    }
-
     // Tạo epic
     const epic = await Epic.create({
       title,
@@ -77,15 +68,6 @@ const getProjectEpics = async (req, res) => {
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
-    }
-
-    // Kiểm tra quyền
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "You are not a member of this project" });
     }
 
     // Lấy epics và populate stories
@@ -154,20 +136,6 @@ const updateEpic = async (req, res) => {
       return res.status(404).json({ message: "Epic not found" });
     }
 
-    // Kiểm tra quyền
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "You are not a member of this project" });
-    }
-
     // Cập nhật
     if (title) epic.title = title;
     if (description) epic.description = description;
@@ -200,20 +168,6 @@ const deleteEpic = async (req, res) => {
       return res.status(404).json({ message: "Epic not found" });
     }
 
-    // Kiểm tra quyền
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    const currentMember = project.members.find(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!currentMember || currentMember.role === "viewer") {
-      return res.status(403).json({ message: "You don't have permission to delete this epic" });
-    }
-
     // Xóa epic khỏi project
     project.epics = project.epics.filter(id => id.toString() !== epicId);
     await project.save();
@@ -242,19 +196,6 @@ const archiveEpic = async (req, res) => {
     const epic = await Epic.findById(epicId);
     if (!epic) {
       return res.status(404).json({ message: "Epic not found" });
-    }
-
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "You are not a member of this project" });
     }
 
     epic.isArchived = !epic.isArchived;

@@ -16,23 +16,6 @@ const createTask = async (req, res) => {
       });
     }
 
-    // check user có trong project không
-    const currentMember = project.members.find(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!currentMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
-      });
-    }
-
-    // chặn viewer
-    if (currentMember.role === "viewer") {
-      return res.status(403).json({
-        message: "Bạn không có quyền tạo công nợ",
-      });
-    }
 
     // tạo task (công nợ)
     const task = await Task.create({
@@ -105,15 +88,6 @@ const updateTaskTitle = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
-      });
-    }
-
     const oldTitle = task.title;
 
     task.title = title;
@@ -152,15 +126,6 @@ const updateTaskDescription = async (req, res) => {
     if (!project) {
       return res.status(404).json({
         message: "Không tìm thấy dự án",
-      });
-    }
-
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -208,15 +173,6 @@ const updateTaskStatus = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
-      });
-    }
-
     const oldStatus = task.status;
 
     task.status = status;
@@ -252,15 +208,6 @@ const updateTaskAssignees = async (req, res) => {
     if (!project) {
       return res.status(404).json({
         message: "Không tìm thấy dự án",
-      });
-    }
-
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -302,15 +249,6 @@ const updateTaskPriority = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
-      });
-    }
-
     const oldPriority = task.priority;
 
     task.priority = priority;
@@ -345,16 +283,6 @@ const deleteTask = async (req, res) => {
     if (!project) {
       return res.status(404).json({
         message: "Không tìm thấy dự án",
-      });
-    }
-
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -395,16 +323,6 @@ const addSubTask = async (req, res) => {
     if (!project) {
       return res.status(404).json({
         message: "Không tìm thấy dự án",
-      });
-    }
-
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
       });
     }
 
@@ -508,16 +426,6 @@ const addComment = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
-      });
-    }
-
     const newComment = await Comment.create({
       text,
       task: taskId,
@@ -583,16 +491,6 @@ const watchTask = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
-      });
-    }
-
     const isWatching = task.watchers.includes(req.user._id);
 
     if (!isWatching) {
@@ -637,16 +535,6 @@ const achievedTask = async (req, res) => {
       });
     }
 
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString(),
-    );
-
-    if (!isMember) {
-      return res.status(403).json({
-        message: "Bạn không phải là thành viên của dự án này",
-      });
-    }
-
     const isAchieved = task.isArchived;
 
     task.isArchived = !isAchieved;
@@ -668,12 +556,7 @@ const achievedTask = async (req, res) => {
 
 const getMyTasks = async (req, res) => {
   try {
-    const userId = req.user._id;
-
-    // Nếu là cashier thì xem tất cả tasks, ngược lại chỉ xem tasks được assign
-    const query = req.user.role === "cashier"
-      ? {} // Tất cả tasks
-      : { assignees: { $in: [req.user._id] } }; // Chỉ tasks được assign
+    const query = {};
 
     const tasks = await Task.find(query)
       .populate("project", "title workspace")

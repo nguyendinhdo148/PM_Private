@@ -22,15 +22,6 @@ const createStory = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Kiểm tra quyền
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "You are not a member of this project" });
-    }
-
     // Tạo story
     const story = await Story.create({
       title,
@@ -121,20 +112,6 @@ const updateStory = async (req, res) => {
       return res.status(404).json({ message: "Story not found" });
     }
 
-    // Kiểm tra quyền
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "You are not a member of this project" });
-    }
-
     // Cập nhật
     if (title) story.title = title;
     if (description) story.description = description;
@@ -172,14 +149,6 @@ const deleteStory = async (req, res) => {
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
-    }
-
-    const currentMember = project.members.find(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!currentMember || currentMember.role === "viewer") {
-      return res.status(403).json({ message: "You don't have permission to delete this story" });
     }
 
     // Xóa story khỏi epic
@@ -221,14 +190,6 @@ const archiveStory = async (req, res) => {
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
-    }
-
-    const isMember = project.members.some(
-      (member) => member.user.toString() === req.user._id.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "You are not a member of this project" });
     }
 
     story.isArchived = !story.isArchived;
