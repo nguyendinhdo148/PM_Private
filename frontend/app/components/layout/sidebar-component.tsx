@@ -53,23 +53,8 @@ export const SidebarComponent = ({
     { title: "Settings", href: "/settings", icon: Settings },
   ];
 
-  // Filter nav items based on role
-  const navItems = allNavItems.filter((item) => {
-    // Everyone can see Dashboard, Messenger, and Settings
-    if (["Dashboard", "Messenger", "Settings"].includes(item.title)) {
-      return true;
-    }
-    // If item has specific roles requirement, check against those
-    if ((item as any).roles) {
-      return hasRole((item as any).roles);
-    }
-    // Cashier and admin see all other items
-    if (hasRole(["cashier", "admin"])) {
-      return true;
-    }
-    // Bar sees only the common ones (already included above)
-    return false;
-  });
+  // Show all navigation items to authenticated users
+  const navItems = allNavItems;
 
   return (
     <div

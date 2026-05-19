@@ -37,25 +37,6 @@ const DashboardLayout = () => {
     return <Navigate to="/sign-in" />;
   }
 
-  // Define cashier-only routes
-  const cashierOnlyRoutes = [
-    "/workspaces",
-    "/my-tasks",
-    "/backlog",
-    "/members",
-    "/wine-commission",
-    "/cancel-report",
-  ];
-
-  // Check if current path requires cashier role
-  const isCashierOnlyRoute = cashierOnlyRoutes.some(route => 
-    location.pathname.startsWith(route)
-  );
-
-  if (isCashierOnlyRoute && !hasRole(["cashier", "admin"])) {
-    // Redirect to dashboard if not authorized
-    return <Navigate to="/dashboard" />;
-  }
 
   const handleWorkspaceSelected = (workspace: Workspace) => {
     setCurrentWorkspace(workspace);
