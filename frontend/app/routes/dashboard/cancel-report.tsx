@@ -1028,23 +1028,36 @@ export default function CancelReportPage() {
   // THAO TÁC GIỎ HÀNG (CART POS)
   // ==========================================
   const handleSelectItem = (item: any) => {
-    const existing = cartItems.findIndex(i => i.name === item.name);
-    if (existing >= 0) {
-      const newItems = [...cartItems];
-      newItems[existing].quantity += 1;
-      setCartItems(newItems);
-    } else {
-      setCartItems([...cartItems, { 
-        category: item.category, 
-        name: item.name, 
-        price: item.price, 
-        quantity: 1 
-      }]);
-    }
-    setItemSearch(""); 
-    setShowItemDropdown(false);
-    setIsAddingNew(false);
-  };
+  const existing = cartItems.findIndex(i => i.name === item.name);
+
+  if (existing >= 0) {
+    const newItems = [...cartItems];
+
+    // tăng số lượng
+    newItems[existing].quantity += 1;
+
+    // đưa món vừa thao tác lên đầu
+    const updatedItem = newItems.splice(existing, 1)[0];
+    newItems.unshift(updatedItem);
+
+    setCartItems(newItems);
+  } else {
+    // thêm mới lên đầu danh sách
+    setCartItems([
+      {
+        category: item.category,
+        name: item.name,
+        price: item.price,
+        quantity: 1
+      },
+      ...cartItems
+    ]);
+  }
+
+  setItemSearch("");
+  setShowItemDropdown(false);
+  setIsAddingNew(false);
+};
 
   const handleQtyChange = (index: number, delta: number) => {
     const newItems = [...cartItems];
@@ -1348,13 +1361,13 @@ export default function CancelReportPage() {
                     </div>
 
                     {/* KHU VỰC CART ĐƯỢC TỐI ƯU CHO POS */}
-                    <div className="flex flex-col flex-1 min-h-[250px] bg-slate-50 border-t border-slate-200">
+                    <div className="flex flex-col bg-slate-50 border-t border-slate-200">
                       <div className="bg-slate-200/50 px-4 py-2.5 text-xs font-bold text-slate-600 border-b border-slate-200 uppercase tracking-widest shrink-0">
                         Chi tiết món trong phiếu
                       </div>
                       
                       {/* List Items */}
-                      <div className="p-3 flex-1 overflow-y-auto space-y-2">
+                      <div className="p-3 space-y-2 overflow-y-auto max-h-[500px]">
                         {cartItems.length === 0 ? (
                           <div className="flex flex-col items-center justify-center h-full text-slate-400 py-10 gap-2">
                             <ClipboardList className="w-10 h-10 opacity-30"/>
