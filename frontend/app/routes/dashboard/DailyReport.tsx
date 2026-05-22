@@ -53,7 +53,17 @@ const DailyReport = () => {
       const fetchRevenues = async () => {
         try {
           const result = (await fetchData(`/daily-revenues?reportId=${reportId}`)) as ApiResponse<DailyRevenue[]>; 
-          if (result.success) setData(result.data);
+          if (result.success) {
+            setData(result.data);
+            if (result.data.length > 0) {
+              const maxTimestamp = Math.max(...result.data.map(d => new Date(d.date).getTime()));
+              const latestDate = new Date(maxTimestamp);
+              const year = latestDate.getFullYear(), month = latestDate.getMonth() + 1;
+              const firstDay = new Date(year, month - 1, 1).getDay() || 7; 
+              const weekNum = Math.ceil((latestDate.getDate() + firstDay - 1) / 7);
+              setWeekFilter(weekNum.toString());
+            }
+          }
         } catch (error) {
           console.error("Lỗi khi tải dữ liệu:", error);
         }
@@ -196,6 +206,12 @@ const DailyReport = () => {
       const result = (await postData("/daily-revenues", newRow)) as ApiResponse<DailyRevenue>;
       if (result.success) {
         setData([...data, result.data]);
+
+        const year = nextDate.getFullYear(), month = nextDate.getMonth() + 1;
+        const firstDay = new Date(year, month - 1, 1).getDay() || 7; 
+        const weekNum = Math.ceil((nextDate.getDate() + firstDay - 1) / 7);
+        setWeekFilter(weekNum.toString());
+
         setIsNewRow(true);
         handleEditClick(result.data); 
       } else alert("Lỗi khi tạo mới: " + result.message);
@@ -373,52 +389,50 @@ const DailyReport = () => {
 
       <Card className="border-slate-300">
         <div className="rounded-md overflow-x-auto">
-          {/* SỬ DỤNG BORDER-COLLAPSE ĐỂ ĐƯỜNG KẺ KHÔNG BỊ NHÂN ĐÔI */}
           <Table className="border-collapse w-full">
             <TableHeader>
-              {/* THÊM MÀU NỀN VÀ VIỀN CHO HEADER */}
               <TableRow className="bg-slate-200">
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center">Ngày</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center">Thứ</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-2 py-1.5 text-[13px]">Ngày</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-2 py-1.5 text-[13px]">Thứ</TableHead>
                 {!isCompactMode && (
                   <>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right">Tiền mặt</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right">Chuyển khoản</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right">Cà thẻ</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right">Công nợ</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-2 py-1.5 text-[13px]">Tiền mặt</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-2 py-1.5 text-[13px]">Chuyển khoản</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-2 py-1.5 text-[13px]">Cà thẻ</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-2 py-1.5 text-[13px]">Công nợ</TableHead>
                   </>
                 )}
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right">DT trước PPV/VAT</TableHead>
-                <TableHead className="border border-slate-300 text-primary font-extrabold whitespace-nowrap text-right">Tổng DT (VAT)</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center w-20">Khách</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right">DT / Khách</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center w-20">Bill</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[200px]">Ghi chú</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center">Thao tác</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-2 py-1.5 text-[13px]">DT trước PPV/VAT</TableHead>
+                <TableHead className="border border-slate-300 text-primary font-extrabold whitespace-nowrap text-right px-2 py-1.5 text-[13px]">Tổng DT (VAT)</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center w-20 px-2 py-1.5 text-[13px]">Khách</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-2 py-1.5 text-[13px]">DT / Khách</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center w-20 px-2 py-1.5 text-[13px]">Bill</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[200px] px-2 py-1.5 text-[13px]">Ghi chú</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-2 py-1.5 text-[13px]">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             
             <TableBody>
               {filteredGroupedData.length > 0 ? filteredGroupedData.map((group) => (
                 <React.Fragment key={group.key}>
-                  {/* DÒNG TIÊU ĐỀ TUẦN */}
-                  <TableRow className="bg-slate-100/80 hover:bg-slate-100/80">
-                    <TableCell colSpan={2} className="border border-slate-300 font-bold text-center text-slate-700 whitespace-nowrap bg-slate-200/50">TUẦN {group.weekNum}</TableCell>
+                  {/* DÒNG TIÊU ĐỀ TUẦN (Màu Xanh Xám nhạt, sang trọng) */}
+                  <TableRow className="bg-slate-700 hover:bg-slate-700 text-white font-bold">
+                    <TableCell colSpan={2} className="border border-slate-600 font-black text-center whitespace-nowrap bg-slate-800 text-white px-2 py-1.5 text-[13px]">TUẦN {group.weekNum}</TableCell>
                     {!isCompactMode && (
                       <>
-                        <TableCell className="border border-slate-300 text-right font-semibold text-slate-500 whitespace-nowrap bg-slate-50">{formatCurrency(group.totals.cash)}</TableCell>
-                        <TableCell className="border border-slate-300 text-right font-semibold text-slate-500 whitespace-nowrap bg-slate-50">{formatCurrency(group.totals.transfer)}</TableCell>
-                        <TableCell className="border border-slate-300 text-right font-semibold text-slate-500 whitespace-nowrap bg-slate-50">{formatCurrency(group.totals.card)}</TableCell>
-                        <TableCell className="border border-slate-300 text-right font-semibold text-slate-500 whitespace-nowrap bg-slate-50">{formatCurrency(group.totals.debt)}</TableCell>
+                        <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-2 py-1.5 text-[13px] text-slate-100">{formatCurrency(group.totals.cash)}</TableCell>
+                        <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-2 py-1.5 text-[13px] text-slate-100">{formatCurrency(group.totals.transfer)}</TableCell>
+                        <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-2 py-1.5 text-[13px] text-slate-100">{formatCurrency(group.totals.card)}</TableCell>
+                        <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-2 py-1.5 text-[13px] text-slate-100">{formatCurrency(group.totals.debt)}</TableCell>
                       </>
                     )}
-                    <TableCell className="border border-slate-300 text-right font-bold text-orange-600 whitespace-nowrap bg-orange-50/50">{formatCurrency(group.totals.preTax)}</TableCell>
-                    <TableCell className="border border-slate-300 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5">{formatCurrency(group.totals.totalGross)}</TableCell>
-                    <TableCell className="border border-slate-300 text-center font-semibold text-slate-600 whitespace-nowrap bg-slate-50">{group.totals.guestCount}</TableCell>
-                    <TableCell className="border border-slate-300 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/50">{formatCurrency(group.totals.guestCount > 0 ? group.totals.totalGross / group.totals.guestCount : 0)}</TableCell>
-                    <TableCell className="border border-slate-300 text-center font-semibold text-slate-600 whitespace-nowrap bg-slate-50">{group.totals.billCount}</TableCell>
-                    <TableCell className="border border-slate-300 bg-slate-50"></TableCell>
-                    <TableCell className="border border-slate-300 bg-slate-50"></TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-2 py-1.5 text-[13px] text-orange-200">{formatCurrency(group.totals.preTax)}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-2 py-1.5 text-[13px] text-white bg-slate-800">{formatCurrency(group.totals.totalGross)}</TableCell>
+                    <TableCell className="border border-slate-600 text-center font-medium whitespace-nowrap px-2 py-1.5 text-[13px] text-slate-100">{group.totals.guestCount}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-2 py-1.5 text-[13px] text-blue-200">{formatCurrency(group.totals.guestCount > 0 ? group.totals.totalGross / group.totals.guestCount : 0)}</TableCell>
+                    <TableCell className="border border-slate-600 text-center font-medium whitespace-nowrap px-2 py-1.5 text-[13px] text-slate-100">{group.totals.billCount}</TableCell>
+                    <TableCell className="border border-slate-600 px-2 py-1.5 bg-slate-700"></TableCell>
+                    <TableCell className="border border-slate-600 px-2 py-1.5 bg-slate-700"></TableCell>
                   </TableRow>
 
                   {group.records.map((row: DailyRevenue) => {
@@ -430,55 +444,55 @@ const DailyReport = () => {
                       <TableRow 
                         key={row._id} 
                         ref={isEditing ? editRowRef : null}
-                        className={isEditing ? "bg-emerald-50/60 outline outline-2 outline-emerald-400 outline-offset-[-2px] relative z-10 shadow-sm" : "hover:bg-slate-50 transition-colors"}
+                        className={isEditing ? "bg-emerald-50/60 outline outline-2 outline-emerald-400 outline-offset-[-2px] relative z-10" : "hover:bg-slate-50 transition-colors"}
                       >
                         {isEditing ? (
                           <>
-                            <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input type="date" value={editFormData.date} onChange={(e) => handleFormChange("date", e.target.value)} onBlur={handleBlur} className="w-36 h-9 text-sm border-emerald-300 focus-visible:ring-emerald-500" /></TableCell>
-                            <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input value={editFormData.dayOfWeek || ""} disabled className="w-24 h-9 text-sm font-bold bg-slate-200 text-center cursor-not-allowed border-slate-300 text-slate-700" /></TableCell>
+                            <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input type="date" value={editFormData.date} onChange={(e) => handleFormChange("date", e.target.value)} onBlur={handleBlur} className="w-32 h-7 text-[13px] border-emerald-300 focus-visible:ring-emerald-500" /></TableCell>
+                            <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input value={editFormData.dayOfWeek || ""} disabled className="w-20 h-7 text-[13px] font-bold bg-slate-200 text-center cursor-not-allowed border-slate-300 text-slate-700" /></TableCell>
                             {!isCompactMode && (
                               <>
-                                <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input type="number" value={editFormData.cash??""} onChange={e=>handleFormChange("cash",e.target.value)} onBlur={handleBlur} className="w-28 text-right h-9 border-emerald-300 focus-visible:ring-emerald-500 font-medium" /></TableCell>
-                                <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input type="number" value={editFormData.transfer??""} onChange={e=>handleFormChange("transfer",e.target.value)} onBlur={handleBlur} className="w-28 text-right h-9 border-emerald-300 focus-visible:ring-emerald-500 font-medium" /></TableCell>
-                                <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input type="number" value={editFormData.card??""} onChange={e=>handleFormChange("card",e.target.value)} onBlur={handleBlur} className="w-28 text-right h-9 border-emerald-300 focus-visible:ring-emerald-500 font-medium" /></TableCell>
-                                <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input type="number" value={editFormData.debt??""} onChange={e=>handleFormChange("debt",e.target.value)} onBlur={handleBlur} className="w-28 text-right h-9 border-emerald-300 focus-visible:ring-emerald-500 font-medium" /></TableCell>
+                                <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input type="number" value={editFormData.cash??""} onChange={e=>handleFormChange("cash",e.target.value)} onBlur={handleBlur} className="w-24 text-right h-7 border-emerald-300 focus-visible:ring-emerald-500 text-[13px] font-medium" /></TableCell>
+                                <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input type="number" value={editFormData.transfer??""} onChange={e=>handleFormChange("transfer",e.target.value)} onBlur={handleBlur} className="w-24 text-right h-7 border-emerald-300 focus-visible:ring-emerald-500 text-[13px] font-medium" /></TableCell>
+                                <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input type="number" value={editFormData.card??""} onChange={e=>handleFormChange("card",e.target.value)} onBlur={handleBlur} className="w-24 text-right h-7 border-emerald-300 focus-visible:ring-emerald-500 text-[13px] font-medium" /></TableCell>
+                                <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input type="number" value={editFormData.debt??""} onChange={e=>handleFormChange("debt",e.target.value)} onBlur={handleBlur} className="w-24 text-right h-7 border-emerald-300 focus-visible:ring-emerald-500 text-[13px] font-medium" /></TableCell>
                               </>
                             )}
-                            <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input type="number" value={editFormData.preTaxRevenue??""} onChange={e=>handleFormChange("preTaxRevenue",e.target.value)} onBlur={handleBlur} className="w-32 text-right h-9 bg-orange-50 border-orange-300 focus-visible:ring-orange-500 font-bold text-orange-700" /></TableCell>
-                            <TableCell className="border border-slate-300 p-2 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5">{formatCurrency(rGross)}</TableCell>
-                            <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input type="number" value={editFormData.guestCount??""} onChange={e=>handleFormChange("guestCount",e.target.value)} onBlur={handleBlur} className="w-16 text-center h-9 border-emerald-300 focus-visible:ring-emerald-500 font-medium" /></TableCell>
-                            <TableCell className="border border-slate-300 p-2 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30">{formatCurrency(Number(editFormData.guestCount)>0 ? rGross/Number(editFormData.guestCount) : 0)}</TableCell>
-                            <TableCell className="border border-slate-300 p-2 whitespace-nowrap"><Input type="number" value={editFormData.billCount??""} onChange={e=>handleFormChange("billCount",e.target.value)} onBlur={handleBlur} className="w-16 text-center h-9 border-emerald-300 focus-visible:ring-emerald-500 font-medium" /></TableCell>
-                            <TableCell className="border border-slate-300 p-2 min-w-[200px]"><textarea value={editFormData.note||""} onChange={e=>handleFormChange("note",e.target.value)} onBlur={handleBlur} className="flex min-h-[36px] w-full rounded-md border border-emerald-300 p-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500" placeholder="Ghi chú (Ctrl+Space)..." onKeyDown={(e)=>{if(e.ctrlKey&&(e.key===' '||e.code==='Space')){e.preventDefault(); const t=e.target as HTMLTextAreaElement; handleFormChange("note", (editFormData.note||"").substring(0,t.selectionStart)+"\n"+(editFormData.note||"").substring(t.selectionEnd)); setTimeout(()=>{t.selectionStart=t.selectionEnd=t.selectionStart+1;},0);}}}/></TableCell>
-                            <TableCell className="border border-slate-300 p-2 whitespace-nowrap">
+                            <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input type="number" value={editFormData.preTaxRevenue??""} onChange={e=>handleFormChange("preTaxRevenue",e.target.value)} onBlur={handleBlur} className="w-28 text-right h-7 bg-orange-50 border-orange-300 focus-visible:ring-orange-500 font-bold text-orange-700 text-[13px]" /></TableCell>
+                            <TableCell className="border border-slate-300 p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[13px]">{formatCurrency(rGross)}</TableCell>
+                            <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input type="number" value={editFormData.guestCount??""} onChange={e=>handleFormChange("guestCount",e.target.value)} onBlur={handleBlur} className="w-14 text-center h-7 border-emerald-300 focus-visible:ring-emerald-500 text-[13px] font-medium" /></TableCell>
+                            <TableCell className="border border-slate-300 p-1 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30 text-[13px]">{formatCurrency(Number(editFormData.guestCount)>0 ? rGross/Number(editFormData.guestCount) : 0)}</TableCell>
+                            <TableCell className="border border-slate-300 p-1 whitespace-nowrap"><Input type="number" value={editFormData.billCount??""} onChange={e=>handleFormChange("billCount",e.target.value)} onBlur={handleBlur} className="w-14 text-center h-7 border-emerald-300 focus-visible:ring-emerald-500 text-[13px] font-medium" /></TableCell>
+                            <TableCell className="border border-slate-300 p-1 min-w-[200px]"><textarea value={editFormData.note||""} onChange={e=>handleFormChange("note",e.target.value)} onBlur={handleBlur} className="flex min-h-[28px] w-full rounded-md border border-emerald-300 p-1.5 text-[13px] resize-y focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500" placeholder="Ghi chú (Ctrl+Space)..." onKeyDown={(e)=>{if(e.ctrlKey&&(e.key===' '||e.code==='Space')){e.preventDefault(); const t=e.target as HTMLTextAreaElement; handleFormChange("note", (editFormData.note||"").substring(0,t.selectionStart)+"\n"+(editFormData.note||"").substring(t.selectionEnd)); setTimeout(()=>{t.selectionStart=t.selectionEnd=t.selectionStart+1;},0);}}}/></TableCell>
+                            <TableCell className="border border-slate-300 p-1 whitespace-nowrap">
                               <div className="flex justify-center gap-1">
-                                <Button size="sm" variant="default" onClick={handleCloseEdit} className="h-9 bg-emerald-600 hover:bg-emerald-700 font-bold px-3 shadow-sm"><Check className="w-4 h-4 mr-1"/> Lưu</Button>
-                                <Button size="icon" variant="outline" onClick={handleCancelEdit} className="h-9 w-9 text-red-600 border-red-200 hover:bg-red-50" title={isNewRow ? "Hủy & Xóa" : "Hủy sửa"}><X className="w-4 h-4"/></Button>
+                                <Button size="sm" variant="default" onClick={handleCloseEdit} className="h-7 bg-emerald-600 hover:bg-emerald-700 font-bold px-2 text-xs shadow-sm"><Check className="w-3 h-3 mr-1"/> Lưu</Button>
+                                <Button size="icon" variant="outline" onClick={handleCancelEdit} className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50" title={isNewRow ? "Hủy & Xóa" : "Hủy sửa"}><X className="w-3 h-3"/></Button>
                               </div>
                             </TableCell>
                           </>
                         ) : (
                           <>
-                            <TableCell className="border border-slate-300 font-semibold text-center whitespace-nowrap bg-slate-50">{formatDate(row.date)}</TableCell>
-                            <TableCell className="border border-slate-300 text-center whitespace-nowrap font-medium text-slate-700 bg-slate-50">{row.dayOfWeek}</TableCell>
+                            <TableCell className="border border-slate-300 font-semibold text-center whitespace-nowrap bg-slate-50 px-2 py-1.5 text-[13px]">{formatDate(row.date)}</TableCell>
+                            <TableCell className="border border-slate-300 text-center whitespace-nowrap font-medium text-slate-700 bg-slate-50 px-2 py-1.5 text-[13px]">{row.dayOfWeek}</TableCell>
                             {!isCompactMode && (
                               <>
-                                <TableCell className="border border-slate-300 text-right whitespace-nowrap font-medium text-slate-700">{formatCurrency(row.cash)}</TableCell>
-                                <TableCell className="border border-slate-300 text-right whitespace-nowrap font-medium text-slate-700">{formatCurrency(row.transfer)}</TableCell>
-                                <TableCell className="border border-slate-300 text-right whitespace-nowrap font-medium text-slate-700">{formatCurrency(row.card)}</TableCell>
-                                <TableCell className="border border-slate-300 text-right whitespace-nowrap font-medium text-slate-700">{formatCurrency(row.debt||0)}</TableCell>
+                                <TableCell className="border border-slate-300 text-right whitespace-nowrap font-medium text-slate-700 px-2 py-1.5 text-[13px]">{formatCurrency(row.cash)}</TableCell>
+                                <TableCell className="border border-slate-300 text-right whitespace-nowrap font-medium text-slate-700 px-2 py-1.5 text-[13px]">{formatCurrency(row.transfer)}</TableCell>
+                                <TableCell className="border border-slate-300 text-right whitespace-nowrap font-medium text-slate-700 px-2 py-1.5 text-[13px]">{formatCurrency(row.card)}</TableCell>
+                                <TableCell className="border border-slate-300 text-right whitespace-nowrap font-medium text-slate-700 px-2 py-1.5 text-[13px]">{formatCurrency(row.debt||0)}</TableCell>
                               </>
                             )}
-                            <TableCell className="border border-slate-300 text-right font-bold text-orange-600 whitespace-nowrap bg-orange-50/30">{formatCurrency(row.preTaxRevenue||0)}</TableCell>
-                            <TableCell className="border border-slate-300 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5">{formatCurrency(row.totalGross)}</TableCell>
-                            <TableCell className="border border-slate-300 text-center whitespace-nowrap font-semibold text-slate-700">{row.guestCount}</TableCell>
-                            <TableCell className="border border-slate-300 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30">{formatCurrency(row.guestCount>0?row.totalGross/row.guestCount:0)}</TableCell>
-                            <TableCell className="border border-slate-300 text-center whitespace-nowrap font-semibold text-slate-700">{row.billCount}</TableCell>
-                            <TableCell className="border border-slate-300 text-sm whitespace-normal min-w-[200px] break-words leading-relaxed">{row.note||""}</TableCell>
-                            <TableCell className="border border-slate-300 text-center whitespace-nowrap">
+                            <TableCell className="border border-slate-300 text-right font-bold text-orange-600 whitespace-nowrap bg-orange-50/30 px-2 py-1.5 text-[13px]">{formatCurrency(row.preTaxRevenue||0)}</TableCell>
+                            <TableCell className="border border-slate-300 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 px-2 py-1.5 text-[13px]">{formatCurrency(row.totalGross)}</TableCell>
+                            <TableCell className="border border-slate-300 text-center whitespace-nowrap font-semibold text-slate-700 px-2 py-1.5 text-[13px]">{row.guestCount}</TableCell>
+                            <TableCell className="border border-slate-300 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30 px-2 py-1.5 text-[13px]">{formatCurrency(row.guestCount>0?row.totalGross/row.guestCount:0)}</TableCell>
+                            <TableCell className="border border-slate-300 text-center whitespace-nowrap font-semibold text-slate-700 px-2 py-1.5 text-[13px]">{row.billCount}</TableCell>
+                            <TableCell className="border border-slate-300 whitespace-pre-wrap min-w-[200px] break-words leading-relaxed px-2 py-1.5 text-[13px]">{row.note||""}</TableCell>
+                            <TableCell className="border border-slate-300 text-center whitespace-nowrap px-2 py-1.5">
                               <div className="flex items-center justify-center gap-1">
-                                <Button size="icon" variant="ghost" onClick={()=>handleEditClick(row)} disabled={!!editingId} className={`hover:bg-blue-100 hover:text-blue-600 h-8 w-8 ${editingId ? 'opacity-50' : ''}`}><Edit2 className="w-4 h-4"/></Button>
-                                <Button size="icon" variant="ghost" onClick={()=>row._id && handleDeleteRow(row._id)} disabled={!!editingId} className={`text-red-500 hover:bg-red-100 h-8 w-8 ${editingId ? 'opacity-50' : ''}`}><Trash2 className="w-4 h-4"/></Button>
+                                <Button size="icon" variant="ghost" onClick={()=>handleEditClick(row)} disabled={!!editingId} className={`hover:bg-blue-100 hover:text-blue-600 h-7 w-7 ${editingId ? 'opacity-50' : ''}`}><Edit2 className="w-3.5 h-3.5"/></Button>
+                                <Button size="icon" variant="ghost" onClick={()=>row._id && handleDeleteRow(row._id)} disabled={!!editingId} className={`text-red-500 hover:bg-red-100 h-7 w-7 ${editingId ? 'opacity-50' : ''}`}><Trash2 className="w-3.5 h-3.5"/></Button>
                               </div>
                             </TableCell>
                           </>
@@ -487,28 +501,33 @@ const DailyReport = () => {
                     );
                   })}
                 </React.Fragment>
-              )) : (<TableRow><TableCell colSpan={isCompactMode?11:13} className="border border-slate-300 h-32 text-center text-muted-foreground font-medium">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
+              )) : (<TableRow><TableCell colSpan={isCompactMode?11:13} className="border border-slate-300 h-32 text-center text-muted-foreground font-medium text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
             </TableBody>
             
-            <TableFooter className="bg-primary/10 sticky bottom-0 z-10 border-t-4 border-primary/30 shadow-md">
-              <TableRow className="hover:bg-primary/10">
-                <TableCell colSpan={2} className="border border-slate-300 text-center font-extrabold text-primary text-base whitespace-nowrap">TỔNG CỘNG ({totalDays} Ngày)</TableCell>
+            {/* DÒNG TỔNG CỘNG STICKY FOOTER (Màu Slate Đậm) */}
+            <TableFooter className="bg-slate-800 text-white sticky bottom-0 z-10 border-t-4 border-slate-900">
+              <TableRow className="hover:bg-slate-800">
+                <TableCell colSpan={2} className="border border-slate-600 text-center font-black text-white whitespace-nowrap px-2 py-2 text-sm bg-slate-900">TỔNG CỘNG ({totalDays} Ngày)</TableCell>
                 {!isCompactMode && (
                   <>
-                    <TableCell className="border border-slate-300 text-right font-bold text-slate-800 whitespace-nowrap">{formatCurrency(totals.cash)}</TableCell>
-                    <TableCell className="border border-slate-300 text-right font-bold text-slate-800 whitespace-nowrap">{formatCurrency(totals.transfer)}</TableCell>
-                    <TableCell className="border border-slate-300 text-right font-bold text-slate-800 whitespace-nowrap">{formatCurrency(totals.card)}</TableCell>
-                    <TableCell className="border border-slate-300 text-right font-bold text-slate-800 whitespace-nowrap">{formatCurrency(totals.debt)}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-2 py-2 text-[13px]">{formatCurrency(totals.cash)}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-2 py-2 text-[13px]">{formatCurrency(totals.transfer)}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-2 py-2 text-[13px]">{formatCurrency(totals.card)}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-2 py-2 text-[13px]">{formatCurrency(totals.debt)}</TableCell>
                   </>
                 )}
-                <TableCell className="border border-slate-300 text-right font-extrabold text-orange-600 whitespace-nowrap">{formatCurrency(totals.preTax)}</TableCell>
-                <TableCell className="border border-slate-300 text-right font-black text-primary text-[1.05rem] whitespace-nowrap">{formatCurrency(totals.totalGross)}</TableCell>
-                <TableCell className="border border-slate-300 text-center font-extrabold text-slate-800 whitespace-nowrap">{totals.guest}</TableCell>
-                <TableCell className="border border-slate-300 text-right font-extrabold text-blue-600 whitespace-nowrap">{formatCurrency(avgPerGuest)}</TableCell>
-                <TableCell className="border border-slate-300 text-center font-extrabold text-slate-800 whitespace-nowrap">{totals.bill}</TableCell>
-                <TableCell className="border border-slate-300"></TableCell>
-                <TableCell className="border border-slate-300"></TableCell>
+                <TableCell className="border border-slate-600 text-right font-bold text-orange-300 whitespace-nowrap px-2 py-2 text-[13px]">{formatCurrency(totals.preTax)}</TableCell>
+                <TableCell className="border border-slate-600 text-right font-black text-white whitespace-nowrap px-2 py-2 text-sm bg-slate-900">{formatCurrency(totals.totalGross)}</TableCell>
+                <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-2 py-2 text-[13px]">{totals.guest}</TableCell>
+                <TableCell className="border border-slate-600 text-right font-bold text-blue-200 whitespace-nowrap px-2 py-2 text-[13px]">{formatCurrency(avgPerGuest)}</TableCell>
+                <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-2 py-2 text-[13px]">{totals.bill}</TableCell>
+                <TableCell className="border border-slate-600 px-2 py-2"></TableCell>
+                <TableCell className="border border-slate-600 px-2 py-2"></TableCell>
               </TableRow>
+            </TableFooter>
+            
+            <TableFooter className="bg-primary/10 sticky bottom-0 z-10 border-t-4 border-primary/30 shadow-md">
+              
             </TableFooter>
           </Table>
         </div>

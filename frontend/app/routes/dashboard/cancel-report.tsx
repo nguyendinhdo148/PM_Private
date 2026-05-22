@@ -12,7 +12,6 @@ import { fetchData, postData, updateData, deleteData } from "@/lib/fetch-util";
 // ==========================================
 // DATA MÓN TĨNH (TỪ EXCEL)
 // ==========================================
-// Bạn paste lại danh sách 300+ món của bạn vào đây
 const initialCancelData: any[] = [
   { category: "Món ăn", name: "Cua Lột Chiên Tempura", price: 219000 },
   { category: "Món ăn", name: "Tôm, Cá Trắng, Mực, Rau & Nấm Chiên Tempura, Xốt Tương Nấm Trufle", price: 349000 },
@@ -1131,7 +1130,7 @@ export default function CancelReportPage() {
   };
 
   // ==========================================
-  // TÍNH TOÁN THỐNG KÊ (GOM THEO THÁNG)
+  // TÍNH TOÁN THỐNG KÊ
   // ==========================================
   const summaryData = useMemo(() => {
     const map: Record<string, any> = {};
@@ -1144,11 +1143,9 @@ export default function CancelReportPage() {
         }
         if (log.type === "UNPOSTED") {
           map[item.name].unpostedQty += item.quantity;
-          // Cộng dồn vào tổn thất nếu là phiếu hủy chưa post
           totalLostValue += (item.quantity * item.price);
         } else if (log.type === "POSTED") {
           map[item.name].postedQty += item.quantity;
-          // Trừ bớt khỏi tổn thất nếu là phiếu đã post
           totalLostValue -= (item.quantity * item.price);
         }
       });
@@ -1167,7 +1164,6 @@ export default function CancelReportPage() {
 
   const filteredSuggestions = availableItems.filter(w => w.name.toLowerCase().includes(itemSearch.toLowerCase()));
 
-  // Hàm tính tổng tiền của 1 bill
   const calculateBillTotal = (items: any[]) => items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
   const calculateBillQty = (items: any[]) => items.reduce((sum, it) => sum + it.quantity, 0);
 
@@ -1220,16 +1216,15 @@ export default function CancelReportPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* ========================================= */}
-          {/* TAB 1: GHI NHẬN & LỊCH SỬ */}
-          {/* ========================================= */}
           <TabsContent value="manage" className="space-y-4 m-0">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
               
-              {/* CỘT TRÁI: FORM NHẬP PHIẾU */}
-              <div className="lg:col-span-4 xl:col-span-5 flex flex-col gap-4">
-                <Card className={`shadow-md border-0 ring-1 ${editId ? 'ring-amber-400 bg-amber-50/10' : 'ring-slate-200 bg-white'} transition-all`}>
-                  <CardHeader className="py-3 px-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50 rounded-t-xl">
+              {/* ========================================= */}
+              {/* CỘT TRÁI: FORM NHẬP PHIẾU (TỐI ƯU POS)      */}
+              {/* ========================================= */}
+              <div className="lg:col-span-5 xl:col-span-5 flex flex-col gap-4">
+                <Card className={`shadow-md border-0 ring-1 h-full flex flex-col ${editId ? 'ring-amber-400 bg-amber-50/10' : 'ring-slate-200 bg-white'} transition-all`}>
+                  <CardHeader className="py-3 px-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50 rounded-t-xl shrink-0">
                     <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-800">
                       {editId ? <><Edit3 className="w-4 h-4 text-amber-600"/> SỬA PHIẾU GHI NHẬN</> : <><ClipboardList className="w-4 h-4 text-rose-600"/> TẠO PHIẾU MỚI</>}
                     </CardTitle>
@@ -1240,169 +1235,201 @@ export default function CancelReportPage() {
                     )}
                   </CardHeader>
                   
-                  <CardContent className="p-4 space-y-4">
-                    {/* THÔNG TIN PHIẾU */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày ghi nhận</label>
-                        <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9 text-sm font-medium border-slate-300" />
+                  <CardContent className="p-0 flex flex-col flex-1">
+                    
+                    <div className="p-4 space-y-4 shrink-0">
+                      {/* THÔNG TIN PHIẾU */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày ghi nhận</label>
+                          <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-10 text-sm font-medium border-slate-300" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Loại phiếu</label>
+                          <SelectUI value={type} onValueChange={(v: "UNPOSTED"|"POSTED") => setType(v)}>
+                            <SelectTrigger className={`h-10 text-xs font-bold border-0 ring-1 ${type === "UNPOSTED" ? 'bg-rose-50 ring-rose-300 text-rose-700' : 'bg-emerald-50 ring-emerald-300 text-emerald-700'}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="UNPOSTED" className="font-bold text-rose-600">🔴 Ghi Nhận HỦY MÓN</SelectItem>
+                              <SelectItem value="POSTED" className="font-bold text-emerald-600">🟢 Ghi Nhận ĐÃ POST</SelectItem>
+                            </SelectContent>
+                          </SelectUI>
+                        </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Loại phiếu</label>
-                        <SelectUI value={type} onValueChange={(v: "UNPOSTED"|"POSTED") => setType(v)}>
-                          <SelectTrigger className={`h-9 text-xs font-bold border-0 ring-1 ${type === "UNPOSTED" ? 'bg-rose-50 ring-rose-200 text-rose-700' : 'bg-emerald-50 ring-emerald-200 text-emerald-700'}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="UNPOSTED" className="font-bold text-rose-600">🔴 Ghi Nhận HỦY MÓN</SelectItem>
-                            <SelectItem value="POSTED" className="font-bold text-emerald-600">🟢 Ghi Nhận ĐÃ POST</SelectItem>
-                          </SelectContent>
-                        </SelectUI>
+
+                      {/* TÌM KIẾM HOẶC TẠO MỚI MÓN */}
+                      <div className={`p-4 rounded-xl border space-y-3 relative ${type === "UNPOSTED" ? "bg-rose-50/50 border-rose-100" : "bg-emerald-50/50 border-emerald-100"}`}>
+                        <label className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1 ${type === "UNPOSTED" ? "text-rose-700" : "text-emerald-700"}`}>
+                          <Search className="w-3.5 h-3.5"/> Chọn món / Thức uống
+                        </label>
+                        
+                        <div className="flex gap-2 items-center">
+                          <div className="relative flex-1 shadow-sm rounded-md">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <Input 
+                              placeholder="Gõ tên món (Bấm để chọn)..." 
+                              value={itemSearch} 
+                              onFocus={() => setShowItemDropdown(true)} 
+                              // Chỉ đóng Dropdown, không tự động tắt IsAddingNew để tránh xung đột
+                              onBlur={() => setTimeout(() => setShowItemDropdown(false), 200)} 
+                              onChange={e => setItemSearch(e.target.value)} 
+                              className="h-11 pl-9 text-sm font-medium border-slate-300 bg-white" 
+                            />
+                            
+                            {/* DROPDOWN GỢI Ý */}
+                            {showItemDropdown && itemSearch && (
+                              <div className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto divide-y divide-slate-100">
+                                {filteredSuggestions.map((w, i) => (
+                                    <div key={i} onMouseDown={(e) => { e.preventDefault(); handleSelectItem(w); }} className="p-3 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
+                                      <div>
+                                        <span className="font-semibold text-slate-700 group-hover:text-blue-600 text-sm block leading-tight">{w.name}</span>
+                                        <span className="text-[10px] text-slate-400">{w.category}</span>
+                                      </div>
+                                      <Badge variant="secondary" className="bg-slate-100 text-slate-600 border border-slate-200">{formatVND(w.price)}</Badge>
+                                    </div>
+                                ))}
+                                {filteredSuggestions.length === 0 && (
+                                  <div className="p-4 text-sm text-slate-500 text-center bg-slate-50">
+                                    Không tìm thấy món.<br/>
+                                    <span className="text-xs text-slate-400 mt-1 block">Vui lòng bấm "Tạo món mới" bên cạnh.</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* NÚT TẠO MÓN MỚI (Đã tách logic độc lập) */}
+                          <Button 
+                            type="button"
+                            onClick={() => { 
+                              setIsAddingNew(!isAddingNew); 
+                              if (!isAddingNew && itemSearch) setNewItemName(itemSearch); 
+                            }} 
+                            variant={isAddingNew ? "secondary" : "default"}
+                            className={`h-11 px-4 whitespace-nowrap font-bold shadow-sm ${!isAddingNew && "bg-blue-600 hover:bg-blue-700 text-white"}`}
+                          >
+                            {isAddingNew ? <XCircle className="w-4 h-4 mr-1.5"/> : <PlusCircle className="w-4 h-4 mr-1.5"/>}
+                            {isAddingNew ? "Hủy tạo" : "Tạo món mới"}
+                          </Button>
+                        </div>
+
+                        {/* KHUNG TẠO MÓN MỚI */}
+                        {isAddingNew && (
+                          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex flex-col gap-3 shadow-inner transition-all animate-in slide-in-from-top-2">
+                            <div className="flex-1 w-full space-y-1.5">
+                              <label className="text-xs font-bold text-blue-800 uppercase">Tên món mới</label>
+                              <Input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="VD: Nước suối..." className="h-10 bg-white border-blue-300" />
+                            </div>
+                            <div className="flex gap-3 w-full">
+                              <div className="flex-1 space-y-1.5">
+                                <label className="text-xs font-bold text-blue-800 uppercase">Danh mục</label>
+                                <SelectUI value={newItemCategory} onValueChange={setNewItemCategory}>
+                                  <SelectTrigger className="h-10 bg-white border-blue-300"><SelectValue/></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Món ăn">Món ăn</SelectItem>
+                                    <SelectItem value="Đồ uống pha chế">Đồ uống pha chế</SelectItem>
+                                    <SelectItem value="Đồ uống đóng chai">Đồ uống đóng chai</SelectItem>
+                                    <SelectItem value="Khác">Khác</SelectItem>
+                                  </SelectContent>
+                                </SelectUI>
+                              </div>
+                              <div className="flex-1 space-y-1.5">
+                                <label className="text-xs font-bold text-blue-800 uppercase">Giá (VNĐ)</label>
+                                <Input type="number" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="0" className="h-10 bg-white border-blue-300 text-center font-bold text-blue-700" />
+                              </div>
+                            </div>
+                            <Button onClick={handleAddNewToCart} className="h-10 mt-1 bg-emerald-600 hover:bg-emerald-700 w-full shadow-sm text-sm">
+                              + Thêm vào phiếu
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* TÌM KIẾM HOẶC TẠO MỚI MÓN */}
-                    <div className={`p-3.5 rounded-xl border space-y-2.5 relative ${type === "UNPOSTED" ? "bg-rose-50/50 border-rose-100" : "bg-emerald-50/50 border-emerald-100"}`}>
-                      <label className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1 ${type === "UNPOSTED" ? "text-rose-700" : "text-emerald-700"}`}>
-                        <Search className="w-3.5 h-3.5"/> Chọn món / Thức uống
-                      </label>
+                    {/* KHU VỰC CART ĐƯỢC TỐI ƯU CHO POS */}
+                    <div className="flex flex-col flex-1 min-h-[250px] bg-slate-50 border-t border-slate-200">
+                      <div className="bg-slate-200/50 px-4 py-2.5 text-xs font-bold text-slate-600 border-b border-slate-200 uppercase tracking-widest shrink-0">
+                        Chi tiết món trong phiếu
+                      </div>
                       
-                      <div className="flex gap-2 items-center">
-                        <div className="relative flex-1 shadow-sm rounded-md">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <Input 
-                            placeholder="Gõ tên món (Bấm để thêm vào phiếu)..." 
-                            value={itemSearch} 
-                            onFocus={() => setShowItemDropdown(true)} 
-                            onBlur={() => setTimeout(() => { setShowItemDropdown(false); setIsAddingNew(false); }, 200)} 
-                            onChange={e => setItemSearch(e.target.value)} 
-                            className="h-10 pl-9 text-sm font-medium border-slate-300 bg-white" 
-                          />
-                          
-                          {/* DROPDOWN GỢI Ý */}
-                          {showItemDropdown && itemSearch && (
-                            <div className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 max-h-56 overflow-y-auto divide-y divide-slate-100">
-                              {filteredSuggestions.map((w, i) => (
-                                  <div key={i} onMouseDown={(e) => { e.preventDefault(); handleSelectItem(w); }} className="p-2.5 hover:bg-slate-50 cursor-pointer flex justify-between items-center group">
-                                    <div>
-                                      <span className="font-semibold text-slate-700 group-hover:text-blue-600 text-xs block leading-tight">{w.name}</span>
-                                      <span className="text-[9px] text-slate-400">{w.category}</span>
-                                    </div>
-                                    <Badge variant="secondary" className="bg-slate-100 text-slate-600 border border-slate-200">{formatVND(w.price)}</Badge>
+                      {/* List Items */}
+                      <div className="p-3 flex-1 overflow-y-auto space-y-2">
+                        {cartItems.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400 py-10 gap-2">
+                            <ClipboardList className="w-10 h-10 opacity-30"/>
+                            <p className="text-sm font-medium mt-2">Phiếu chưa có món nào</p>
+                          </div>
+                        ) : (
+                          cartItems.map((item, idx) => (
+                            <div key={idx} className="flex flex-col bg-white p-3 rounded-xl shadow-sm border border-slate-200 group">
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="flex-1">
+                                  {/* Hiển thị full tên, không truncate */}
+                                  <span className="font-bold text-slate-800 text-sm block leading-snug">{item.name}</span>
+                                  <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                                    <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">{item.category}</span>
+                                    <span>{formatVND(item.price)}/món</span>
                                   </div>
-                              ))}
-                              {filteredSuggestions.length === 0 && (
-                                <div className="p-3 text-xs text-slate-400 text-center">Không tìm thấy món trong menu</div>
-                              )}
+                                </div>
+                                <div className="text-right">
+                                  <span className="font-black text-rose-600 text-sm block">
+                                    {formatVND(item.price * item.quantity)}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <div className="flex justify-end items-center mt-3 pt-2 border-t border-slate-100">
+                                <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-inner">
+                                  <button onClick={() => handleQtyChange(idx, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-600 hover:bg-slate-200 transition-colors">
+                                    <Minus className="w-4 h-4"/>
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={item.quantity}
+                                    onChange={(e) => {
+                                      const value = Number(e.target.value);
+                                      const newItems = [...cartItems];
+                                      newItems[idx].quantity = value > 0 ? value : 1;
+                                      setCartItems(newItems);
+                                    }}
+                                    className="w-14 h-8 text-center text-sm font-black bg-transparent outline-none"
+                                  />
+                                  <button onClick={() => handleQtyChange(idx, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-600 hover:bg-slate-200 transition-colors">
+                                    <Plus className="w-4 h-4"/>
+                                  </button>
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </div>
+                          ))
+                        )}
+                      </div>
 
-                        {/* NÚT TẠO MÓN MỚI */}
+                      {/* STICKY FOOTER CHO CART */}
+                      <div className="bg-white border-t border-slate-200 p-4 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm font-bold text-slate-600 uppercase">Tổng cộng ({calculateBillQty(cartItems)} món)</span>
+                          <span className="text-xl font-black text-rose-600">{formatVND(calculateBillTotal(cartItems))}</span>
+                        </div>
                         <Button 
-                          onClick={() => { setIsAddingNew(!isAddingNew); setNewItemName(itemSearch); setShowItemDropdown(false); }} 
-                          variant={isAddingNew ? "secondary" : "default"}
-                          className={`h-10 px-3 whitespace-nowrap font-bold shadow-sm ${!isAddingNew && "bg-blue-600 hover:bg-blue-700 text-white"}`}
+                          onClick={handleSaveLog} 
+                          className={`w-full h-12 font-black text-sm uppercase tracking-widest shadow-md transition-all rounded-xl ${type === "UNPOSTED" ? "bg-rose-600 hover:bg-rose-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}
                         >
-                          {isAddingNew ? <XCircle className="w-4 h-4 mr-1"/> : <PlusCircle className="w-4 h-4 mr-1"/>}
-                          {isAddingNew ? "Hủy tạo" : "Tạo món mới"}
+                          <Save className="w-5 h-5 mr-2"/> 
+                          {editId ? "CẬP NHẬT PHIẾU NÀY" : `LƯU PHIẾU ${type === "UNPOSTED" ? "HỦY MÓN" : "ĐÃ POST"}`}
                         </Button>
                       </div>
 
-                      {/* KHUNG TẠO MÓN MỚI */}
-                      {isAddingNew && (
-                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex flex-col sm:flex-row gap-2 items-end shadow-inner transition-all animate-in slide-in-from-top-2">
-                          <div className="flex-1 w-full space-y-1">
-                            <label className="text-[10px] font-bold text-blue-800 uppercase">Tên món mới</label>
-                            <Input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="Nhập tên..." className="h-9 bg-white border-blue-300" />
-                          </div>
-                          <div className="w-full sm:w-[130px] space-y-1">
-                            <label className="text-[10px] font-bold text-blue-800 uppercase">Danh mục</label>
-                            <SelectUI value={newItemCategory} onValueChange={setNewItemCategory}>
-                              <SelectTrigger className="h-9 bg-white border-blue-300"><SelectValue/></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Món ăn">Món ăn</SelectItem>
-                                <SelectItem value="Đồ uống pha chế">Đồ uống pha chế</SelectItem>
-                                <SelectItem value="Đồ uống đóng chai">Đồ uống đóng chai</SelectItem>
-                                <SelectItem value="Khác">Khác</SelectItem>
-                              </SelectContent>
-                            </SelectUI>
-                          </div>
-                          <div className="w-full sm:w-[110px] space-y-1">
-                            <label className="text-[10px] font-bold text-blue-800 uppercase">Giá (VNĐ)</label>
-                            <Input type="number" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="0" className="h-9 bg-white border-blue-300 text-center font-bold text-blue-700" />
-                          </div>
-                          <Button onClick={handleAddNewToCart} className="h-9 bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto shadow-sm">
-                            Thêm vào phiếu
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* GIỎ HÀNG (CART) */}
-                      <div className="mt-3 bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden flex flex-col">
-                        <div className="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 flex justify-between border-b border-slate-100 uppercase tracking-widest">
-                          <span>Sản phẩm trong phiếu</span>
-                          <span className="w-20 text-center">Số lượng</span>
-                        </div>
-                        <div className="p-1.5 flex-1 min-h-[140px] max-h-[250px] overflow-y-auto">
-                          {cartItems.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-400 py-8 gap-2">
-                              <ClipboardList className="w-6 h-6 opacity-40"/>
-                              <p className="text-xs font-medium">Phiếu chưa có món nào</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-1.5 p-1">
-                              {cartItems.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center text-sm bg-white p-2.5 rounded-lg shadow-xs border border-slate-200 group">
-                                  <div className="flex-1 flex flex-col justify-center pr-3">
-                                    <span className="font-bold text-slate-700 text-xs">{item.name}</span>
-                                    <span className="text-[9px] text-slate-400">{item.category}</span>
-                                  </div>
-                                  <div className="flex items-center bg-slate-100 rounded-md p-1 border border-slate-200 gap-1">
-                                    <button
-                                        onClick={() => handleQtyChange(idx, -1)}
-                                        className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-slate-600 hover:bg-slate-200"
-                                    >
-                                        <Minus className="w-3 h-3"/>
-                                    </button>
-
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={item.quantity}
-                                        onChange={(e) => {
-                                        const value = Number(e.target.value);
-                                        const newItems = [...cartItems];
-                                        newItems[idx].quantity = value > 0 ? value : 1;
-                                        setCartItems(newItems);
-                                        }}
-                                        className="w-12 h-6 text-center text-xs font-bold border border-slate-300 rounded outline-none"
-                                    />
-
-                                    <button
-                                        onClick={() => handleQtyChange(idx, 1)}
-                                        className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-slate-600 hover:bg-slate-200"
-                                    >
-                                        <Plus className="w-3 h-3"/>
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
                     </div>
-
-                    <Button onClick={handleSaveLog} className={`w-full h-11 font-black text-sm uppercase tracking-widest shadow-md transition-all rounded-lg ${type === "UNPOSTED" ? "bg-rose-600 hover:bg-rose-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}>
-                      <Save className="w-4 h-4 mr-2"/> {editId ? "CẬP NHẬT PHIẾU NÀY" : `LƯU PHIẾU ${type === "UNPOSTED" ? "HỦY MÓN" : "ĐÃ POST"}`}
-                    </Button>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* CỘT PHẢI: LỊCH SỬ CÁC PHIẾU TRONG THÁNG */}
-              <div className="lg:col-span-8 xl:col-span-7 flex flex-col h-full">
+              {/* ========================================= */}
+              {/* CỘT PHẢI: LỊCH SỬ CÁC PHIẾU TRONG THÁNG    */}
+              {/* ========================================= */}
+              <div className="lg:col-span-7 xl:col-span-7 flex flex-col h-full">
                 <Card className="shadow-md border-0 ring-1 ring-slate-200 h-full flex flex-col bg-white overflow-hidden rounded-xl">
                   <div className="bg-slate-50/80 px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-widest flex justify-between border-b border-slate-100 items-center">
                     <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-blue-500"/> LỊCH SỬ NHẬP LIỆU THÁNG {selectedMonth}</span>
@@ -1484,10 +1511,10 @@ export default function CancelReportPage() {
             </div>
           </TabsContent>
 
-          {/* ========================================= */}
-          {/* TAB 2: THỐNG KÊ TỔNG HỢP (THEO THÁNG)     */}
-          {/* ========================================= */}
+          {/* CÁC TAB CÒN LẠI GIỮ NGUYÊN BÊN DƯỚI */}
+          {/* TAB THỐNG KÊ */}
           <TabsContent value="summary" className="m-0 pt-2">
+            {/* Nội dung cũ của bạn giữ nguyên, không thay đổi */}
             <Card className="shadow-xl border-0 ring-1 ring-slate-200 max-w-[1000px] mx-auto overflow-hidden rounded-2xl">
               <div className="p-5 bg-gradient-to-r from-indigo-900 to-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -1567,9 +1594,7 @@ export default function CancelReportPage() {
             </Card>
           </TabsContent>
 
-          {/* ========================================= */}
-          {/* TAB 3: CHI TIẾT CÁC BILL                  */}
-          {/* ========================================= */}
+          {/* TAB CHI TIẾT BILL */}
           <TabsContent value="bills" className="m-0 pt-2">
              <Card className="shadow-md border-0 ring-1 ring-slate-200 max-w-[1200px] mx-auto bg-white overflow-hidden rounded-xl">
                <div className="bg-emerald-50/80 px-5 py-4 text-xs font-black text-emerald-800 uppercase tracking-widest flex justify-between border-b border-emerald-100 items-center">
@@ -1608,12 +1633,12 @@ export default function CancelReportPage() {
                           return (
                             <TableRow key={log._id} className="hover:bg-slate-50 border-b-slate-100">
                                <TableCell className="p-4 text-xs font-bold text-slate-700">
-                                  <span>{log.date.split('-').reverse().join('/')}</span>
-                                  {log.createdAt && (
-                                    <span className="ml-2 text-[10px] text-slate-400 font-medium">
-                                      {new Date(log.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
-                                    </span>
-                                  )}
+                                 <span>{log.date.split('-').reverse().join('/')}</span>
+                                 {log.createdAt && (
+                                   <span className="ml-2 text-[10px] text-slate-400 font-medium">
+                                     {new Date(log.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
+                                   </span>
+                                 )}
                                </TableCell>
                                <TableCell className="p-4 text-center">
                                   {log.type === "UNPOSTED" 
