@@ -78,7 +78,8 @@ const Dashboard = () => {
       const isFullyPaid = progressPercent >= 100;
 
       // Xử lý ngày tháng để làm bộ lọc
-      const dateObj = new Date(task.createdAt || Date.now());
+      // SỬA LẠI: Ưu tiên lấy dueDate (ngày user chọn trong form tạo công nợ), nếu không có mới dùng createdAt (ngày hệ thống)
+      const dateObj = new Date(task.dueDate || task.createdAt || Date.now());
       const monthStr = format(dateObj, "MM/yyyy");
 
       return {

@@ -4,7 +4,14 @@ import { fetchData, postData, updateData, deleteData } from "@/lib/fetch-util";
 export default function BacklogPage() {
   const [monthData, setMonthData] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState("2026-03"); 
+  
+  // Trạng thái lọc default: tự động lấy năm-tháng hiện tại (định dạng YYYY-MM)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  }); 
   const [isLoading, setIsLoading] = useState(false);
   
   // States cho Tab & Lọc
@@ -146,12 +153,6 @@ export default function BacklogPage() {
 
   const formatCurrency = (num: number) => new Intl.NumberFormat('vi-VN').format(num || 0);
 
-  const openPicker = (e: any) => {
-    try {
-      e.target.showPicker();
-    } catch (error) {}
-  };
-
   // =================== RENDER GIAO DIỆN ===================
   return (
     <div className="h-full overflow-auto bg-gray-50 p-6 text-sm">
@@ -165,18 +166,22 @@ export default function BacklogPage() {
           <div className="flex items-center gap-3 mt-4 sm:mt-0">
             <label className="font-medium text-gray-700">Chọn Tháng:</label>
             <div className="relative flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 text-gray-500 pointer-events-none">
+              {/* Canh giữa icon hoàn hảo bằng top-1/2 và -translate-y-1/2 */}
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none z-10"
+              >
                 <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
                 <line x1="16" x2="16" y1="2" y2="6"></line>
                 <line x1="8" x2="8" y1="2" y2="6"></line>
                 <line x1="3" x2="21" y1="10" y2="10"></line>
               </svg>
+              {/* Áp dụng Webkit indicator phủ toàn bộ input để click vào đâu cũng mở lịch */}
               <input 
                 type="month" 
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                onClick={openPicker}
-                className="pl-9 pr-3 py-1.5 border border-gray-300 rounded font-medium outline-none focus:ring-1 focus:ring-blue-500 bg-white cursor-pointer"
+                className="relative pl-9 pr-3 py-1.5 border border-gray-300 rounded font-medium outline-none focus:ring-1 focus:ring-blue-500 bg-white cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
               />
             </div>
           </div>
@@ -208,7 +213,10 @@ export default function BacklogPage() {
                     <div>
                       <label className="text-xs font-medium text-gray-600 block mb-1">Ngày *</label>
                       <div className="relative flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-2.5 text-gray-500 pointer-events-none">
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none z-10"
+                        >
                           <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
                           <line x1="16" x2="16" y1="2" y2="6"></line>
                           <line x1="8" x2="8" y1="2" y2="6"></line>
@@ -219,9 +227,8 @@ export default function BacklogPage() {
                           name="date" 
                           value={formData.date} 
                           onChange={handleChange} 
-                          onClick={openPicker}
                           required 
-                          className="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white cursor-pointer"
+                          className="relative w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                         />
                       </div>
                     </div>
@@ -326,7 +333,7 @@ export default function BacklogPage() {
                     </button>
                   </div>
 
-                  {/* BẢNG THEO FORMAT ẢNH CỦA BẠN */}
+                  {/* BẢNG THEO FORMAT */}
                   <div className="overflow-x-auto h-[350px] relative">
                     <table className="w-full text-xs text-left whitespace-nowrap">
                       <thead className="bg-gray-100 text-gray-700 sticky top-0 shadow-sm">

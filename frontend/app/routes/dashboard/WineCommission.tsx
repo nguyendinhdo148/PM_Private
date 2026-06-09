@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -204,11 +204,19 @@ const wineData = [
 ];
 
 export default function WineCommissionPage() {
+  const monthPickerRef = useRef<HTMLInputElement>(null);
+
   const [masterStaff, setMasterStaff] = useState<any[]>([]);
   const [bills, setBills] = useState<any[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
+  
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  });
   const [isLoading, setIsLoading] = useState(false);
-  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc"); // Trạng thái sắp xếp
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const [editId, setEditId] = useState<string | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -252,7 +260,6 @@ export default function WineCommissionPage() {
 
   const formatVND = (num: number) => Math.round(num).toLocaleString("vi-VN") + "đ";
 
-  // CÁCH CHỌN MỚI (Máy tính tiền POS): Bấm là thêm 1 chai
   const handleSelectWine = (wine: any) => {
     const existing = billItems.findIndex(i => i.wineId === wine.id);
     if (existing >= 0) {
@@ -266,7 +273,6 @@ export default function WineCommissionPage() {
     setShowWineDropdown(false);
   };
 
-  // Điều chỉnh số lượng trực tiếp trên Bill
   const handleChangeItemQty = (index: number, delta: number) => {
     const newItems = [...billItems];
     newItems[index].quantity += delta;
@@ -341,7 +347,6 @@ export default function WineCommissionPage() {
     return { list, totalAllComm };
   }, [bills]);
 
-  // Logic Sắp xếp mảng Bill
   const sortedBills = useMemo(() => {
     return [...bills].sort((a, b) => {
       const dateA = new Date(a.date).getTime();
@@ -372,44 +377,43 @@ export default function WineCommissionPage() {
           
           <div className="flex items-center gap-5 mt-5 sm:mt-0">
   
-  <div className="relative bg-slate-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-slate-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition w-48">
-    
-    <Calendar className="w-4 h-4 text-slate-500" />
-    
-    <span className="text-sm font-semibold text-blue-700">
-      {selectedMonth
-        ? `Tháng ${selectedMonth.split("-")[1]} / ${selectedMonth.split("-")[0]}`
-        : "Chọn tháng"}
-    </span>
+            {/* ĐÃ SỬA: Cách dùng CSS (ẩn thẻ input) nhưng vẫn bấm được toàn bộ vùng */}
+            <div className="relative bg-slate-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition w-48 overflow-hidden group">
+              <Calendar className="w-4 h-4 text-slate-500 z-10 pointer-events-none group-hover:text-blue-600 transition-colors" />
+              
+              <span className="text-sm font-semibold text-blue-700 z-10 pointer-events-none">
+                {selectedMonth
+                  ? `Tháng ${selectedMonth.split("-")[1]} / ${selectedMonth.split("-")[0]}`
+                  : "Chọn tháng"}
+              </span>
 
-    <input 
-      type="month" 
-      value={selectedMonth} 
-      onChange={(e) => setSelectedMonth(e.target.value)} 
-      className="absolute inset-0 opacity-0 cursor-pointer"
-    />
-    
-  </div>
+              <input 
+                type="month" 
+                value={selectedMonth} 
+                onChange={(e) => setSelectedMonth(e.target.value)} 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+              />
+            </div>
 
-  <Button 
-    variant="outline" 
-    size="icon" 
-    onClick={loadData} 
-    className="h-9 w-9 text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-  >
-    <RefreshCcw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}/>
-  </Button>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={loadData} 
+              className="h-9 w-9 text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <RefreshCcw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}/>
+            </Button>
 
-  <Button 
-    variant="destructive" 
-    size="sm" 
-    onClick={handleDeleteMonth} 
-    className="h-9 font-semibold shadow-sm"
-  >
-    <Trash2 className="w-4 h-4 mr-1.5"/> Xóa Tháng
-  </Button>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={handleDeleteMonth} 
+              className="h-9 font-semibold shadow-sm"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5"/> Xóa Tháng
+            </Button>
 
-</div>
+          </div>
         </div>
 
         <Tabs defaultValue="manage" className="w-full">
@@ -499,7 +503,7 @@ export default function WineCommissionPage() {
                                     {formatVND(w.price)}
                                   </Badge>
                                 </div>
-                            ))}
+                              ))}
                             {wineData.filter(w => w.name.toLowerCase().includes(wineSearch.toLowerCase())).length === 0 && (
                               <div className="p-4 text-sm text-slate-400 text-center flex flex-col items-center gap-1">
                                 <Search className="w-5 h-5 opacity-50"/>

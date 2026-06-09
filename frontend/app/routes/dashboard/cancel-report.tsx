@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -971,8 +971,14 @@ const initialCancelData: any[] = [
 ];
 
 export default function CancelReportPage() {
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
-  const [isLoading, setIsLoading] = useState(false);
+  const monthPickerRef = useRef<HTMLInputElement>(null);
+const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  });
+    const [isLoading, setIsLoading] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
   
   // Trạng thái sắp xếp thời gian (Mới nhất / Cũ nhất)
@@ -1197,14 +1203,22 @@ export default function CancelReportPage() {
           </div>
           
           <div className="flex items-center gap-3 mt-3 sm:mt-0">
-            <div className="bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-200">
-              <Calendar className="w-4 h-4 text-slate-500" />
-              <span className="font-bold text-slate-600 text-xs uppercase tracking-wide">Tháng:</span>
+            {/* THAY THẾ DIV CHỌN THÁNG */}
+            <div 
+              onClick={() => monthPickerRef.current?.showPicker()}
+              className="bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-200 cursor-pointer hover:border-slate-300 hover:bg-slate-200/50 transition w-[160px] relative overflow-hidden"
+            >
+              <Calendar className="w-4 h-4 text-slate-500 pointer-events-none" />
+              <span className="font-bold text-slate-600 text-xs uppercase tracking-wide pointer-events-none whitespace-nowrap">
+                Tháng: <span className="text-rose-600">{selectedMonth ? `${selectedMonth.split("-")[1]}/${selectedMonth.split("-")[0]}` : ""}</span>
+              </span>
+              
               <input 
+                ref={monthPickerRef}
                 type="month" 
                 value={selectedMonth} 
                 onChange={(e) => setSelectedMonth(e.target.value)} 
-                className="bg-transparent border-none text-sm font-bold text-rose-600 outline-none cursor-pointer p-0 m-0 w-24"
+                className="absolute w-0 h-0 opacity-0 overflow-hidden pointer-events-none"
               />
             </div>
             <Button variant="outline" size="icon" onClick={loadData} className="h-9 w-9 text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors">
