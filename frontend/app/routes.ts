@@ -45,6 +45,9 @@ export default [
     // <-- THÊM ROUTE CHO GUI RƯỢU (BAR ROLE) -->
     route("gui-ruou", "routes/dashboard/bar/guiruou.tsx"),
 
+    // <-- THÊM ROUTE CHO QUẢN LÝ QUỸ (FUND MANAGEMENT) -->
+    route("fund-management", "routes/dashboard/fund-management.tsx"),
+
     route("achieved", "routes/dashboard/achieved.tsx"),
     route("settings", "routes/dashboard/settings.tsx"),
   ]),

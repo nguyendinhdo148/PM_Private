@@ -14,7 +14,7 @@ import invoiceMonthRoutes from "./invoiceMonth.js";
 import invoiceRoutes from "./invoice.js"; 
 import staffRoutes from "./staff.js";
 import tipRoutes from "./tip.js"; 
-
+import fundRoutes from "./fund.js";
 // <-- IMPORT ROUTE HOA HỒNG RƯỢU -->
 import wineCommissionRoutes from "./wineCommission.js";
 
@@ -41,6 +41,7 @@ router.use("/invoice-months", invoiceMonthRoutes);
 router.use("/invoices", invoiceRoutes); 
 router.use("/tips", tipRoutes);
 router.use("/staff", staffRoutes);
+router.use("/funds", fundRoutes);
 
 // <-- GẮN VÀO API -->
 router.use("/wine-commission", wineCommissionRoutes);

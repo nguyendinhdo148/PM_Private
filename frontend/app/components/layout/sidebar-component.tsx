@@ -16,10 +16,11 @@ import {
   MessageCircle,
   GlassWater,
   FileWarning,
-  Wine, // <-- THÊM ICON NÀY CHO TRANG GUI RƯỢU
+  Wine,
+  Wallet, // <-- IMPORT THÊM ICON WALLET CHO QUẢN LÝ QUỸ
 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router"; // Đảm bảo react-router-dom nếu bản cũ, hoặc react-router như bạn dùng
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
 import { SidebarNav } from "./sidebar-nav";
@@ -48,12 +49,15 @@ export const SidebarComponent = ({
     
     // <-- THÊM DÒNG GUI RƯỢU CHO BAR ROLE -->
     { title: "GUI Rượu", href: "/gui-ruou", icon: Wine, roles: ["bar", "admin"] },
+
+    // <-- THÊM DÒNG QUẢN LÝ QUỸ Ở ĐÂY -->
+    { title: "Quản lý Quỹ", href: "/fund-management", icon: Wallet, roles: ["manager", "admin"] },
     
     { title: "Messenger", href: "/achieved", icon: MessageCircle },
     { title: "Settings", href: "/settings", icon: Settings },
   ];
 
-  // Show all navigation items to authenticated users
+  // Logic filter navItems theo quyền nếu bạn có áp dụng hasRole
   const navItems = allNavItems;
 
   return (
