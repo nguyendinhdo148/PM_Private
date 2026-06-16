@@ -251,25 +251,26 @@ const Dashboard = () => {
   const enrichedTasks = useMemo(() => {
     return tasks.map((task) => {
       const debtAmount = Number(task.title) || 0;
-      const totalSubtasks = Array.isArray(task.subtasks) ? task.subtasks.length : 0;
-      const completedSubtasks = Array.isArray(task.subtasks) ? task.subtasks.filter((st: any) => st.completed).length : 0;
-
-      const completedAmount = Array.isArray(task.subtasks)
+      const paidAmount = Array.isArray(task.subtasks)
         ? task.subtasks
             .filter((st: any) => st.completed)
             .reduce((sum: number, st: any) => {
-              const amount = typeof st.title === "string" ? Number(st.title.replace(/[^\d.-]/g, "")) : Number(st.title);
+              const rawValue = typeof st.title === "string" ? st.title.replace(/[^\d.-]/g, "") : st.title;
+              const amount = Number(rawValue);
               return sum + (Number.isFinite(amount) ? amount : 0);
             }, 0)
         : 0;
 
-      const progressPercent = totalSubtasks > 0
-        ? Math.min(100, Math.round((completedSubtasks / totalSubtasks) * 100))
-        : task.status === "Done" ? 100 : 0;
+      const isDone = task.status === "Done";
+      const progressPercent = isDone
+        ? 100
+        : debtAmount > 0
+          ? Math.min(100, Math.round((paidAmount / debtAmount) * 100))
+          : 0;
 
-      const statusText = progressPercent >= 100 || task.status === "Done" ? "Hoàn thành" : "Đang xử lý";
-      const collectedAmount = progressPercent >= 100 && completedAmount === 0 ? debtAmount : completedAmount;
-      const isFullyPaid = progressPercent >= 100;
+      const collectedAmount = isDone ? debtAmount : Math.min(paidAmount, debtAmount);
+      const isFullyPaid = isDone || (debtAmount > 0 ? collectedAmount >= debtAmount : false);
+      const statusText = isFullyPaid ? "Hoàn thành" : "Đang xử lý";
 
       const dateObj = new Date(task.dueDate || task.createdAt || Date.now());
       const monthStr = format(dateObj, "MM/yyyy");
@@ -506,12 +507,12 @@ const Dashboard = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem onClick={() => setSortOption("date-desc")}>📅 Mới nhất lên trước</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortOption("date-asc")}>📅 Cũ nhất lên trước</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortOption("amount-desc")}>💰 Số nợ cao nhất</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortOption("amount-asc")}>💰 Số nợ thấp nhất</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortOption("status-done")}>✅ Ưu tiên hoàn thành</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortOption("status-pending")}>⏳ Ưu tiên đang xử lý</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortOption("date-desc")}>Mới nhất lên trước</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortOption("date-asc")}>Cũ nhất lên trước</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortOption("amount-desc")}>Số nợ cao nhất</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortOption("amount-asc")}>Số nợ thấp nhất</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortOption("status-done")}>Ưu tiên hoàn thành</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortOption("status-pending")}>Ưu tiên đang xử lý</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
