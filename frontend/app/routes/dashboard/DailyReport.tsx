@@ -534,6 +534,29 @@ const DailyReport = () => {
     }
   };
 
+  // ===== AUTO RESIZE TEXTAREA =====
+  const autoResizeTextarea = (el: HTMLTextAreaElement) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  // ===== XỬ LÝ KEYDOWN CHO TEXTAREA =====
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, row: DailyRevenue) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const target = e.target as HTMLTextAreaElement;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      const value = target.value;
+      const newValue = value.substring(0, start) + "\n" + value.substring(end);
+      target.value = newValue;
+      target.selectionStart = target.selectionEnd = start + 1;
+      executeSave(row, "note", newValue);
+      setTimeout(() => autoResizeTextarea(target), 0);
+    }
+  };
+
   // ======================== XỬ LÝ DỮ LIỆU ========================
   const processedData = useMemo(() => {
     let filtered = [...data];
@@ -608,7 +631,6 @@ const DailyReport = () => {
   // ===== SET DEFAULT WEEK TO LATEST =====
   useEffect(() => {
     if (availableWeeks.length > 0 && weekFilter === "all") {
-      // Lấy tuần mới nhất (tuần cuối cùng trong danh sách)
       const latestWeek = availableWeeks[availableWeeks.length - 1];
       setWeekFilter(latestWeek);
     }
@@ -693,15 +715,6 @@ const DailyReport = () => {
     worksheet["!cols"] = wscols;
 
     XLSX.writeFile(workbook, `Bao_Cao_Doanh_Thu_${new Date().getTime()}.xlsx`);
-  };
-
-  // ===== HÀM LẤY TÊN HIỂN THỊ CHO TUẦN =====
-  const getWeekDisplayName = (weekKey: string) => {
-    const parts = weekKey.split('-W');
-    const year = parts[0];
-    const month = parts[1] ? parts[1].slice(0, 2) : '';
-    const week = parts[1] ? parts[1].slice(3) : '';
-    return `Tháng ${parseInt(month)}/${year} - Tuần ${week}`;
   };
 
   return (
@@ -840,7 +853,7 @@ const DailyReport = () => {
       {/* Table */}
       <Card className="border-slate-300 overflow-hidden">
         <div className="rounded-md overflow-x-auto">
-          <Table className="border-collapse w-full text-xs sm:text-sm">
+          <Table className="border-collapse w-max min-w-full text-xs sm:text-sm">
             <TableHeader>
               <TableRow className="bg-slate-200">
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Ngày</TableHead>
@@ -859,7 +872,9 @@ const DailyReport = () => {
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Khách</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT/Khách</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Bill</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[80px] sm:min-w-[120px] px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Ghi chú</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[220px] px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px]">
+                  Ghi chú
+                </TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Xoá</TableHead>
               </TableRow>
             </TableHeader>
@@ -1025,12 +1040,22 @@ const DailyReport = () => {
                             className="w-10 sm:w-14 text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
                         </TableCell>
 
-                        <TableCell className="border border-slate-300 p-0.5 sm:p-1 min-w-[60px] sm:min-w-[80px]">
-                          <textarea defaultValue={row.note || ""}
+                        <TableCell className="border border-slate-300 p-0.5 sm:p-1 min-w-[220px] align-top">
+                          <textarea
+                            ref={(el) => {
+                              if (el) {
+                                autoResizeTextarea(el);
+                              }
+                            }}
+                            defaultValue={row.note || ""}
+                            rows={1}
                             onFocus={() => row._id && setEditingId(row._id)}
                             onBlur={(e) => executeSave(row, "note", e.target.value)}
+                            onKeyDown={(e) => handleTextareaKeyDown(e, row)}
                             onPaste={(e) => handlePaste(e, "note")}
-                            className="flex min-h-6 sm:min-h-7 w-full rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] resize-y hover:border-slate-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500" />
+                            onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
+                            className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+                          />
                         </TableCell>
 
                         <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
