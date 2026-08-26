@@ -52,21 +52,83 @@ const DailyReport = () => {
 
   const editRowRef = useRef<HTMLTableRowElement>(null);
 
+  // ===== HÀM CHUYỂN ĐỔI DATE -> YYYY-MM-DD (LUÔN LẤY GIỜ LOCAL) =====
+  const toLocalDateString = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) return "";
+    
+    // Lấy trực tiếp năm/tháng/ngày theo giờ LOCAL, không qua UTC
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // ===== HÀM CHUYỂN ĐỔI TỪ API (UTC -> LOCAL) =====
+  const convertUTCToLocalDate = (utcDateStr: string): string => {
+    if (!utcDateStr) return "";
+    
+    // Nếu đã là YYYY-MM-DD thì giữ nguyên
+    if (/^\d{4}-\d{2}-\d{2}$/.test(utcDateStr)) {
+      return utcDateStr;
+    }
+    
+    try {
+      const d = new Date(utcDateStr);
+      if (isNaN(d.getTime())) return utcDateStr;
+      
+      // Dùng getFullYear/getMonth/getDate - lấy theo giờ LOCAL
+      return toLocalDateString(d);
+    } catch {
+      return utcDateStr;
+    }
+  };
+
+  // ===== HÀM CHUYỂN ĐỔI TỪ EXCEL (Date object có thể có giờ lẻ) =====
+  const convertExcelDateToLocalString = (dateObj: any): string => {
+    if (!dateObj) return "";
+    
+    if (dateObj instanceof Date && !isNaN(dateObj.getTime())) {
+      // SheetJS creates Excel dates at UTC midnight; use UTC calendar parts.
+      const yyyy = dateObj.getUTCFullYear();
+      const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(dateObj.getUTCDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    
+    if (typeof dateObj === 'string') {
+      // Nếu là "DD/MM/YYYY"
+      const match = dateObj.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (match) {
+        const [, day, month, year] = match;
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+      
+      // Nếu là "YYYY-MM-DD"
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateObj)) {
+        return dateObj;
+      }
+
+      const d = new Date(dateObj);
+      if (!isNaN(d.getTime())) {
+        return toLocalDateString(d);
+      }
+    }
+    
+    return String(dateObj);
+  };
+
+  // ===== LẤY DỮ LIỆU =====
   useEffect(() => {
     if (reportId) {
       const fetchRevenues = async () => {
         try {
           const result = (await fetchData(`/daily-revenues?reportId=${reportId}`)) as ApiResponse<DailyRevenue[]>; 
           if (result.success) {
-            setData(result.data);
-            if (result.data.length > 0) {
-              const maxTimestamp = Math.max(...result.data.map(d => new Date(d.date).getTime()));
-              const latestDate = new Date(maxTimestamp);
-              const year = latestDate.getFullYear(), month = latestDate.getMonth() + 1;
-              const firstDay = new Date(year, month - 1, 1).getDay() || 7; 
-              const weekNum = Math.ceil((latestDate.getDate() + firstDay - 1) / 7);
-              setWeekFilter(weekNum.toString());
-            }
+            const formattedData = result.data.map(item => ({
+              ...item,
+              date: convertUTCToLocalDate(item.date)
+            }));
+            setData(formattedData);
           }
         } catch (error) {
           console.error("Lỗi khi tải dữ liệu:", error);
@@ -74,7 +136,7 @@ const DailyReport = () => {
       };
       fetchRevenues();
     }
-  }, [reportId]); 
+  }, [reportId]);
 
   useEffect(() => {
     if (editingId && editRowRef.current) {
@@ -82,7 +144,7 @@ const DailyReport = () => {
     }
   }, [editingId]);
 
-  // ===== FORMAT CURRENCY =====
+  // ===== FORMAT =====
   const formatCurrency = (amount: number) => {
     if (!amount || isNaN(amount) || amount === 0) return "0 ₫";
     return Number(amount).toLocaleString('vi-VN') + " ₫";
@@ -93,13 +155,12 @@ const DailyReport = () => {
     return Number(amount).toLocaleString('vi-VN');
   };
 
-  // Làm tròn DT/Khách
   const formatAvgGuest = (amount: number) => {
     if (!amount || isNaN(amount) || amount === 0) return "0 ₫";
     return Math.round(amount).toLocaleString('vi-VN') + " ₫";
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateDisplay = (dateString: string) => {
     if (!dateString) return "";
     const parts = dateString.split("-");
     if (parts.length !== 3) return dateString;
@@ -110,8 +171,27 @@ const DailyReport = () => {
     return (Number(row.cash) || 0) + (Number(row.transfer) || 0) + (Number(row.card) || 0) + (Number(row.debt) || 0) + (Number(row.founderPoints) || 0);
   };
 
+  // ===== HÀM TÍNH TUẦN =====
+  const getWeekInfo = (dateStr: string) => {
+    const parts = dateStr.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    const day = parseInt(parts[2]);
+    
+    const firstDay = new Date(year, month - 1, 1).getDay() || 7;
+    const weekNum = Math.ceil((day + firstDay - 1) / 7);
+    
+    return { year, month, day, weekNum };
+  };
+
+  // ===== LƯU DỮ LIỆU =====
   const executeSave = async (row: DailyRevenue, field: keyof DailyRevenue, value: any) => {
     const updatedRow = { ...row, [field]: value };
+    
+    if (field === "date") {
+      updatedRow.date = value;
+    }
+    
     updatedRow.totalGross = calculateTotalGross(updatedRow);
 
     setData(prev => prev.map(item => item._id === row._id ? updatedRow : item));
@@ -165,7 +245,7 @@ const DailyReport = () => {
     }
   };
 
-  // ======================== PHẦN IMPORT EXCEL ========================
+  // ======================== IMPORT EXCEL ========================
   const parseNumber = (value: any): number => {
     if (value === null || value === undefined || value === "") return 0;
     if (typeof value === "number") return value;
@@ -174,325 +254,271 @@ const DailyReport = () => {
     return isNaN(number) ? 0 : number;
   };
 
-  const parseExcelDate = (value: any): Date | null => {
-    if (!value) return null;
-    
-    if (value instanceof Date && !isNaN(value.getTime())) {
-      const date = new Date(Date.UTC(
-        value.getFullYear(),
-        value.getMonth(),
-        value.getDate()
-      ));
-      return date;
-    }
-    
-    const str = String(value).trim();
-    
-    const match = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match) {
-      const [, day, month, year] = match;
-      return new Date(Number(year), Number(month) - 1, Number(day));
-    }
-    
-    const match2 = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-    if (match2) {
-      const [, day, month, year] = match2;
-      return new Date(Number(year), Number(month) - 1, Number(day));
-    }
-    
-    const date = new Date(str);
-    if (!isNaN(date.getTime())) {
-      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    }
-    
-    return null;
-  };
-
-  const formatDateForDB = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const getDayOfWeek = (date: Date): string => {
+  const getDayOfWeekFromDate = (date: Date): string => {
     if (!date || isNaN(date.getTime())) return "";
     const daysOfWeek = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
     return daysOfWeek[date.getDay()];
   };
 
-  const getMergedCellValue = (worksheet: XLSX.WorkSheet, row: number, col: number): any => {
-    const merges = worksheet["!merges"] || [];
-    for (const merge of merges) {
-      if (row >= merge.s.r && row <= merge.e.r && col >= merge.s.c && col <= merge.e.c) {
-        const cellAddress = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
-        return worksheet[cellAddress]?.v ?? "";
-      }
-    }
-    const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-    return worksheet[cellAddress]?.v ?? "";
-  };
-
   const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  if (!reportId) {
-    alert("Không tìm thấy ID báo cáo tháng!");
-    return;
-  }
-
-  setIsImporting(true);
-  setImportProgress("Đang đọc file Excel...");
-
-  try {
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    
-    if (!worksheet) {
-      alert("Không tìm thấy sheet dữ liệu!");
+    if (!reportId) {
+      alert("Không tìm thấy ID báo cáo tháng!");
       return;
     }
 
-    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
-    const dataRows: any[][] = [];
-    
-    for (let row = range.s.r; row <= range.e.r; row++) {
-      const rowData: any[] = [];
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-        const cell = worksheet[cellAddress];
-        rowData.push(cell?.v ?? "");
-      }
-      dataRows.push(rowData);
-    }
+    setIsImporting(true);
+    setImportProgress("Đang đọc file Excel...");
 
-    console.log("Full Excel data:", dataRows);
-
-    const importedData: Omit<DailyRevenue, "_id">[] = [];
-    const importedDates = new Set<string>();
-    let rowCount = 0;
-
-    setImportProgress("Đang xử lý dữ liệu...");
-
-    for (let i = 1; i < dataRows.length; i++) {
-      const row = dataRows[i];
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       
-      if (!row || row.every(cell => !cell || String(cell).trim() === "")) continue;
-      
-      const dateValue = row[0] || "";
-      const dateStr = String(dateValue).toUpperCase().trim();
-      
-      if (dateStr.includes("TUẦN") || dateStr.includes("TỔNG CỘNG") || dateStr.includes("TOTAL")) {
-        console.log(`Row ${i}: Skipped - week/total row`);
-        continue;
+      if (!worksheet) {
+        alert("Không tìm thấy sheet dữ liệu!");
+        return;
       }
 
-      let parsedDate: Date | null = null;
+      const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
+      const dataRows: any[][] = [];
       
-      if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
-        parsedDate = new Date(Date.UTC(
-          dateValue.getFullYear(),
-          dateValue.getMonth(),
-          dateValue.getDate()
-        ));
-      } else {
-        const str = String(dateValue).trim();
-        const match = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (match) {
-          const [, day, month, year] = match;
-          parsedDate = new Date(Number(year), Number(month) - 1, Number(day));
-        } else {
-          const d = new Date(str);
-          if (!isNaN(d.getTime())) {
-            parsedDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-          }
+      for (let row = range.s.r; row <= range.e.r; row++) {
+        const rowData: any[] = [];
+        for (let col = range.s.c; col <= range.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+          const cell = worksheet[cellAddress];
+          // Keep Excel's displayed calendar date; SheetJS may shift its Date value by timezone.
+          rowData.push(col === 0 ? (cell?.w ?? cell?.v ?? "") : (cell?.v ?? ""));
         }
-      }
-      
-      if (!parsedDate || isNaN(parsedDate.getTime())) {
-        console.log(`Row ${i}: Cannot parse date "${dateValue}", skipped`);
-        continue;
+        dataRows.push(rowData);
       }
 
-      const date = formatDateForDB(parsedDate);
-      
-      if (data.length > 0) {
-        const firstDate = new Date(data[0].date);
-        if (date !== firstDate.toISOString().split('T')[0]) {
-          console.log(`Row ${i}: Date ${date} not in current month, skipped`);
+      console.log("📊 Raw Excel data:", dataRows);
+
+      const importedData: Omit<DailyRevenue, "_id">[] = [];
+      const importedDates = new Set<string>();
+      let rowCount = 0;
+
+      setImportProgress("Đang xử lý dữ liệu...");
+
+      for (let i = 1; i < dataRows.length; i++) {
+        const row = dataRows[i];
+        
+        if (!row || row.every(cell => !cell || String(cell).trim() === "")) continue;
+        
+        const dateValue = row[0];
+        const dateStr = String(dateValue).toUpperCase().trim();
+        
+        if (dateStr.includes("TUẦN") || dateStr.includes("TỔNG CỘNG") || dateStr.includes("TOTAL")) {
+          console.log(`Row ${i}: Skipped - week/total row`);
           continue;
         }
+
+        // ===== XỬ LÝ DATE TỪ EXCEL =====
+        let dateStrFormatted = "";
+        let dateObj: Date | null = null;
+
+        if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+          // Excel dates are calendar values represented by UTC-midnight Dates.
+          dateStrFormatted = convertExcelDateToLocalString(dateValue);
+          const [year, month, day] = dateStrFormatted.split('-').map(Number);
+          dateObj = new Date(year, month - 1, day);
+          console.log(`Row ${i}: Excel Date object:`, dateValue, '->', dateStrFormatted);
+        } else if (typeof dateValue === 'string') {
+          dateStrFormatted = convertExcelDateToLocalString(dateValue);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStrFormatted)) {
+            const [year, month, day] = dateStrFormatted.split('-').map(Number);
+            dateObj = new Date(year, month - 1, day);
+          }
+        }
+        
+        if (!dateStrFormatted || !dateObj) {
+          console.log(`Row ${i}: Cannot parse date "${dateValue}", skipped`);
+          continue;
+        }
+
+        // Kiểm tra cùng tháng với dữ liệu hiện có
+        if (data.length > 0) {
+          const firstDateParts = data[0].date.split('-');
+          const currentParts = dateStrFormatted.split('-');
+          if (parseInt(currentParts[0]) !== parseInt(firstDateParts[0]) || 
+              parseInt(currentParts[1]) !== parseInt(firstDateParts[1])) {
+            console.log(`Row ${i}: Date ${dateStrFormatted} not in current month, skipped`);
+            continue;
+          }
+        }
+        
+        if (importedDates.has(dateStrFormatted)) {
+          console.log(`Row ${i}: Duplicate date ${dateStrFormatted}, skipped`);
+          continue;
+        }
+
+        importedDates.add(dateStrFormatted);
+
+        const dayOfWeek = String(row[1] || "").trim();
+        const cash = parseNumber(row[2]);
+        const transfer = parseNumber(row[3]);
+        const card = parseNumber(row[4]);
+        const debt = parseNumber(row[5]);
+        const founderPoints = parseNumber(row[6]);
+        const preTaxRevenue = parseNumber(row[7]);
+        const totalGross = cash + transfer + card + debt + founderPoints;
+        const guestCount = parseNumber(row[9]);
+        const billCount = parseNumber(row[11]);
+        const note = String(row[12] || "").trim();
+
+        const finalDayOfWeek = dayOfWeek || getDayOfWeekFromDate(dateObj);
+
+        console.log(`Row ${i}: ✅ PARSED:`, {
+          date: dateStrFormatted,
+          dayOfWeek: finalDayOfWeek,
+          cash,
+          transfer,
+          card,
+          debt,
+          founderPoints,
+          preTaxRevenue,
+          totalGross,
+          guestCount,
+          billCount,
+          note
+        });
+
+        importedData.push({
+          reportId,
+          date: dateStrFormatted,
+          dayOfWeek: finalDayOfWeek,
+          founderPoints,
+          cash,
+          transfer,
+          card,
+          debt,
+          preTaxRevenue,
+          totalGross,
+          guestCount,
+          billCount,
+          note,
+        });
+
+        rowCount++;
+        setImportProgress(`Đã xử lý ${rowCount} ngày...`);
       }
-      
-      if (importedDates.has(date)) {
-        console.log(`Row ${i}: Duplicate date ${date}, skipped`);
-        continue;
+
+      if (importedData.length === 0) {
+        alert("Không tìm thấy dữ liệu ngày nào trong file Excel!");
+        return;
       }
 
-      importedDates.add(date);
+      console.log("📦 Imported data:", importedData);
 
-      const dayOfWeek = String(row[1] || "").trim();
-      const cash = parseNumber(row[2]);
-      const transfer = parseNumber(row[3]);
-      const card = parseNumber(row[4]);
-      const debt = parseNumber(row[5]);
-      const founderPoints = parseNumber(row[6]);
-      const preTaxRevenue = parseNumber(row[7]);
-      const totalGross = cash + transfer + card + debt + founderPoints;
-      const guestCount = parseNumber(row[9]);
-      const billCount = parseNumber(row[11]);
-      const note = String(row[12] || "").trim();
+      setImportProgress(`Đang import ${importedData.length} ngày...`);
 
-      const finalDayOfWeek = dayOfWeek || getDayOfWeek(parsedDate);
-
-      console.log(`Row ${i}: PARSED:`, {
-        date,
-        dayOfWeek: finalDayOfWeek,
-        cash,
-        transfer,
-        card,
-        debt,
-        founderPoints,
-        preTaxRevenue,
-        totalGross,
-        guestCount,
-        billCount,
-        note
-      });
-
-      importedData.push({
+      const result = await postData("/daily-revenues/import", {
         reportId,
-        date,
-        dayOfWeek: finalDayOfWeek,
-        founderPoints,
-        cash,
-        transfer,
-        card,
-        debt,
-        preTaxRevenue,
-        totalGross,
-        guestCount,
-        billCount,
-        note,
-      });
+        data: importedData,
+      }) as ApiResponse<DailyRevenue[]>;
 
-      rowCount++;
-      setImportProgress(`Đã xử lý ${rowCount} ngày...`);
+      if (result.success) {
+        // Format lại date từ API response (phòng trường hợp API trả về UTC)
+        const formattedResult = result.data.map(item => ({
+          ...item,
+          date: convertUTCToLocalDate(item.date)
+        }));
+        setData(prev => [...prev, ...formattedResult]);
+        const skippedCount = result.skippedDates?.length || 0;
+        alert(
+          skippedCount > 0
+            ? `✅ Đã thêm ${result.data.length} ngày, bỏ qua ${skippedCount} ngày đã tồn tại.`
+            : `✅ Import thành công ${result.data.length} ngày!`,
+        );
+      } else {
+        alert("❌ Lỗi import: " + (result.message || "Không xác định"));
+      }
+
+    } catch (error: any) {
+      console.error("❌ Lỗi import Excel:", error);
+      alert("❌ Có lỗi khi đọc file Excel: " + (error.message || "Không xác định"));
+    } finally {
+      setIsImporting(false);
+      setImportProgress("");
     }
 
-    if (importedData.length === 0) {
-      alert("Không tìm thấy dữ liệu ngày nào trong file Excel!");
-      return;
-    }
-
-    console.log("Imported data:", importedData);
-
-    setImportProgress(`Đang import ${importedData.length} ngày...`);
-
-    const result = await postData("/daily-revenues/import", {
-      reportId,
-      data: importedData,
-    }) as ApiResponse<DailyRevenue[]>;
-
-    if (result.success) {
-      setData(prev => [...prev, ...result.data]);
-      const skippedCount = result.skippedDates?.length || 0;
-      alert(
-        skippedCount > 0
-          ? `✅ Đã thêm ${result.data.length} ngày, bỏ qua ${skippedCount} ngày đã tồn tại.`
-          : `✅ Import thành công ${result.data.length} ngày!`,
-      );
-    } else {
-      alert("❌ Lỗi import: " + (result.message || "Không xác định"));
-    }
-
-  } catch (error: any) {
-    console.error("❌ Lỗi import Excel:", error);
-    alert("❌ Có lỗi khi đọc file Excel: " + (error.message || "Không xác định"));
-  } finally {
-    setIsImporting(false);
-    setImportProgress("");
-  }
-
-  event.target.value = "";
-};
-  // ======================== END IMPORT EXCEL ========================
-
-  // ======================== PHẦN THÊM MỚI ========================
-  const handleAddRow = async () => {
-  if (!reportId) return alert("Không tìm thấy ID của tháng!");
-
-  let targetYear, targetMonth;
-  
-  if (data.length > 0) {
-    const firstDate = new Date(data[0].date);
-    targetYear = firstDate.getFullYear();
-    targetMonth = firstDate.getMonth() + 1;
-  } else {
-    const now = new Date();
-    targetYear = now.getFullYear();
-    targetMonth = now.getMonth() + 1;
-  }
-
-  let nextDate = null;
-  const existingDates = new Set(data.map(d => d.date));
-  const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
-  
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    if (!existingDates.has(dateStr)) {
-      nextDate = new Date(targetYear, targetMonth - 1, day);
-      break;
-    }
-  }
-  
-  if (!nextDate) {
-    alert(`Đã có đủ ${daysInMonth} ngày trong tháng!`);
-    return;
-  }
-  
-  const isoDate = nextDate.toISOString().split("T")[0];
-  const daysOfWeek = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
-  const currentDayOfWeek = daysOfWeek[nextDate.getDay()];
-
-  const newRow = {
-    reportId: reportId,
-    date: isoDate,
-    dayOfWeek: currentDayOfWeek,
-    cash: 0,
-    transfer: 0,
-    card: 0,
-    debt: 0,
-    founderPoints: 0,
-    preTaxRevenue: 0,
-    totalGross: 0,
-    guestCount: 0,
-    billCount: 0,
-    note: "",
+    event.target.value = "";
   };
 
-  try {
-    const result = (await postData("/daily-revenues", newRow)) as ApiResponse<DailyRevenue>;
-    if (result.success) {
-      setData([...data, result.data]);
-      
-      const d = new Date(isoDate);
-      const y = d.getFullYear();
-      const m = d.getMonth() + 1;
-      const firstDay = new Date(y, m - 1, 1).getDay() || 7;
-      const weekNum = Math.ceil((d.getDate() + firstDay - 1) / 7);
-      setWeekFilter(weekNum.toString());
+  // ======================== THÊM MỚI ========================
+  const handleAddRow = async () => {
+    if (!reportId) return alert("Không tìm thấy ID của tháng!");
 
-      if (result.data._id) setEditingId(result.data._id);
+    let targetYear, targetMonth;
+    
+    if (data.length > 0) {
+      const parts = data[0].date.split('-');
+      targetYear = parseInt(parts[0]);
+      targetMonth = parseInt(parts[1]);
     } else {
-      alert("Lỗi khi tạo mới: " + result.message);
+      const now = new Date();
+      targetYear = now.getFullYear();
+      targetMonth = now.getMonth() + 1;
     }
-  } catch (error) {
-    console.error("Lỗi kết nối:", error);
-  }
-};
+
+    let nextDateStr = null;
+    const existingDates = new Set(data.map(d => d.date));
+    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      if (!existingDates.has(dateStr)) {
+        nextDateStr = dateStr;
+        break;
+      }
+    }
+    
+    if (!nextDateStr) {
+      alert(`Đã có đủ ${daysInMonth} ngày trong tháng!`);
+      return;
+    }
+    
+    const parts = nextDateStr.split('-');
+    const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const daysOfWeek = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+    const currentDayOfWeek = daysOfWeek[dateObj.getDay()];
+
+    const newRow = {
+      reportId: reportId,
+      date: nextDateStr,
+      dayOfWeek: currentDayOfWeek,
+      cash: 0,
+      transfer: 0,
+      card: 0,
+      debt: 0,
+      founderPoints: 0,
+      preTaxRevenue: 0,
+      totalGross: 0,
+      guestCount: 0,
+      billCount: 0,
+      note: "",
+    };
+
+    try {
+      const result = (await postData("/daily-revenues", newRow)) as ApiResponse<DailyRevenue>;
+      if (result.success) {
+        const formattedResult = {
+          ...result.data,
+          date: convertUTCToLocalDate(result.data.date)
+        };
+        setData([...data, formattedResult]);
+        if (result.data._id) setEditingId(result.data._id);
+      } else {
+        alert("Lỗi khi tạo mới: " + result.message);
+      }
+    } catch (error) {
+      console.error("Lỗi kết nối:", error);
+    }
+  };
 
   // ======================== XỬ LÝ DỮ LIỆU ========================
   const processedData = useMemo(() => {
@@ -505,48 +531,73 @@ const DailyReport = () => {
       );
     }
     filtered.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return sortDirection === "asc" ? dateA - dateB : dateB - dateA;
+      return sortDirection === "asc" 
+        ? a.date.localeCompare(b.date) 
+        : b.date.localeCompare(a.date);
     });
     return filtered;
   }, [data, search, sortDirection]);
 
+  // ===== GROUP BY WEEK =====
   const groupedData = useMemo(() => {
     const groupMap = new Map<string, any>();
+    
     processedData.forEach((row) => {
-      const d = new Date(row.date);
-      const year = d.getFullYear(), month = d.getMonth() + 1;
-      const firstDay = new Date(year, month - 1, 1).getDay() || 7; 
-      const weekNum = Math.ceil((d.getDate() + firstDay - 1) / 7);
-      const key = `${year}-${month.toString().padStart(2, "0")}-W${weekNum}`;
+      const { year, month, day, weekNum } = getWeekInfo(row.date);
+      
+      const groupKey = `${year}-${String(month).padStart(2, '0')}-W${weekNum}`;
 
-      if (!groupMap.has(key)) {
-        groupMap.set(key, {
-          key, monthStr: `${month.toString().padStart(2, "0")}/${year}`, weekNum, records: [],
-          totals: { cash: 0, transfer: 0, card: 0, debt: 0, founderPoints: 0, preTax: 0, totalGross: 0, guestCount: 0, billCount: 0 },
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, {
+          key: groupKey,
+          year: year,
+          month: month,
+          weekNum: weekNum,
+          records: [],
+          totals: { 
+            cash: 0, transfer: 0, card: 0, debt: 0, 
+            founderPoints: 0, preTax: 0, totalGross: 0, 
+            guestCount: 0, billCount: 0 
+          },
         });
       }
-      const group = groupMap.get(key);
+      
+      const group = groupMap.get(groupKey);
       group.records.push(row);
-      group.totals.cash += Number(row.cash)||0; 
-      group.totals.transfer += Number(row.transfer)||0; 
-      group.totals.card += Number(row.card)||0; 
-      group.totals.debt += Number(row.debt)||0;
-      group.totals.founderPoints += Number(row.founderPoints)||0;
-      group.totals.preTax += Number(row.preTaxRevenue)||0; 
+      group.totals.cash += Number(row.cash) || 0; 
+      group.totals.transfer += Number(row.transfer) || 0; 
+      group.totals.card += Number(row.card) || 0; 
+      group.totals.debt += Number(row.debt) || 0;
+      group.totals.founderPoints += Number(row.founderPoints) || 0;
+      group.totals.preTax += Number(row.preTaxRevenue) || 0; 
       group.totals.totalGross += calculateTotalGross(row); 
-      group.totals.guestCount += Number(row.guestCount)||0; 
-      group.totals.billCount += Number(row.billCount)||0;
+      group.totals.guestCount += Number(row.guestCount) || 0; 
+      group.totals.billCount += Number(row.billCount) || 0;
     });
+    
     return Array.from(groupMap.values()).sort((a, b) => {
+      if (a.year !== b.year) return sortDirection === "asc" ? a.year - b.year : b.year - a.year;
+      if (a.month !== b.month) return sortDirection === "asc" ? a.month - b.month : b.month - a.month;
       return sortDirection === "asc" ? a.weekNum - b.weekNum : b.weekNum - a.weekNum;
     });
   }, [processedData, sortDirection]);
 
-  const availableWeeks = useMemo(() => Array.from(new Set(groupedData.map(g => g.weekNum))).sort((a, b) => a - b), [groupedData]);
-  const filteredGroupedData = useMemo(() => weekFilter === "all" ? groupedData : groupedData.filter(g => g.weekNum.toString() === weekFilter), [groupedData, weekFilter]);
+  // ===== AVAILABLE WEEKS =====
+  const availableWeeks = useMemo(() => {
+    const weekSet = new Set<string>();
+    groupedData.forEach(g => {
+      weekSet.add(g.key);
+    });
+    return Array.from(weekSet).sort();
+  }, [groupedData]);
 
+  // ===== FILTER BY WEEK =====
+  const filteredGroupedData = useMemo(() => {
+    if (weekFilter === "all") return groupedData;
+    return groupedData.filter(g => g.key === weekFilter);
+  }, [groupedData, weekFilter]);
+
+  // ===== TOTALS =====
   const { totals, totalDays } = useMemo(() => {
     let days = 0;
     const t = groupedData.reduce((acc, group) => {
@@ -568,11 +619,12 @@ const DailyReport = () => {
 
   const avgPerGuest = totals.guest > 0 ? totals.totalGross / totals.guest : 0;
 
+  // ===== EXPORT EXCEL =====
   const handleExportExcel = () => {
     if (data.length === 0) return alert("Chưa có dữ liệu để xuất Excel!");
 
     const exportData = processedData.map((row) => ({
-      "Ngày": formatDate(row.date),
+      "Ngày": formatDateDisplay(row.date),
       "Thứ": row.dayOfWeek,
       "Tiền mặt": row.cash || 0,
       "Chuyển khoản": row.transfer || 0,
@@ -622,6 +674,7 @@ const DailyReport = () => {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Header */}
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" onClick={() => navigate(-1)} className="h-10 w-10 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-300">
@@ -648,7 +701,7 @@ const DailyReport = () => {
           />
           <Button
             variant="outline"
-            className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 min-w-32.5"
+            className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
           >
@@ -669,22 +722,62 @@ const DailyReport = () => {
             <Download className="w-4 h-4" /> Xuất Excel
           </Button>
           
-          <Button className={`gap-2`} onClick={handleAddRow}>
+          <Button className="gap-2" onClick={handleAddRow}>
             <Plus className="w-4 h-4" /> Thêm doanh thu ngày
           </Button>
         </div>
       </div>
 
+      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-slate-300"><CardHeader><CardTitle className="text-sm">Tổng Doanh Thu (VAT)</CardTitle><DollarSign className="w-4 h-4 text-emerald-500 absolute top-4 right-4"/></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(totals.totalGross)}</div></CardContent></Card>
-        <Card className="border-slate-300"><CardHeader><CardTitle className="text-sm">Tổng Lượng Khách</CardTitle><Users className="w-4 h-4 text-blue-500 absolute top-4 right-4"/></CardHeader><CardContent><div className="text-2xl font-bold">{totals.guest}</div></CardContent></Card>
-        <Card className="border-slate-300"><CardHeader><CardTitle className="text-sm">Trung Bình / Khách</CardTitle><CreditCard className="w-4 h-4 text-orange-500 absolute top-4 right-4"/></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(avgPerGuest)}</div></CardContent></Card>
-        <Card className="border-slate-300"><CardHeader><CardTitle className="text-sm">Tổng Số Bill</CardTitle><Receipt className="w-4 h-4 text-purple-500 absolute top-4 right-4"/></CardHeader><CardContent><div className="text-2xl font-bold">{totals.bill}</div></CardContent></Card>
+        <Card className="border-slate-300">
+          <CardHeader>
+            <CardTitle className="text-sm">Tổng Doanh Thu (VAT)</CardTitle>
+            <DollarSign className="w-4 h-4 text-emerald-500 absolute top-4 right-4"/>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totals.totalGross)}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-slate-300">
+          <CardHeader>
+            <CardTitle className="text-sm">Tổng Lượng Khách</CardTitle>
+            <Users className="w-4 h-4 text-blue-500 absolute top-4 right-4"/>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totals.guest}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-slate-300">
+          <CardHeader>
+            <CardTitle className="text-sm">Trung Bình / Khách</CardTitle>
+            <CreditCard className="w-4 h-4 text-orange-500 absolute top-4 right-4"/>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(avgPerGuest)}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-slate-300">
+          <CardHeader>
+            <CardTitle className="text-sm">Tổng Số Bill</CardTitle>
+            <Receipt className="w-4 h-4 text-purple-500 absolute top-4 right-4"/>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totals.bill}</div>
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Filters */}
       <div className="flex items-center justify-between pt-4">
         <div className="relative w-80">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400"/><Input placeholder="Tìm kiếm theo ngày, thứ, ghi chú" value={search} onChange={(e)=>setSearch(e.target.value)} className="pl-10 border-slate-300"/>
+          <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400"/>
+          <Input 
+            placeholder="Tìm kiếm theo ngày, thứ, ghi chú" 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+            className="pl-10 border-slate-300"
+          />
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setSortDirection(sortDirection === "asc" ? "desc" : "asc")} className="gap-2 border-slate-300">
@@ -693,16 +786,30 @@ const DailyReport = () => {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-primary text-primary"><CalendarDays className="w-4 h-4 mr-2"/> {weekFilter === "all" ? "Tất cả các tuần" : `Tuần ${weekFilter}`}</Button>
+              <Button variant="outline" className="border-primary text-primary">
+                <CalendarDays className="w-4 h-4 mr-2"/> 
+                {weekFilter === "all" ? "Tất cả các tuần" : weekFilter}
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setWeekFilter("all")}>Tất cả các tuần</DropdownMenuItem>
-              {availableWeeks.map(w => <DropdownMenuItem key={w} onClick={() => setWeekFilter(w.toString())}>Tuần {w}</DropdownMenuItem>)}
+              {availableWeeks.map(w => {
+                const parts = w.split('-W');
+                const year = parts[0];
+                const month = parts[1] ? parts[1].slice(0, 2) : '';
+                const week = parts[1] ? parts[1].slice(3) : '';
+                return (
+                  <DropdownMenuItem key={w} onClick={() => setWeekFilter(w)}>
+                    Tháng {parseInt(month)}/{year} - Tuần {week}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
+      {/* Table */}
       <Card className="border-slate-300">
         <div className="rounded-md overflow-x-auto">
           <Table className="border-collapse w-full">
@@ -733,7 +840,9 @@ const DailyReport = () => {
               {filteredGroupedData.length > 0 ? filteredGroupedData.map((group) => (
                 <React.Fragment key={group.key}>
                   <TableRow className="bg-slate-700 hover:bg-slate-700 text-white font-bold">
-                    <TableCell colSpan={2} className="border border-slate-600 font-black text-center whitespace-nowrap bg-slate-800 text-white px-2 py-1.5 text-[13px]">TUẦN {group.weekNum}</TableCell>
+                    <TableCell colSpan={2} className="border border-slate-600 font-black text-center whitespace-nowrap bg-slate-800 text-white px-2 py-1.5 text-[13px]">
+                      TUẦN {group.weekNum} - Tháng {String(group.month).padStart(2, '0')}/{group.year}
+                    </TableCell>
                     {!isCompactMode && (
                       <>
                         <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-2 py-1.5 text-[13px] text-slate-100">{formatCurrency(group.totals.cash)}</TableCell>
