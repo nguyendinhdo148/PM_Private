@@ -4,7 +4,9 @@ import DailyRevenue from "../models/dailyRevenue.js";
 // [POST] Tạo tháng mới
 export const create = async (req, res) => {
   try {
-    const { monthKey, title } = req.body;
+    const { monthKey } = req.body;
+    const [year, month] = String(monthKey || "").split("-");
+    const title = year && month ? `Tháng ${month}/${year}` : "";
     const newReport = new MonthlyReport({ monthKey, title });
     await newReport.save();
     res.status(201).json({ success: true, data: newReport });
@@ -28,7 +30,23 @@ export const getAll = async (req, res) => {
       },
       {
         $addFields: {
-          totalGross: { $sum: "$dailyData.totalGross" },
+          totalGross: {
+            $sum: {
+              $map: {
+                input: "$dailyData",
+                as: "day",
+                in: {
+                  $add: [
+                    { $ifNull: ["$$day.cash", 0] },
+                    { $ifNull: ["$$day.transfer", 0] },
+                    { $ifNull: ["$$day.card", 0] },
+                    { $ifNull: ["$$day.debt", 0] },
+                    { $ifNull: ["$$day.founderPoints", 0] }
+                  ]
+                }
+              }
+            }
+          },
           preTaxRevenue: { $sum: "$dailyData.preTaxRevenue" },
           guestCount: { $sum: "$dailyData.guestCount" },
           billCount: { $sum: "$dailyData.billCount" },

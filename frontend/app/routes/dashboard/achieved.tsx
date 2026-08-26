@@ -39,6 +39,14 @@ const getInitials = (name: string) => {
   return name.charAt(0).toUpperCase();
 };
 
+const getAttachmentUrl = (fileUrl?: string) => {
+  if (!fileUrl || /^(https?:|data:|blob:)/i.test(fileUrl)) return fileUrl;
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  return cloudName
+    ? `https://res.cloudinary.com/${cloudName}/image/upload/chat_attachments/${fileUrl}`
+    : fileUrl;
+};
+
 // Component hiển thị Avatar (Ưu tiên ảnh profilePicture, nếu không có thì lấy chữ cái đầu)
 const AvatarRender = ({ user, size = "48px" }: { user?: User; size?: string }) => {
   if (!user) return <div style={{ width: size, height: size, borderRadius: "50%", backgroundColor: "#cbd5e1", flexShrink: 0 }} />;
@@ -640,8 +648,8 @@ const Achieved = () => {
                               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: msg.content ? "8px" : "0" }}>
                                 {msg.attachments.map((file, idx) => (
                                   file.fileType === "image" ? 
-                                    <img key={idx} src={file.fileUrl} alt="attachment" style={{ maxWidth: "250px", maxHeight: "250px", borderRadius: "8px", cursor: "pointer", objectFit: "cover", border: "1px solid #e2e8f0" }} onClick={() => window.open(file.fileUrl)} /> :
-                                    <a key={idx} href={file.fileUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", padding: "8px 12px", backgroundColor: isOwn ? "#dbeafe" : "#f1f5f9", borderRadius: "8px", textDecoration: "none", color: "#0068ff", fontSize: "13px", fontWeight: "600", border: "1px solid #bfdbfe" }}>
+                                    <img key={idx} src={getAttachmentUrl(file.fileUrl)} alt="attachment" style={{ maxWidth: "250px", maxHeight: "250px", borderRadius: "8px", cursor: "pointer", objectFit: "cover", border: "1px solid #e2e8f0" }} onClick={() => window.open(getAttachmentUrl(file.fileUrl))} /> :
+                                    <a key={idx} href={getAttachmentUrl(file.fileUrl)} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", padding: "8px 12px", backgroundColor: isOwn ? "#dbeafe" : "#f1f5f9", borderRadius: "8px", textDecoration: "none", color: "#0068ff", fontSize: "13px", fontWeight: "600", border: "1px solid #bfdbfe" }}>
                                       📄 {file.fileName}
                                     </a>
                                 ))}
