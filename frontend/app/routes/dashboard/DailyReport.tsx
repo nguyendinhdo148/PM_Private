@@ -605,6 +605,15 @@ const DailyReport = () => {
     return Array.from(weekSet).sort();
   }, [groupedData]);
 
+  // ===== SET DEFAULT WEEK TO LATEST =====
+  useEffect(() => {
+    if (availableWeeks.length > 0 && weekFilter === "all") {
+      // Lấy tuần mới nhất (tuần cuối cùng trong danh sách)
+      const latestWeek = availableWeeks[availableWeeks.length - 1];
+      setWeekFilter(latestWeek);
+    }
+  }, [availableWeeks]);
+
   // ===== FILTER BY WEEK =====
   const filteredGroupedData = useMemo(() => {
     if (weekFilter === "all") return groupedData;
@@ -808,23 +817,23 @@ const DailyReport = () => {
             <span className="hidden xs:inline">{sortDirection === 'asc' ? 'Từ Ngày 1' : 'Từ Ngày 31'}</span>
           </Button>
           <DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="outline" className="border-primary text-primary text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10">
-      <CalendarDays className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2"/> 
-      <span className="truncate max-w-[80px] sm:max-w-none">
-        {weekFilter === "all" ? "Tất cả các tuần" : `Tuần ${weekFilter.split('-W')[1]}`}
-      </span>
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto">
-    <DropdownMenuItem onClick={() => setWeekFilter("all")}>Tất cả các tuần</DropdownMenuItem>
-    {availableWeeks.map(w => (
-      <DropdownMenuItem key={w} onClick={() => setWeekFilter(w)}>
-        Tuần {w.split('-W')[1]}
-      </DropdownMenuItem>
-    ))}
-  </DropdownMenuContent>
-</DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="border-primary text-primary text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10">
+                <CalendarDays className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2"/> 
+                <span className="truncate max-w-[80px] sm:max-w-none">
+                  {weekFilter === "all" ? "Tất cả các tuần" : `Tuần ${weekFilter.split('-W')[1]}`}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto">
+              <DropdownMenuItem onClick={() => setWeekFilter("all")}>Tất cả các tuần</DropdownMenuItem>
+              {availableWeeks.map(w => (
+                <DropdownMenuItem key={w} onClick={() => setWeekFilter(w)}>
+                  Tuần {w.split('-W')[1]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
