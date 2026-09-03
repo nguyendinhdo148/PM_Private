@@ -191,11 +191,9 @@ const DailyReport = () => {
       
       const result = (await updateData(`/daily-revenues/${row._id}`, payload)) as ApiResponse<DailyRevenue>;
       if (result.success) {
-        // Cập nhật lại data với dữ liệu từ server
         setData(prev => prev.map(item => 
           item._id === row._id ? { ...result.data, date: convertUTCToLocalDate(result.data.date) } : item
         ));
-        // Hiển thị thông báo thành công ngắn
         const toast = document.createElement('div');
         toast.className = 'fixed bottom-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm';
         toast.textContent = '✅ Đã lưu thành công!';
@@ -229,35 +227,33 @@ const DailyReport = () => {
 
   // ===== CHỈ CHO PHÉP NHẬP SỐ =====
   const handleNumberInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-  const key = e.key;
+    const key = e.key;
 
-  // Cho phép các phím điều khiển
-  if (
-    e.ctrlKey ||
-    e.metaKey ||
-    e.altKey ||
-    [
-      "Backspace",
-      "Delete",
-      "Tab",
-      "Escape",
-      "Enter",
-      "ArrowLeft",
-      "ArrowRight",
-      "ArrowUp",
-      "ArrowDown",
-      "Home",
-      "End"
-    ].includes(key)
-  ) {
-    return;
-  }
+    if (
+      e.ctrlKey ||
+      e.metaKey ||
+      e.altKey ||
+      [
+        "Backspace",
+        "Delete",
+        "Tab",
+        "Escape",
+        "Enter",
+        "ArrowLeft",
+        "ArrowRight",
+        "ArrowUp",
+        "ArrowDown",
+        "Home",
+        "End"
+      ].includes(key)
+    ) {
+      return;
+    }
 
-  // Chỉ cho phép số
-  if (!/^[0-9]$/.test(key)) {
-    e.preventDefault();
-  }
-};
+    if (!/^[0-9]$/.test(key)) {
+      e.preventDefault();
+    }
+  };
 
   const handleDeleteRow = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xoá báo cáo của ngày này? Hành động này không thể hoàn tác!")) return;
@@ -733,7 +729,6 @@ const DailyReport = () => {
           </Button>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-3xl lg:text-4xl font-bold truncate">Chi Tiết Báo Cáo Tháng</h1>
-            <p className="text-muted-foreground text-xs sm:text-sm mt-1 hidden sm:block">Nhập liệu trực tiếp hoặc dán nguyên cột từ Excel. Có thể Import trực tiếp file Excel có format chuẩn.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 flex-shrink-0">
@@ -786,49 +781,6 @@ const DailyReport = () => {
             <Plus className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Thêm</span>
           </Button>
         </div>
-      </div>
-
-      {/* Summary Cards - Sắp xếp lại: Tổng DT, Tổng Khách, TB/Khách, Tổng Bill */}
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
-        <Card className="border-slate-300">
-          <CardHeader className="p-3 sm:p-4">
-            <CardTitle className="text-[10px] sm:text-sm">Tổng Doanh Thu</CardTitle>
-            <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-500 absolute top-2 right-2 sm:top-4 sm:right-4"/>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
-            <div className="text-sm sm:text-2xl font-bold">{formatCurrency(totals.totalGross) || "0 ₫"}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-300">
-          <CardHeader className="p-3 sm:p-4">
-            <CardTitle className="text-[10px] sm:text-sm">Tổng Lượng Khách</CardTitle>
-            <Users className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 absolute top-2 right-2 sm:top-4 sm:right-4"/>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
-            <div className="text-sm sm:text-2xl font-bold">{totals.guest || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-300">
-          <CardHeader className="p-3 sm:p-4">
-            <CardTitle className="text-[10px] sm:text-sm">TB / Khách</CardTitle>
-            <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 text-orange-500 absolute top-2 right-2 sm:top-4 sm:right-4"/>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
-            <div className="text-sm sm:text-2xl font-bold">{formatCurrency(avgPerGuest) || "0 ₫"}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-300">
-          <CardHeader className="p-3 sm:p-4">
-            <CardTitle className="text-[10px] sm:text-sm">Tổng Số Bill</CardTitle>
-            <Receipt className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500 absolute top-2 right-2 sm:top-4 sm:right-4"/>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
-            <div className="text-sm sm:text-2xl font-bold">{totals.bill || 0}</div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Filters */}
@@ -1135,6 +1087,54 @@ const DailyReport = () => {
           </Table>
         </div>
       </Card>
+
+      {/* Summary Cards - Đưa xuống dưới bảng, làm gọn */}
+      {/* Summary Cards - Siêu gọn */}
+<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+  <Card className="border-slate-300 bg-emerald-50/50 shadow-sm">
+    <CardContent className="px-3 py-2 flex items-center justify-between gap-2">
+      <span className="text-xs sm:text-sm font-medium text-emerald-700 whitespace-nowrap">
+        Tổng Doanh Thu
+      </span>
+      <span className="text-sm sm:text-base font-bold text-emerald-700 whitespace-nowrap">
+        {formatCurrency(totals.totalGross) || "0 ₫"}
+      </span>
+    </CardContent>
+  </Card>
+
+  <Card className="border-slate-300 bg-blue-50/50 shadow-sm">
+    <CardContent className="px-3 py-2 flex items-center justify-between gap-2">
+      <span className="text-xs sm:text-sm font-medium text-blue-700 whitespace-nowrap">
+        Tổng Khách
+      </span>
+      <span className="text-sm sm:text-base font-bold text-blue-700 whitespace-nowrap">
+        {totals.guest || 0}
+      </span>
+    </CardContent>
+  </Card>
+
+  <Card className="border-slate-300 bg-orange-50/50 shadow-sm">
+    <CardContent className="px-3 py-2 flex items-center justify-between gap-2">
+      <span className="text-xs sm:text-sm font-medium text-orange-700 whitespace-nowrap">
+        TB / Khách
+      </span>
+      <span className="text-sm sm:text-base font-bold text-orange-700 whitespace-nowrap">
+        {formatCurrency(avgPerGuest) || "0 ₫"}
+      </span>
+    </CardContent>
+  </Card>
+
+  <Card className="border-slate-300 bg-purple-50/50 shadow-sm">
+    <CardContent className="px-3 py-2 flex items-center justify-between gap-2">
+      <span className="text-xs sm:text-sm font-medium text-purple-700 whitespace-nowrap">
+        Tổng Bill
+      </span>
+      <span className="text-sm sm:text-base font-bold text-purple-700 whitespace-nowrap">
+        {totals.bill || 0}
+      </span>
+    </CardContent>
+  </Card>
+</div>
     </div>
   );
 };
