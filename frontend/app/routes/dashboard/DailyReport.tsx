@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
-import { ArrowLeft, ArrowUp, ArrowDown, CreditCard, DollarSign, Download, Receipt, Search, Users, Plus, Trash2, EyeOff, Eye, CalendarDays, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, CreditCard, DollarSign, Download, Receipt, Search, Users, Plus, Trash2, EyeOff, Eye, CalendarDays, Upload, Loader2, Save } from "lucide-react";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom"; 
 import { fetchData, updateData, postData, deleteData } from "@/lib/fetch-util";
@@ -43,8 +43,10 @@ const DailyReport = () => {
   
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCompactMode, setIsCompactMode] = useState(false);
+  const [showFounderPoints, setShowFounderPoints] = useState(false);
   
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [savingRowId, setSavingRowId] = useState<string | null>(null);
   
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<string>("");
@@ -178,80 +180,84 @@ const DailyReport = () => {
     return { year, month, day, weekNum };
   };
 
-  // ===== LƯU DỮ LIỆU =====
-  const executeSave = async (row: DailyRevenue, field: keyof DailyRevenue, value: any) => {
-    const updatedRow = { ...row, [field]: value };
+  // ===== LƯU TỪNG DÒNG (CHỈ KHI ẤN ICON LƯU) =====
+  const handleSaveRow = async (row: DailyRevenue) => {
+    if (!row._id) return;
     
-    if (field === "date") {
-      updatedRow.date = value;
-    }
-    
-    updatedRow.totalGross = calculateTotalGross(updatedRow);
-
-    setData(prev => prev.map(item => item._id === row._id ? updatedRow : item));
-
+    setSavingRowId(row._id);
     try {
-      const payload = { ...updatedRow };
+      const payload = { ...row };
+      payload.totalGross = calculateTotalGross(payload);
+      
       const result = (await updateData(`/daily-revenues/${row._id}`, payload)) as ApiResponse<DailyRevenue>;
-      if (!result.success) {
-        console.error("Lỗi khi lưu:", result.message);
+      if (result.success) {
+        // Cập nhật lại data với dữ liệu từ server
+        setData(prev => prev.map(item => 
+          item._id === row._id ? { ...result.data, date: convertUTCToLocalDate(result.data.date) } : item
+        ));
+        // Hiển thị thông báo thành công ngắn
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm';
+        toast.textContent = '✅ Đã lưu thành công!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      } else {
+        alert("Lỗi khi lưu: " + result.message);
       }
     } catch (error) {
       console.error("Lỗi kết nối khi lưu:", error);
+      alert("❌ Lỗi kết nối khi lưu dữ liệu!");
+    } finally {
+      setSavingRowId(null);
     }
   };
 
-  const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>, field: keyof DailyRevenue) => {
-    e.preventDefault(); 
-    
-    const pastedText = e.clipboardData.getData('text');
-    if (!pastedText) return;
-
-    const values = pastedText.split(/\r?\n|\t/).filter(v => v.trim() !== "");
-    
-    const rowIndex = data.findIndex(item => item._id === editingId);
-    if (rowIndex === -1) return;
-
-    let currentIndex = rowIndex;
-    let currentData = data;
-    for (const val of values) {
-      const currentRow = currentData[currentIndex];
-      if (!currentRow) break; 
-
-      await executeSave(currentRow, field, val);
-      currentData = currentData.map(item =>
-        item._id === currentRow._id
-          ? { ...currentRow, [field]: val, totalGross: calculateTotalGross({ ...currentRow, [field]: val }) }
-          : item,
-      );
-      currentIndex++;
-    }
+  // ===== CẬP NHẬT STATE LOCAL KHI THAY ĐỔI (KHÔNG TỰ ĐỘNG LƯU) =====
+  const updateLocalRow = (rowId: string, field: keyof DailyRevenue, value: any) => {
+    setData(prev => {
+      const newData = prev.map(item => {
+        if (item._id === rowId) {
+          const updated = { ...item, [field]: value };
+          updated.totalGross = calculateTotalGross(updated);
+          return updated;
+        }
+        return item;
+      });
+      return newData;
+    });
   };
 
   // ===== CHỈ CHO PHÉP NHẬP SỐ =====
   const handleNumberInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const key = e.key;
-    if (
-      key !== 'Backspace' && 
-      key !== 'Delete' && 
-      key !== 'Tab' && 
-      key !== 'Escape' && 
-      key !== 'Enter' && 
-      key !== 'ArrowLeft' && 
-      key !== 'ArrowRight' && 
-      key !== 'ArrowUp' && 
-      key !== 'ArrowDown' && 
-      key !== 'Home' && 
-      key !== 'End' && 
-      key !== 'SelectAll' &&
-      key !== 'Cut' &&
-      key !== 'Copy' &&
-      key !== 'Paste' &&
-      !/^[0-9]$/.test(key)
-    ) {
-      e.preventDefault();
-    }
-  };
+  const key = e.key;
+
+  // Cho phép các phím điều khiển
+  if (
+    e.ctrlKey ||
+    e.metaKey ||
+    e.altKey ||
+    [
+      "Backspace",
+      "Delete",
+      "Tab",
+      "Escape",
+      "Enter",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Home",
+      "End"
+    ].includes(key)
+  ) {
+    return;
+  }
+
+  // Chỉ cho phép số
+  if (!/^[0-9]$/.test(key)) {
+    e.preventDefault();
+  }
+};
 
   const handleDeleteRow = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xoá báo cáo của ngày này? Hành động này không thể hoàn tác!")) return;
@@ -552,7 +558,7 @@ const DailyReport = () => {
       const newValue = value.substring(0, start) + "\n" + value.substring(end);
       target.value = newValue;
       target.selectionStart = target.selectionEnd = start + 1;
-      executeSave(row, "note", newValue);
+      updateLocalRow(row._id!, "note", newValue);
       setTimeout(() => autoResizeTextarea(target), 0);
     }
   };
@@ -735,6 +741,15 @@ const DailyReport = () => {
             {isCompactMode ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />} <span className="hidden xs:inline">{isCompactMode ? "Hiện chi tiết" : "Thu gọn"}</span>
           </Button>
 
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFounderPoints(!showFounderPoints)} 
+            className="gap-1 sm:gap-2 bg-slate-50 text-slate-700 border-slate-300 text-xs sm:text-sm px-2 sm:px-4"
+          >
+            {showFounderPoints ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />} 
+            <span className="hidden xs:inline">Điểm Founder</span>
+          </Button>
+
           <input
             ref={fileInputRef}
             id="excel-import"
@@ -773,7 +788,7 @@ const DailyReport = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Sắp xếp lại: Tổng DT, Tổng Khách, TB/Khách, Tổng Bill */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         <Card className="border-slate-300">
           <CardHeader className="p-3 sm:p-4">
@@ -784,6 +799,7 @@ const DailyReport = () => {
             <div className="text-sm sm:text-2xl font-bold">{formatCurrency(totals.totalGross) || "0 ₫"}</div>
           </CardContent>
         </Card>
+
         <Card className="border-slate-300">
           <CardHeader className="p-3 sm:p-4">
             <CardTitle className="text-[10px] sm:text-sm">Tổng Lượng Khách</CardTitle>
@@ -793,6 +809,7 @@ const DailyReport = () => {
             <div className="text-sm sm:text-2xl font-bold">{totals.guest || 0}</div>
           </CardContent>
         </Card>
+
         <Card className="border-slate-300">
           <CardHeader className="p-3 sm:p-4">
             <CardTitle className="text-[10px] sm:text-sm">TB / Khách</CardTitle>
@@ -802,6 +819,7 @@ const DailyReport = () => {
             <div className="text-sm sm:text-2xl font-bold">{formatCurrency(avgPerGuest) || "0 ₫"}</div>
           </CardContent>
         </Card>
+
         <Card className="border-slate-300">
           <CardHeader className="p-3 sm:p-4">
             <CardTitle className="text-[10px] sm:text-sm">Tổng Số Bill</CardTitle>
@@ -864,7 +882,9 @@ const DailyReport = () => {
                     <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Chuyển khoản</TableHead>
                     <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Cà thẻ</TableHead>
                     <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Công nợ</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Điểm Founder</TableHead>
+                    {showFounderPoints && (
+                      <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Điểm Founder</TableHead>
+                    )}
                   </>
                 )}
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT trước PPV</TableHead>
@@ -875,6 +895,7 @@ const DailyReport = () => {
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[220px] px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px]">
                   Ghi chú
                 </TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Lưu</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Xoá</TableHead>
               </TableRow>
             </TableHeader>
@@ -892,7 +913,9 @@ const DailyReport = () => {
                         <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.transfer) || "0"}</TableCell>
                         <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.card) || "0"}</TableCell>
                         <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.debt) || "0"}</TableCell>
-                        <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.founderPoints) || "0"}</TableCell>
+                        {showFounderPoints && (
+                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.founderPoints) || "0"}</TableCell>
+                        )}
                       </>
                     )}
                     <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-orange-200">{formatCurrency(group.totals.preTax) || "0"}</TableCell>
@@ -902,12 +925,14 @@ const DailyReport = () => {
                     <TableCell className="border border-slate-600 text-center font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{group.totals.billCount}</TableCell>
                     <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
                     <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
+                    <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
                   </TableRow>
 
                   {group.records.map((row: DailyRevenue) => {
                     const isEditing = editingId === row._id;
                     const totalGross = calculateTotalGross(row);
                     const avgGuest = Number(row.guestCount || 0) > 0 ? totalGross / Number(row.guestCount) : 0;
+                    const isSaving = savingRowId === row._id;
                     
                     return (
                       <TableRow 
@@ -918,7 +943,7 @@ const DailyReport = () => {
                         <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                           <Input type="date" defaultValue={row.date}
                             onFocus={() => row._id && setEditingId(row._id)}
-                            onBlur={(e) => executeSave(row, "date", e.target.value)}
+                            onBlur={(e) => updateLocalRow(row._id!, "date", e.target.value)}
                             className="w-20 sm:w-32 h-6 sm:h-7 text-[10px] sm:text-[13px] border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 p-0.5 sm:p-1" />
                         </TableCell>
                         
@@ -936,10 +961,9 @@ const DailyReport = () => {
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => {
                                   const val = e.target.value.replace(/,/g, '');
-                                  executeSave(row, "cash", val);
+                                  updateLocalRow(row._id!, "cash", val);
                                 }}
                                 onKeyDown={handleNumberInput}
-                                onPaste={(e) => handlePaste(e, "cash")}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
@@ -948,10 +972,9 @@ const DailyReport = () => {
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => {
                                   const val = e.target.value.replace(/,/g, '');
-                                  executeSave(row, "transfer", val);
+                                  updateLocalRow(row._id!, "transfer", val);
                                 }}
                                 onKeyDown={handleNumberInput}
-                                onPaste={(e) => handlePaste(e, "transfer")}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
@@ -960,10 +983,9 @@ const DailyReport = () => {
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => {
                                   const val = e.target.value.replace(/,/g, '');
-                                  executeSave(row, "card", val);
+                                  updateLocalRow(row._id!, "card", val);
                                 }}
                                 onKeyDown={handleNumberInput}
-                                onPaste={(e) => handlePaste(e, "card")}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
@@ -972,24 +994,24 @@ const DailyReport = () => {
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => {
                                   const val = e.target.value.replace(/,/g, '');
-                                  executeSave(row, "debt", val);
+                                  updateLocalRow(row._id!, "debt", val);
                                 }}
                                 onKeyDown={handleNumberInput}
-                                onPaste={(e) => handlePaste(e, "debt")}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
                             </TableCell>
-                            <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                              <Input type="text" 
-                                defaultValue={formatCurrencyNoUnit(row.founderPoints)}
-                                onFocus={() => row._id && setEditingId(row._id)}
-                                onBlur={(e) => {
-                                  const val = e.target.value.replace(/,/g, '');
-                                  executeSave(row, "founderPoints", val);
-                                }}
-                                onKeyDown={handleNumberInput}
-                                onPaste={(e) => handlePaste(e, "founderPoints")}
-                                className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
-                            </TableCell>
+                            {showFounderPoints && (
+                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
+                                <Input type="text" 
+                                  defaultValue={formatCurrencyNoUnit(row.founderPoints)}
+                                  onFocus={() => row._id && setEditingId(row._id)}
+                                  onBlur={(e) => {
+                                    const val = e.target.value.replace(/,/g, '');
+                                    updateLocalRow(row._id!, "founderPoints", val);
+                                  }}
+                                  onKeyDown={handleNumberInput}
+                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
+                              </TableCell>
+                            )}
                           </>
                         )}
 
@@ -999,10 +1021,9 @@ const DailyReport = () => {
                             onFocus={() => row._id && setEditingId(row._id)}
                             onBlur={(e) => {
                               const val = e.target.value.replace(/,/g, '');
-                              executeSave(row, "preTaxRevenue", val);
+                              updateLocalRow(row._id!, "preTaxRevenue", val);
                             }}
                             onKeyDown={handleNumberInput}
-                            onPaste={(e) => handlePaste(e, "preTaxRevenue")}
                             className="w-16 sm:w-32 text-right h-6 sm:h-7 bg-orange-50 border-transparent hover:border-orange-300 focus-visible:ring-orange-500 font-bold text-orange-700 text-[10px] sm:text-[13px] p-0.5 sm:p-1" />
                         </TableCell>
 
@@ -1016,10 +1037,9 @@ const DailyReport = () => {
                             onFocus={() => row._id && setEditingId(row._id)}
                             onBlur={(e) => {
                               const val = e.target.value.replace(/,/g, '');
-                              executeSave(row, "guestCount", val);
+                              updateLocalRow(row._id!, "guestCount", val);
                             }}
                             onKeyDown={handleNumberInput}
-                            onPaste={(e) => handlePaste(e, "guestCount")}
                             className="w-10 sm:w-14 text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
                         </TableCell>
 
@@ -1033,10 +1053,9 @@ const DailyReport = () => {
                             onFocus={() => row._id && setEditingId(row._id)}
                             onBlur={(e) => {
                               const val = e.target.value.replace(/,/g, '');
-                              executeSave(row, "billCount", val);
+                              updateLocalRow(row._id!, "billCount", val);
                             }}
                             onKeyDown={handleNumberInput}
-                            onPaste={(e) => handlePaste(e, "billCount")}
                             className="w-10 sm:w-14 text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" />
                         </TableCell>
 
@@ -1050,12 +1069,29 @@ const DailyReport = () => {
                             defaultValue={row.note || ""}
                             rows={1}
                             onFocus={() => row._id && setEditingId(row._id)}
-                            onBlur={(e) => executeSave(row, "note", e.target.value)}
+                            onBlur={(e) => updateLocalRow(row._id!, "note", e.target.value)}
                             onKeyDown={(e) => handleTextareaKeyDown(e, row)}
-                            onPaste={(e) => handlePaste(e, "note")}
                             onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
                             className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                           />
+                        </TableCell>
+
+                        <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
+                          <div className="flex items-center justify-center">
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => handleSaveRow(row)} 
+                              disabled={isSaving}
+                              className="text-emerald-600 hover:bg-emerald-100 h-5 w-5 sm:h-7 sm:w-7"
+                            >
+                              {isSaving ? (
+                                <Loader2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 animate-spin" />
+                              ) : (
+                                <Save className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
 
                         <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
@@ -1069,7 +1105,7 @@ const DailyReport = () => {
                     );
                   })}
                 </React.Fragment>
-              )) : (<TableRow><TableCell colSpan={isCompactMode ? 9 : 13} className="border border-slate-300 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
+              )) : (<TableRow><TableCell colSpan={isCompactMode ? (showFounderPoints ? 11 : 10) : (showFounderPoints ? 14 : 13)} className="border border-slate-300 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
             </TableBody>
             
             <TableFooter className="bg-slate-800 text-white sticky bottom-0 z-10 border-t-4 border-slate-900">
@@ -1081,7 +1117,9 @@ const DailyReport = () => {
                     <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.transfer) || "0"}</TableCell>
                     <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.card) || "0"}</TableCell>
                     <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.debt) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.founderPoints) || "0"}</TableCell>
+                    {showFounderPoints && (
+                      <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.founderPoints) || "0"}</TableCell>
+                    )}
                   </>
                 )}
                 <TableCell className="border border-slate-600 text-right font-bold text-orange-300 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.preTax) || "0"}</TableCell>
@@ -1089,6 +1127,7 @@ const DailyReport = () => {
                 <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{totals.guest}</TableCell>
                 <TableCell className="border border-slate-600 text-right font-bold text-blue-200 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatAvgGuest(avgPerGuest) || "0"}</TableCell>
                 <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{totals.bill}</TableCell>
+                <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
                 <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
                 <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
               </TableRow>
