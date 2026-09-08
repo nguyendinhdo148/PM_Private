@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select as SelectUI, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Search, Calendar, RefreshCcw, FileWarning, Trash2, CheckSquare, Minus, Plus, Edit3, XCircle, FileText, ClipboardList, PlusCircle, ArrowUpDown, Receipt } from "lucide-react";
+import { Save, Search, Calendar, RefreshCcw, FileWarning, Trash2, CheckSquare, Minus, Plus, Edit3, XCircle, FileText, ClipboardList, PlusCircle, ArrowUpDown, Receipt, FileSpreadsheet } from "lucide-react";
 import { fetchData, postData, updateData, deleteData } from "@/lib/fetch-util";
+import * as XLSX from 'xlsx';
 
 // ==========================================
 // DATA MÓN TĨNH (TỪ EXCEL)
@@ -1186,6 +1187,99 @@ const [selectedMonth, setSelectedMonth] = useState(() => {
   const calculateBillTotal = (items: any[]) => items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
   const calculateBillQty = (items: any[]) => items.reduce((sum, it) => sum + it.quantity, 0);
 
+  // ==========================================
+  // XUẤT EXCEL
+  // ==========================================
+  const handleExportExcel = () => {
+    if (logs.length === 0) {
+      alert("Không có dữ liệu để xuất trong tháng này!");
+      return;
+    }
+
+    // Tạo dữ liệu cho sheet 1: Lịch sử nhập liệu
+    const historyData = sortedLogs.map((log, index) => {
+      const itemsDetail = log.items.map((item: any) => 
+        `${item.quantity}x ${item.name} (${formatVND(item.price)})`
+      ).join("; ");
+      
+      return {
+        "STT": index + 1,
+        "Ngày": log.date,
+        "Thời gian": log.createdAt ? new Date(log.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : "",
+        "Loại phiếu": log.type === "UNPOSTED" ? "HỦY MÓN" : "ĐÃ POST",
+        "Chi tiết món": itemsDetail,
+        "Số lượng món": calculateBillQty(log.items),
+        "Thành tiền": calculateBillTotal(log.items),
+      };
+    });
+
+    // Tạo dữ liệu cho sheet 2: Thống kê tổng hợp theo danh mục
+    const summaryRows: any[] = [];
+    Object.entries(summaryData.groups).forEach(([category, items]) => {
+      items.forEach((item: any) => {
+        summaryRows.push({
+          "Danh mục": category,
+          "Tên món": item.name,
+          "Đơn giá": item.price,
+          "Tổng hủy": item.unpostedQty,
+          "Đã post": item.postedQty,
+          "Chênh lệch (Hủy - Post)": item.unpostedQty - item.postedQty,
+          "Giá trị chênh lệch": (item.unpostedQty - item.postedQty) * item.price,
+        });
+      });
+    });
+
+    // Tạo dữ liệu cho sheet 3: Chi tiết bill
+    const billData = sortedLogs.map((log, index) => {
+      return {
+        "STT": index + 1,
+        "Ngày": log.date,
+        "Thời gian": log.createdAt ? new Date(log.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : "",
+        "Loại phiếu": log.type === "UNPOSTED" ? "HỦY MÓN" : "ĐÃ POST",
+        "Tổng số món": calculateBillQty(log.items),
+        "Tổng thành tiền": calculateBillTotal(log.items),
+      };
+    });
+
+    // Tạo workbook
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Lịch sử nhập liệu
+    const ws1 = XLSX.utils.json_to_sheet(historyData);
+    XLSX.utils.book_append_sheet(wb, ws1, "Lịch sử nhập liệu");
+
+    // Sheet 2: Thống kê tổng hợp
+    const ws2 = XLSX.utils.json_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, ws2, "Thống kê tổng hợp");
+
+    // Sheet 3: Chi tiết bill
+    const ws3 = XLSX.utils.json_to_sheet(billData);
+    XLSX.utils.book_append_sheet(wb, ws3, "Chi tiết bill");
+
+    // Thêm sheet 4: Tóm tắt tháng
+    const summarySheet = [
+      { "Thông tin": "BÁO CÁO ĐỐI SOÁT HỦY/POST" },
+      { "Thông tin": `Tháng: ${selectedMonth}` },
+      { "Thông tin": "" },
+      { "Thông tin": "TỔNG KẾT:" },
+      { "Thông tin": `Tổng số phiếu: ${logs.length}` },
+      { "Thông tin": `Tổng số phiếu HỦY: ${logs.filter(l => l.type === "UNPOSTED").length}` },
+      { "Thông tin": `Tổng số phiếu ĐÃ POST: ${logs.filter(l => l.type === "POSTED").length}` },
+      { "Thông tin": `Tổng giá trị hủy thực tế: ${formatVND(summaryData.totalLostValue)}` },
+      { "Thông tin": "" },
+      { "Thông tin": "Ngày xuất báo cáo:" },
+      { "Thông tin": new Date().toLocaleString('vi-VN') },
+    ];
+    const ws4 = XLSX.utils.json_to_sheet(summarySheet);
+    // Điều chỉnh độ rộng cột cho sheet tóm tắt
+    ws4['!cols'] = [{ wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, ws4, "Tóm tắt");
+
+    // Xuất file
+    const monthDisplay = selectedMonth.replace("-", "_");
+    XLSX.writeFile(wb, `Bao_cao_huy_mon_${monthDisplay}.xlsx`);
+  };
+
   return (
     <div className="h-full overflow-auto bg-slate-50 p-2 sm:p-6 text-sm font-sans">
       <div className="max-w-[1400px] mx-auto space-y-4 pb-10">
@@ -1223,6 +1317,14 @@ const [selectedMonth, setSelectedMonth] = useState(() => {
             </div>
             <Button variant="outline" size="icon" onClick={loadData} className="h-9 w-9 text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors">
               <RefreshCcw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}/>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExportExcel} 
+              className="h-9 font-semibold border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-600 shadow-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-1.5"/> Xuất Excel
             </Button>
             <Button variant="destructive" size="sm" onClick={handleDeleteMonth} className="h-9 font-semibold shadow-sm">
               <Trash2 className="w-4 h-4 mr-1.5"/> Xóa Tháng Này
