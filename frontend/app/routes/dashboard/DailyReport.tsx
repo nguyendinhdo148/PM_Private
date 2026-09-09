@@ -181,13 +181,29 @@ const DailyReport = () => {
     return (Number(row.cash) || 0) + (Number(row.transfer) || 0) + (Number(row.card) || 0) + (Number(row.debt) || 0) + (Number(row.founderPoints) || 0);
   };
 
-  // ===== TÍNH PRE-TAX REVENUE = TỔNG 3 CỘT ĐÃ * 1.05 (LÀM TRÒN ĐẾN ĐỒNG) =====
+  // ===== TÍNH PRE-TAX REVENUE (CHỈ TÍNH KHI CÓ 3 CỘT MỚI, NGƯỢC LẠI GIỮ NGUYÊN) =====
   const calculatePreTaxRevenue = (row: DailyRevenue | any) => {
-    const food = Number(row.foodRevenue) || 0;
-    const drink = Number(row.drinkRevenue) || 0;
-    const other = Number(row.otherRevenue) || 0;
-    return Math.round(food + drink + other);
-  };
+  const food = Number(row.foodRevenue) || 0;
+  const drink = Number(row.drinkRevenue) || 0;
+  const other = Number(row.otherRevenue) || 0;
+
+  // Dữ liệu cũ chưa có 3 cột mới → giữ nguyên DT trước thuế & PPV
+  if (food === 0 && drink === 0 && other === 0) {
+    return Number(row.preTaxRevenue) || 0;
+  }
+
+  // Dữ liệu mới → cộng 3 cột
+  return Math.round(food + drink + other);
+};
+
+  // ===== KIỂM TRA DÒNG CÓ 3 CỘT MỚI KHÔNG =====
+  const hasNewColumns = (row: DailyRevenue | any): boolean => {
+  return (
+    Number(row.foodRevenue) > 0 ||
+    Number(row.drinkRevenue) > 0 ||
+    Number(row.otherRevenue) > 0
+  );
+};
 
   // ===== HÀM TÍNH TUẦN =====
   const getWeekInfo = (dateStr: string) => {
@@ -708,8 +724,8 @@ const DailyReport = () => {
     if (data.length === 0) return alert("Chưa có dữ liệu để xuất Excel!");
 
     const exportData = processedData.map((row) => {
-      // Kiểm tra nếu row có 3 cột mới (foodRevenue, drinkRevenue, otherRevenue) thì lấy giá trị, không thì để trống
-      const hasNewColumns = (row as any).foodRevenue !== undefined || (row as any).drinkRevenue !== undefined || (row as any).otherRevenue !== undefined;
+      // Kiểm tra nếu row có 3 cột mới (foodRevenue, drinkRevenue, otherRevenue)
+      const hasNewCols = hasNewColumns(row);
       
       return {
         "Ngày": formatDateDisplay(row.date),
@@ -719,10 +735,10 @@ const DailyReport = () => {
         "Cà thẻ": row.card || 0,
         "Công nợ": row.debt || 0,
         "Điểm Founder": row.founderPoints || 0,
-        "Doanh thu món ăn (đã *1.05)": hasNewColumns ? (row.foodRevenue || 0) : "",
-        "Doanh thu đồ uống (đã *1.05)": hasNewColumns ? (row.drinkRevenue || 0) : "",
-        "Doanh thu khác (đã *1.05)": hasNewColumns ? (row.otherRevenue || 0) : "",
-        "DT trước PPV/VAT": hasNewColumns ? (row.preTaxRevenue || 0) : (row.preTaxRevenue || 0),
+        "Doanh thu món ăn (đã *1.05)": hasNewCols ? (row.foodRevenue || 0) : "",
+        "Doanh thu đồ uống (đã *1.05)": hasNewCols ? (row.drinkRevenue || 0) : "",
+        "Doanh thu khác (đã *1.05)": hasNewCols ? (row.otherRevenue || 0) : "",
+        "DT trước PPV/VAT": row.preTaxRevenue || 0,
         "Tổng DT (VAT)": calculateTotalGross(row),
         "Số khách": row.guestCount || 0,
         "DT / Khách": row.guestCount > 0 ? Math.round(calculateTotalGross(row) / row.guestCount) : 0,
@@ -963,6 +979,7 @@ const DailyReport = () => {
                     const avgGuest = Number(row.guestCount || 0) > 0 ? totalGross / Number(row.guestCount) : 0;
                     const isSaving = savingRowId === row._id;
                     const preTaxDisplay = calculatePreTaxRevenue(row);
+                    const hasNewCols = hasNewColumns(row);
                     
                     return (
                       <TableRow 
@@ -1061,7 +1078,7 @@ const DailyReport = () => {
                             {/* 3 cột mới - nhập giá trị gốc, tự động * 1.05 và làm tròn */}
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={formatCurrencyNoUnit(row.foodRevenue / 1.05)}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue / 1.05) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1075,7 +1092,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={formatCurrencyNoUnit(row.drinkRevenue / 1.05)}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue / 1.05) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1089,7 +1106,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={formatCurrencyNoUnit(row.otherRevenue / 1.05)}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue / 1.05) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1107,7 +1124,7 @@ const DailyReport = () => {
                           <>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={formatCurrencyNoUnit(row.foodRevenue / 1.05)}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue / 1.05) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1121,7 +1138,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={formatCurrencyNoUnit(row.drinkRevenue / 1.05)}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue / 1.05) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1135,7 +1152,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={formatCurrencyNoUnit(row.otherRevenue / 1.05)}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue / 1.05) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
