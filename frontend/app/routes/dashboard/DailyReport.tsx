@@ -147,17 +147,17 @@ const DailyReport = () => {
   // ===== FORMAT =====
   const formatCurrency = (amount: number) => {
     if (!amount || isNaN(amount) || amount === 0) return "";
-    return Math.round(Number(amount)).toLocaleString('vi-VN') + " ₫";
+    return Number(amount).toLocaleString('vi-VN') + " ₫";
   };
 
   const formatCurrencyNoUnit = (amount: number) => {
     if (!amount || isNaN(amount) || amount === 0) return "";
-    return Math.round(Number(amount)).toLocaleString('vi-VN');
+    return Number(amount).toLocaleString('vi-VN');
   };
 
   const formatAvgGuest = (amount: number) => {
     if (!amount || isNaN(amount) || amount === 0) return "";
-    return Math.round(amount).toLocaleString('vi-VN') + " ₫";
+    return Math.round(Number(amount)).toLocaleString('vi-VN') + " ₫";
   };
 
   const formatDateDisplay = (dateString: string) => {
@@ -181,7 +181,7 @@ const DailyReport = () => {
     return (Number(row.cash) || 0) + (Number(row.transfer) || 0) + (Number(row.card) || 0) + (Number(row.debt) || 0) + (Number(row.founderPoints) || 0);
   };
 
-  // ===== TÍNH PRE-TAX REVENUE (CHỈ TÍNH KHI CÓ 3 CỘT MỚI, NGƯỢC LẠI GIỮ NGUYÊN) =====
+  // ===== TÍNH PRE-TAX REVENUE = (TỔNG 3 CỘT) * 1.05, SAU ĐÓ LÀM TRÒN =====
   const calculatePreTaxRevenue = (row: DailyRevenue | any) => {
     const food = Number(row.foodRevenue) || 0;
     const drink = Number(row.drinkRevenue) || 0;
@@ -192,8 +192,8 @@ const DailyReport = () => {
       return Number(row.preTaxRevenue) || 0;
     }
 
-    // Dữ liệu mới → cộng 3 cột (không làm tròn từng cột, chỉ làm tròn tổng)
-    return Math.round(food + drink + other);
+    // Dữ liệu mới → (tổng 3 cột) * 1.05, sau đó làm tròn
+    return Math.round((food + drink + other) * 1.05);
   };
 
   // ===== KIỂM TRA DÒNG CÓ 3 CỘT MỚI KHÔNG =====
@@ -272,12 +272,11 @@ const DailyReport = () => {
     });
   };
 
-  // ===== XỬ LÝ NHẬP LIỆU CHO 3 CỘT DT (TỰ ĐỘNG * 1.05, KHÔNG LÀM TRÒN) =====
+  // ===== XỬ LÝ NHẬP LIỆU CHO 3 CỘT DT (KHÔNG NHÂN, CHỈ LƯU GIÁ TRỊ NHẬP) =====
   const handleRevenueInput = (rowId: string, field: keyof DailyRevenue, rawValue: string) => {
     const numValue = parseNumberFromString(rawValue);
-    // Nhân 1.05 nhưng KHÔNG làm tròn, giữ nguyên số chính xác
-    const multipliedValue = numValue * 1.05;
-    updateLocalRow(rowId, field, multipliedValue);
+    // KHÔNG nhân 1.05, chỉ lưu giá trị người dùng nhập
+    updateLocalRow(rowId, field, numValue);
   };
 
   // ===== XỬ LÝ NHẬP LIỆU CHO CÁC TRƯỜNG SỐ KHÁC (KHÔNG NHÂN) =====
@@ -412,15 +411,12 @@ const DailyReport = () => {
         const card = parseNumber(row[4]);
         const debt = parseNumber(row[5]);
         const founderPoints = parseNumber(row[6]);
-        // Nhập giá trị gốc từ Excel, sau đó * 1.05 (KHÔNG làm tròn)
-        const foodRevenueRaw = parseNumber(row[7] || 0);
-        const drinkRevenueRaw = parseNumber(row[8] || 0);
-        const otherRevenueRaw = parseNumber(row[9] || 0);
-        const foodRevenue = foodRevenueRaw * 1.05;
-        const drinkRevenue = drinkRevenueRaw * 1.05;
-        const otherRevenue = otherRevenueRaw * 1.05;
-        // Chỉ làm tròn khi tính tổng preTaxRevenue
-        const preTaxRevenue = Math.round(foodRevenue + drinkRevenue + otherRevenue);
+        // Nhập giá trị gốc từ Excel (KHÔNG nhân 1.05)
+        const foodRevenue = parseNumber(row[7] || 0);
+        const drinkRevenue = parseNumber(row[8] || 0);
+        const otherRevenue = parseNumber(row[9] || 0);
+        // preTaxRevenue = tổng 3 cột * 1.05, sau đó làm tròn
+        const preTaxRevenue = Math.round((foodRevenue + drinkRevenue + otherRevenue) * 1.05);
         const totalGross = cash + transfer + card + debt + founderPoints;
         const guestCount = parseNumber(row[12] || 0);
         const billCount = parseNumber(row[13] || 0);
@@ -737,10 +733,10 @@ const DailyReport = () => {
         "Cà thẻ": row.card || 0,
         "Công nợ": row.debt || 0,
         "Điểm Founder": row.founderPoints || 0,
-        "Doanh thu món ăn (đã *1.05)": hasNewCols ? (row.foodRevenue || 0) : "",
-        "Doanh thu đồ uống (đã *1.05)": hasNewCols ? (row.drinkRevenue || 0) : "",
-        "Doanh thu khác (đã *1.05)": hasNewCols ? (row.otherRevenue || 0) : "",
-        "DT trước PPV/VAT": row.preTaxRevenue || 0,
+        "Doanh thu món ăn": hasNewCols ? (row.foodRevenue || 0) : "",
+        "Doanh thu đồ uống": hasNewCols ? (row.drinkRevenue || 0) : "",
+        "Doanh thu khác": hasNewCols ? (row.otherRevenue || 0) : "",
+        "DT trước thuế & PPV": row.preTaxRevenue || 0,
         "Tổng DT (VAT)": calculateTotalGross(row),
         "Số khách": row.guestCount || 0,
         "DT / Khách": row.guestCount > 0 ? Math.round(calculateTotalGross(row) / row.guestCount) : 0,
@@ -765,10 +761,10 @@ const DailyReport = () => {
       "Cà thẻ": totals.card,
       "Công nợ": totals.debt,
       "Điểm Founder": totals.founderPoints,
-      "Doanh thu món ăn (đã *1.05)": totals.foodRevenue || 0,
-      "Doanh thu đồ uống (đã *1.05)": totals.drinkRevenue || 0,
-      "Doanh thu khác (đã *1.05)": totals.otherRevenue || 0,
-      "DT trước PPV/VAT": totals.preTax,
+      "Doanh thu món ăn": totals.foodRevenue || 0,
+      "Doanh thu đồ uống": totals.drinkRevenue || 0,
+      "Doanh thu khác": totals.otherRevenue || 0,
+      "DT trước thuế & PPV": totals.preTax,
       "Tổng DT (VAT)": totals.totalGross,
       "Số khách": totals.guest,
       "DT / Khách": Math.round(avgPerGuest),
@@ -783,7 +779,7 @@ const DailyReport = () => {
 
     const wscols = [
       { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
-      { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 18 },
+      { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 },
       { wch: 10 }, { wch: 15 }, { wch: 10 }, { wch: 30 }
     ];
     worksheet["!cols"] = wscols;
@@ -911,19 +907,19 @@ const DailyReport = () => {
                       <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Điểm Founder</TableHead>
                     )}
                     {/* 3 cột mới - luôn hiển thị khi mở rộng */}
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn trước thuế</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống trước thuế</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác trước thuế</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác</TableHead>
                   </>
                 ) : (
                   // Chế độ thu gọn: 3 cột mới nằm ngay sau cột Thứ
                   <>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn trước thuế</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống trước thuế</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác trước thuế</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác</TableHead>
                   </>
                 )}
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT trước thuế</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT trước thuế & PPV</TableHead>
                 <TableHead className="border border-slate-300 text-primary font-extrabold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Tổng DT (VAT)</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">SL Khách</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Tiêu dùng/Khách</TableHead>
@@ -1077,10 +1073,10 @@ const DailyReport = () => {
                                 />
                               </TableCell>
                             )}
-                            {/* 3 cột mới - nhập giá trị gốc, tự động * 1.05 (KHÔNG làm tròn) */}
+                            {/* 3 cột mới - chỉ nhập liệu, KHÔNG nhân 1.05 */}
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue / 1.05) : ""}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1094,7 +1090,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue / 1.05) : ""}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1108,7 +1104,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue / 1.05) : ""}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1126,7 +1122,7 @@ const DailyReport = () => {
                           <>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? (row.foodRevenue / 1.05).toString() : ""}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1140,7 +1136,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? (row.drinkRevenue / 1.05).toString() : ""}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1154,7 +1150,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? (row.otherRevenue / 1.05).toString() : ""}
+                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
