@@ -183,27 +183,27 @@ const DailyReport = () => {
 
   // ===== TÍNH PRE-TAX REVENUE (CHỈ TÍNH KHI CÓ 3 CỘT MỚI, NGƯỢC LẠI GIỮ NGUYÊN) =====
   const calculatePreTaxRevenue = (row: DailyRevenue | any) => {
-  const food = Number(row.foodRevenue) || 0;
-  const drink = Number(row.drinkRevenue) || 0;
-  const other = Number(row.otherRevenue) || 0;
+    const food = Number(row.foodRevenue) || 0;
+    const drink = Number(row.drinkRevenue) || 0;
+    const other = Number(row.otherRevenue) || 0;
 
-  // Dữ liệu cũ chưa có 3 cột mới → giữ nguyên DT trước thuế & PPV
-  if (food === 0 && drink === 0 && other === 0) {
-    return Number(row.preTaxRevenue) || 0;
-  }
+    // Dữ liệu cũ chưa có 3 cột mới → giữ nguyên DT trước thuế & PPV
+    if (food === 0 && drink === 0 && other === 0) {
+      return Number(row.preTaxRevenue) || 0;
+    }
 
-  // Dữ liệu mới → cộng 3 cột
-  return Math.round(food + drink + other);
-};
+    // Dữ liệu mới → cộng 3 cột (không làm tròn từng cột, chỉ làm tròn tổng)
+    return Math.round(food + drink + other);
+  };
 
   // ===== KIỂM TRA DÒNG CÓ 3 CỘT MỚI KHÔNG =====
   const hasNewColumns = (row: DailyRevenue | any): boolean => {
-  return (
-    Number(row.foodRevenue) > 0 ||
-    Number(row.drinkRevenue) > 0 ||
-    Number(row.otherRevenue) > 0
-  );
-};
+    return (
+      Number(row.foodRevenue) > 0 ||
+      Number(row.drinkRevenue) > 0 ||
+      Number(row.otherRevenue) > 0
+    );
+  };
 
   // ===== HÀM TÍNH TUẦN =====
   const getWeekInfo = (dateStr: string) => {
@@ -272,10 +272,11 @@ const DailyReport = () => {
     });
   };
 
-  // ===== XỬ LÝ NHẬP LIỆU CHO 3 CỘT DT (TỰ ĐỘNG * 1.05 VÀ LÀM TRÒN) =====
+  // ===== XỬ LÝ NHẬP LIỆU CHO 3 CỘT DT (TỰ ĐỘNG * 1.05, KHÔNG LÀM TRÒN) =====
   const handleRevenueInput = (rowId: string, field: keyof DailyRevenue, rawValue: string) => {
     const numValue = parseNumberFromString(rawValue);
-    const multipliedValue = Math.round(numValue * 1.05);
+    // Nhân 1.05 nhưng KHÔNG làm tròn, giữ nguyên số chính xác
+    const multipliedValue = numValue * 1.05;
     updateLocalRow(rowId, field, multipliedValue);
   };
 
@@ -411,14 +412,15 @@ const DailyReport = () => {
         const card = parseNumber(row[4]);
         const debt = parseNumber(row[5]);
         const founderPoints = parseNumber(row[6]);
-        // Nhập giá trị gốc từ Excel, sau đó * 1.05 và làm tròn
+        // Nhập giá trị gốc từ Excel, sau đó * 1.05 (KHÔNG làm tròn)
         const foodRevenueRaw = parseNumber(row[7] || 0);
         const drinkRevenueRaw = parseNumber(row[8] || 0);
         const otherRevenueRaw = parseNumber(row[9] || 0);
-        const foodRevenue = Math.round(foodRevenueRaw * 1.05);
-        const drinkRevenue = Math.round(drinkRevenueRaw * 1.05);
-        const otherRevenue = Math.round(otherRevenueRaw * 1.05);
-        const preTaxRevenue = foodRevenue + drinkRevenue + otherRevenue;
+        const foodRevenue = foodRevenueRaw * 1.05;
+        const drinkRevenue = drinkRevenueRaw * 1.05;
+        const otherRevenue = otherRevenueRaw * 1.05;
+        // Chỉ làm tròn khi tính tổng preTaxRevenue
+        const preTaxRevenue = Math.round(foodRevenue + drinkRevenue + otherRevenue);
         const totalGross = cash + transfer + card + debt + founderPoints;
         const guestCount = parseNumber(row[12] || 0);
         const billCount = parseNumber(row[13] || 0);
@@ -909,19 +911,19 @@ const DailyReport = () => {
                       <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Điểm Founder</TableHead>
                     )}
                     {/* 3 cột mới - luôn hiển thị khi mở rộng */}
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn trước thuế</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống trước thuế</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác trước thuế</TableHead>
                   </>
                 ) : (
                   // Chế độ thu gọn: 3 cột mới nằm ngay sau cột Thứ
                   <>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn trước thuế</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống trước thuế</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác trước thuế</TableHead>
                   </>
                 )}
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT trước thuế & PPV</TableHead>
+                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT trước thuế</TableHead>
                 <TableHead className="border border-slate-300 text-primary font-extrabold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Tổng DT (VAT)</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">SL Khách</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Tiêu dùng/Khách</TableHead>
@@ -1075,7 +1077,7 @@ const DailyReport = () => {
                                 />
                               </TableCell>
                             )}
-                            {/* 3 cột mới - nhập giá trị gốc, tự động * 1.05 và làm tròn */}
+                            {/* 3 cột mới - nhập giá trị gốc, tự động * 1.05 (KHÔNG làm tròn) */}
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
                                 defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue / 1.05) : ""}
@@ -1124,7 +1126,7 @@ const DailyReport = () => {
                           <>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue / 1.05) : ""}
+                                defaultValue={hasNewCols ? (row.foodRevenue / 1.05).toString() : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1138,7 +1140,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue / 1.05) : ""}
+                                defaultValue={hasNewCols ? (row.drinkRevenue / 1.05).toString() : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
@@ -1152,7 +1154,7 @@ const DailyReport = () => {
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
                               <Input type="text" 
-                                defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue / 1.05) : ""}
+                                defaultValue={hasNewCols ? (row.otherRevenue / 1.05).toString() : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
                                 className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
