@@ -1441,7 +1441,7 @@ className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap curso
   <Card className="border-red-200 bg-red-50/50 shadow-sm w-auto inline-flex h-fit self-start">
     <CardContent className="px-2 py-0 flex items-center justify-between gap-2">
       <span className="text-sm sm:text-base font-medium text-red-700 whitespace-nowrap">
-        Tổng chi phí
+        Tổng định phí
       </span>
 
       <span className="text-base sm:text-lg font-bold text-red-700 whitespace-nowrap">
