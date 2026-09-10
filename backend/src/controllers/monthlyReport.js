@@ -62,6 +62,73 @@ export const getAll = async (req, res) => {
   }
 };
 
+// [GET] Lấy chi tiết 1 tháng theo ID
+export const getById = async (req, res) => {
+  try {
+    const report = await MonthlyReport.findById(req.params.id);
+
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy báo cáo tháng!",
+      });
+    }
+
+    return res.status(200).json({ success: true, data: report });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// [PUT] Cập nhật chi phí tháng
+export const update = async (req, res) => {
+  try {
+    const reportId = req.params.id;
+    const allowedFields = [
+      "rent",
+      "electricity",
+      "water",
+      "internet",
+      "telephone",
+      "garbage",
+      "employeeSalary",
+      "otherExpense",
+    ];
+
+    const updateData = {};
+
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = Number(req.body[field]) || 0;
+      }
+    });
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Không có trường dữ liệu hợp lệ để cập nhật",
+      });
+    }
+
+    const updatedReport = await MonthlyReport.findByIdAndUpdate(
+      reportId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedReport) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy báo cáo tháng!",
+      });
+    }
+
+    return res.status(200).json({ success: true, data: updatedReport });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // [DELETE] XOÁ THÁNG LÀ XOÁ SẠCH DỮ LIỆU NGÀY BÊN TRONG
 export const remove = async (req, res) => {
   try {
