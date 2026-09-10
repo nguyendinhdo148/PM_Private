@@ -62,6 +62,7 @@ const DailyReport = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCompactMode, setIsCompactMode] = useState(false);
   const [showFounderPoints, setShowFounderPoints] = useState(false);
+  const [showNote, setShowNote] = useState(true);
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
@@ -252,7 +253,6 @@ const DailyReport = () => {
     if (!reportId) return;
     setSavingExpense(true);
     try {
-      // Chỉ gửi các trường chi phí + _id, không gửi monthKey/title để tránh ghi đè
       const payload = {
         rent: updatedExpenses.rent,
         electricity: updatedExpenses.electricity,
@@ -855,8 +855,8 @@ const DailyReport = () => {
 
   return (
   <Card className="border-amber-200 bg-amber-50/50 shadow-sm w-auto inline-flex h-fit self-start">
-    <CardContent className="px-2 py-0.5 flex items-center justify-between gap-2">
-      <span className="text-xs sm:text-sm font-medium text-amber-700 whitespace-nowrap">
+    <CardContent className="px-2 py-0 flex items-center justify-between gap-2">
+      <span className="text-sm sm:text-base font-medium text-amber-700 whitespace-nowrap">
         {label}
       </span>
 
@@ -904,8 +904,7 @@ const DailyReport = () => {
       ) : (
         <span
           onClick={() => handleStartEditExpense(field)}
-          className="text-sm sm:text-base font-bold text-amber-700 whitespace-nowrap cursor-pointer hover:bg-amber-100 px-2 py-0.5 rounded transition-colors"
-          title="Click để chỉnh sửa"
+className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap cursor-pointer hover:bg-amber-100 px-2 py-0.5 rounded transition-colors"          title="Click để chỉnh sửa"
         >
           {formatCurrency(value) || "0 ₫"}
         </span>
@@ -939,6 +938,15 @@ const DailyReport = () => {
           >
             {showFounderPoints ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />} 
             <span className="hidden xs:inline">Điểm Founder</span>
+          </Button>
+
+          <Button 
+            variant="outline" 
+            onClick={() => setShowNote(!showNote)} 
+            className="gap-1 sm:gap-2 bg-slate-50 text-slate-700 border-slate-300 text-xs sm:text-sm px-2 sm:px-4"
+          >
+            {showNote ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />} 
+            <span className="hidden xs:inline">Ghi chú</span>
           </Button>
 
           <input
@@ -1049,7 +1057,9 @@ const DailyReport = () => {
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">SL Khách</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Tiêu dùng/Khách</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">SL Bill</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[220px] px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px]">Ghi chú</TableHead>
+                {showNote && (
+                  <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[220px] px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px]">Ghi chú</TableHead>
+                )}
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Lưu</TableHead>
                 <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Xoá</TableHead>
               </TableRow>
@@ -1087,7 +1097,9 @@ const DailyReport = () => {
                     <TableCell className="border border-slate-600 text-center font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{group.totals.guestCount}</TableCell>
                     <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-blue-200">{formatAvgGuest(group.totals.guestCount > 0 ? group.totals.totalGross / group.totals.guestCount : 0) || "0"}</TableCell>
                     <TableCell className="border border-slate-600 text-center font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{group.totals.billCount}</TableCell>
-                    <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
+                    {showNote && (
+                      <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
+                    )}
                     <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
                     <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
                   </TableRow>
@@ -1250,22 +1262,24 @@ const DailyReport = () => {
                           />
                         </TableCell>
 
-                        <TableCell className="border border-slate-300 p-0.5 sm:p-1 min-w-[220px] align-top">
-                          <textarea
-                            ref={(el) => {
-                              if (el) {
-                                autoResizeTextarea(el);
-                              }
-                            }}
-                            defaultValue={row.note || ""}
-                            rows={1}
-                            onFocus={() => row._id && setEditingId(row._id)}
-                            onBlur={(e) => updateLocalRow(row._id!, "note", e.target.value)}
-                            onKeyDown={(e) => handleTextareaKeyDown(e, row)}
-                            onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
-                            className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
-                          />
-                        </TableCell>
+                        {showNote && (
+                          <TableCell className="border border-slate-300 p-0.5 sm:p-1 min-w-[220px] align-top">
+                            <textarea
+                              ref={(el) => {
+                                if (el) {
+                                  autoResizeTextarea(el);
+                                }
+                              }}
+                              defaultValue={row.note || ""}
+                              rows={1}
+                              onFocus={() => row._id && setEditingId(row._id)}
+                              onBlur={(e) => updateLocalRow(row._id!, "note", e.target.value)}
+                              onKeyDown={(e) => handleTextareaKeyDown(e, row)}
+                              onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
+                              className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+                            />
+                          </TableCell>
+                        )}
 
                         <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
                           <div className="flex items-center justify-center">
@@ -1296,7 +1310,7 @@ const DailyReport = () => {
                     );
                   })}
                 </React.Fragment>
-              )) : (<TableRow><TableCell colSpan={16} className="border border-slate-300 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
+              )) : (<TableRow><TableCell colSpan={showNote ? 16 : 15} className="border border-slate-300 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
             </TableBody>
             
             <TableFooter className="bg-slate-800 text-white sticky bottom-0 z-10 border-t-4 border-slate-900">
@@ -1327,7 +1341,9 @@ const DailyReport = () => {
                 <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{totals.guest}</TableCell>
                 <TableCell className="border border-slate-600 text-right font-bold text-blue-200 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatAvgGuest(avgPerGuest) || "0"}</TableCell>
                 <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{totals.bill}</TableCell>
-                <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+                {showNote && (
+                  <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+                )}
                 <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
                 <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
               </TableRow>
@@ -1338,78 +1354,77 @@ const DailyReport = () => {
 
       {/* ===== CHI PHÍ THÁNG (EDITABLE) ===== */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-bold text-slate-800">Định phí tháng </h2>
-          {savingExpense && (
-            <span className="text-xs text-slate-500 flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin" /> Đang lưu...
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {renderExpenseCard("rent", "Mặt bằng")}
-          {renderExpenseCard("electricity", "Điện")}
-          {renderExpenseCard("water", "Nước")}
-          {renderExpenseCard("internet", "Internet")}
-          {renderExpenseCard("telephone", "Điện thoại")}
-          {renderExpenseCard("garbage", "Rác")}
-          {renderExpenseCard("employeeSalary", "Lương nhân viên")}
+  <div className="flex items-center justify-between">
+    <h2 className="text-base sm:text-lg font-bold text-slate-800">Định phí tháng</h2>
+    {savingExpense && (
+      <span className="text-xs text-slate-500 flex items-center gap-1">
+        <Loader2 className="w-3 h-3 animate-spin" /> Đang lưu...
+      </span>
+    )}
+  </div>
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+    {renderExpenseCard("rent", "Mặt bằng")}
+    {renderExpenseCard("electricity", "Điện")}
+    {renderExpenseCard("water", "Nước")}
+    {renderExpenseCard("internet", "Internet")}
+    {renderExpenseCard("telephone", "Điện thoại")}
+    {renderExpenseCard("garbage", "Rác")}
+    {renderExpenseCard("employeeSalary", "Lương nhân viên")}
 
-          {/* Ô "Khác" đặc biệt - cộng dồn */}
-          <Card className="border-amber-200 bg-amber-50/50 shadow-sm">
-            <CardContent className="px-3 py-2 flex flex-col gap-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs sm:text-sm font-medium text-amber-700 whitespace-nowrap">
-                  Khác
-                </span>
-                <span className="text-sm sm:text-base font-bold text-amber-700 whitespace-nowrap">
-                  {formatCurrency(monthlyExpenses.otherExpense) || "0 ₫"}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Input
-                  type="text"
-                  placeholder="Nhập số tiền..."
-                  value={otherExpenseInput}
-                  onChange={(e) => setOtherExpenseInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleOtherExpenseAdd();
-                    }
-                  }}
-                  className="h-6 sm:h-7 text-[10px] sm:text-[12px] text-right border-amber-300 focus-visible:ring-amber-500 p-1 flex-1"
-                />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={handleOtherExpenseAdd}
-                  disabled={savingExpense}
-                  className="h-6 w-6 sm:h-7 sm:w-7 text-amber-600 hover:bg-amber-100 p-0 flex-shrink-0"
-                  title="Cộng dồn vào chi phí Khác"
-                >
-                  {savingExpense ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+    {/* Ô "Khác" đặc biệt - cộng dồn */}
+    <Card className="border-amber-200 bg-amber-50/50 shadow-sm w-auto inline-flex h-fit self-start">
+      <CardContent className="px-2 py-0.5 flex items-center justify-between gap-2">
+        <span className="text-sm sm:text-base font-medium text-amber-700 whitespace-nowrap">
+  Khác
+</span>
+        <div className="flex items-center gap-1">
+          <span className="text-sm sm:text-base font-bold text-amber-700 whitespace-nowrap">
+            {formatCurrency(monthlyExpenses.otherExpense) || "0 ₫"}
+          </span>
+          <Input
+            type="text"
+            placeholder="+"
+            value={otherExpenseInput}
+            onChange={(e) => setOtherExpenseInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleOtherExpenseAdd();
+              }
+            }}
+            className="w-16 sm:w-20 h-5 sm:h-6 text-[10px] sm:text-[12px] text-right border-amber-300 focus-visible:ring-amber-500 p-0.5"
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleOtherExpenseAdd}
+            disabled={savingExpense}
+            className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600 hover:bg-amber-100 p-0 flex-shrink-0"
+            title="Cộng dồn vào chi phí Khác"
+          >
+            {savingExpense ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+          </Button>
         </div>
-      </div>
+      </CardContent>
+    </Card>
+  </div>
+</div>
 
       {/* ===== TỔNG CHI PHÍ, DT TRƯỚC THUẾ & LỢI NHUẬN ===== */}
-      {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <Card className="border-red-200 bg-red-50/50 shadow-sm">
-          <CardContent className="px-3 py-2 flex items-center justify-between gap-2">
-            <span className="text-xs sm:text-sm font-medium text-red-700 whitespace-nowrap">
-              Tổng chi phí
-            </span>
-            <span className="text-sm sm:text-base font-bold text-red-700 whitespace-nowrap">
-              {formatCurrency(totalExpense) || "0 ₫"}
-            </span>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+  <Card className="border-red-200 bg-red-50/50 shadow-sm w-auto inline-flex h-fit self-start">
+    <CardContent className="px-2 py-0 flex items-center justify-between gap-2">
+      <span className="text-sm sm:text-base font-medium text-red-700 whitespace-nowrap">
+        Tổng chi phí
+      </span>
 
-        <Card className="border-orange-200 bg-orange-50/50 shadow-sm">
+      <span className="text-base sm:text-lg font-bold text-red-700 whitespace-nowrap">
+        {formatCurrency(totalExpense) || "0 ₫"}
+      </span>
+    </CardContent>
+  </Card>
+
+        {/* <Card className="border-orange-200 bg-orange-50/50 shadow-sm">
           <CardContent className="px-3 py-2 flex items-center justify-between gap-2">
             <span className="text-xs sm:text-sm font-medium text-orange-700 whitespace-nowrap">
               DT trước thuế
@@ -1429,8 +1444,8 @@ const DailyReport = () => {
               {formatCurrency(profit) || "0 ₫"}
             </span>
           </CardContent>
-        </Card>
-      </div> */}
+        </Card> */}
+      </div>
     </div>
   );
 };
