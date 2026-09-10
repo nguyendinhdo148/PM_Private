@@ -765,37 +765,15 @@ const DailyReport = () => {
            (monthlyExpenses.employeeSalary || 0) + (monthlyExpenses.otherExpense || 0);
   }, [monthlyExpenses]);
 
-  // ===== SỐ NGÀY THỰC TẾ ĐÃ DIỄN RA TRONG THÁNG =====
-  const actualDaysPassed = useMemo(() => {
-    let targetYear: number, targetMonth: number;
-    if (data.length > 0) {
-      const parts = data[0].date.split('-');
-      targetYear = parseInt(parts[0]);
-      targetMonth = parseInt(parts[1]);
-    } else {
-      const now = new Date();
-      targetYear = now.getFullYear();
-      targetMonth = now.getMonth() + 1;
-    }
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
-
-    if (targetYear < currentYear || (targetYear === currentYear && targetMonth < currentMonth)) {
-      return daysInMonth;
-    } else if (targetYear === currentYear && targetMonth === currentMonth) {
-      return now.getDate();
-    } else {
-      return 0;
-    }
+  // ===== SỐ NGÀY CÓ TRONG BÁO CÁO (đếm từ data) =====
+  const reportDays = useMemo(() => {
+    return data.length;
   }, [data]);
 
-  // ===== TỔNG ĐỊNH PHÍ THỰC TẾ = Tổng định phí tháng × số ngày thực tế =====
+  // ===== TỔNG ĐỊNH PHÍ THỰC TẾ = Tổng định phí ngày × số ngày có trong báo cáo =====
   const totalExpenseActual = useMemo(() => {
-    return totalExpense * actualDaysPassed;
-  }, [totalExpense, actualDaysPassed]);
+    return totalExpense * reportDays;
+  }, [totalExpense, reportDays]);
 
   // ===== LỢI NHUẬN = DT TRƯỚC THUẾ - TỔNG ĐỊNH PHÍ THỰC TẾ =====
   const profit = useMemo(() => {
@@ -864,8 +842,8 @@ const DailyReport = () => {
       { "Khoản chi": "Rác", "Số tiền": monthlyExpenses.garbage || 0 },
       { "Khoản chi": "Lương nhân viên", "Số tiền": monthlyExpenses.employeeSalary || 0 },
       { "Khoản chi": "Khác", "Số tiền": monthlyExpenses.otherExpense || 0 },
-      { "Khoản chi": "TỔNG ĐỊNH PHÍ", "Số tiền": totalExpense },
-      { "Khoản chi": `TỔNG ĐỊNH PHÍ THỰC TẾ (${actualDaysPassed} ngày)`, "Số tiền": totalExpenseActual },
+      { "Khoản chi": "TỔNG ĐỊNH PHÍ NGÀY", "Số tiền": totalExpense },
+      { "Khoản chi": `TỔNG ĐỊNH PHÍ THÁNG (${reportDays} ngày)`, "Số tiền": totalExpenseActual },
       { "Khoản chi": "DT TRƯỚC THUẾ", "Số tiền": totals.preTax },
       { "Khoản chi": "LỢI NHUẬN", "Số tiền": profit },
     ];
@@ -1472,11 +1450,11 @@ const DailyReport = () => {
 
       {/* ===== TỔNG ĐỊNH PHÍ / TỔNG ĐỊNH PHÍ THÁNG / DT TRƯỚC THUẾ / LỢI NHUẬN ===== */}
       <div className="flex flex-wrap gap-1.5">
-        {/* Tổng định phí - xanh lá */}
+        {/* Tổng định phí ngày - xanh lá */}
         <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm w-auto inline-flex h-fit self-start">
           <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
             <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
-              Tổng định phí
+              Tổng định phí ngày
             </span>
             <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
               {formatCurrency(totalExpense) || "0 ₫"}
@@ -1484,11 +1462,11 @@ const DailyReport = () => {
           </CardContent>
         </Card>
 
-        {/* Tổng định phí tháng = Tổng định phí × số ngày thực tế đã diễn ra - xanh lá */}
+        {/* Tổng định phí tháng = Tổng định phí ngày × số ngày có trong báo cáo - xanh lá */}
         <Card className="border-emerald-300 bg-emerald-50/50 shadow-sm w-auto inline-flex h-fit self-start">
           <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
             <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
-              Tổng định phí tháng ({actualDaysPassed} ngày)
+              Tổng định phí tháng ({reportDays} ngày)
             </span>
             <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
               {formatCurrency(totalExpenseActual) || "0 ₫"}
@@ -1496,11 +1474,11 @@ const DailyReport = () => {
           </CardContent>
         </Card>
 
-        {/* DT trước thuế - xanh lá */}
+        {/* Tổng DT trước thuế - xanh lá */}
         <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm w-auto inline-flex h-fit self-start">
           <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
             <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
-              DT trước thuế
+              Tổng DT trước thuế ({reportDays} ngày)
             </span>
             <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
               {formatCurrency(totals.preTax) || "0 ₫"}
@@ -1508,7 +1486,7 @@ const DailyReport = () => {
           </CardContent>
         </Card>
 
-        {/* Lợi nhuận = DT trước thuế − Tổng định phí tháng. Mặc định xanh, âm thì đỏ */}
+        {/* Lợi nhuận = Tổng DT trước thuế − Tổng định phí tháng. Mặc định xanh, âm thì đỏ */}
         <Card className={`shadow-sm w-auto inline-flex h-fit self-start ${profit >= 0 ? "border-emerald-300 bg-emerald-50/50" : "border-red-300 bg-red-50/50"}`}>
           <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
             <span className={`text-sm sm:text-base font-medium whitespace-nowrap ${profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
