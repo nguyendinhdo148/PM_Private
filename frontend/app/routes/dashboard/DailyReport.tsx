@@ -757,7 +757,7 @@ const DailyReport = () => {
 
   const avgPerGuest = totals.guest > 0 ? totals.totalGross / totals.guest : 0;
 
-  // ===== TỔNG CHI PHÍ THÁNG =====
+  // ===== TỔNG ĐỊNH PHÍ THÁNG (tổng các khoản chi phí cố định) =====
   const totalExpense = useMemo(() => {
     return (monthlyExpenses.rent || 0) + (monthlyExpenses.electricity || 0) + 
            (monthlyExpenses.water || 0) + (monthlyExpenses.internet || 0) + 
@@ -765,10 +765,42 @@ const DailyReport = () => {
            (monthlyExpenses.employeeSalary || 0) + (monthlyExpenses.otherExpense || 0);
   }, [monthlyExpenses]);
 
-  // ===== LỢI NHUẬN = DT TRƯỚC THUẾ - TỔNG CHI PHÍ =====
+  // ===== SỐ NGÀY THỰC TẾ ĐÃ DIỄN RA TRONG THÁNG =====
+  const actualDaysPassed = useMemo(() => {
+    let targetYear: number, targetMonth: number;
+    if (data.length > 0) {
+      const parts = data[0].date.split('-');
+      targetYear = parseInt(parts[0]);
+      targetMonth = parseInt(parts[1]);
+    } else {
+      const now = new Date();
+      targetYear = now.getFullYear();
+      targetMonth = now.getMonth() + 1;
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+
+    if (targetYear < currentYear || (targetYear === currentYear && targetMonth < currentMonth)) {
+      return daysInMonth;
+    } else if (targetYear === currentYear && targetMonth === currentMonth) {
+      return now.getDate();
+    } else {
+      return 0;
+    }
+  }, [data]);
+
+  // ===== TỔNG ĐỊNH PHÍ THỰC TẾ = Tổng định phí tháng × số ngày thực tế =====
+  const totalExpenseActual = useMemo(() => {
+    return totalExpense * actualDaysPassed;
+  }, [totalExpense, actualDaysPassed]);
+
+  // ===== LỢI NHUẬN = DT TRƯỚC THUẾ - TỔNG ĐỊNH PHÍ THỰC TẾ =====
   const profit = useMemo(() => {
-    return (totals.preTax || 0) - totalExpense;
-  }, [totals.preTax, totalExpense]);
+    return (totals.preTax || 0) - totalExpenseActual;
+  }, [totals.preTax, totalExpenseActual]);
 
   // ===== EXPORT EXCEL =====
   const handleExportExcel = () => {
@@ -832,7 +864,8 @@ const DailyReport = () => {
       { "Khoản chi": "Rác", "Số tiền": monthlyExpenses.garbage || 0 },
       { "Khoản chi": "Lương nhân viên", "Số tiền": monthlyExpenses.employeeSalary || 0 },
       { "Khoản chi": "Khác", "Số tiền": monthlyExpenses.otherExpense || 0 },
-      { "Khoản chi": "TỔNG CHI PHÍ", "Số tiền": totalExpense },
+      { "Khoản chi": "TỔNG ĐỊNH PHÍ", "Số tiền": totalExpense },
+      { "Khoản chi": `TỔNG ĐỊNH PHÍ THỰC TẾ (${actualDaysPassed} ngày)`, "Số tiền": totalExpenseActual },
       { "Khoản chi": "DT TRƯỚC THUẾ", "Số tiền": totals.preTax },
       { "Khoản chi": "LỢI NHUẬN", "Số tiền": profit },
     ];
@@ -905,7 +938,8 @@ const DailyReport = () => {
       ) : (
         <span
           onClick={() => handleStartEditExpense(field)}
-className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap cursor-pointer hover:bg-amber-100 px-2 py-0.5 rounded transition-colors"          title="Click để chỉnh sửa"
+          className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap cursor-pointer hover:bg-amber-100 px-2 py-0.5 rounded transition-colors"
+          title="Click để chỉnh sửa"
         >
           {formatCurrency(value) || "0 ₫"}
         </span>
@@ -1401,10 +1435,10 @@ className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap curso
     <Card className="border-amber-200 bg-amber-50/50 shadow-sm w-auto inline-flex h-fit self-start">
       <CardContent className="px-2 py-0.5 flex items-center justify-between gap-2">
         <span className="text-sm sm:text-base font-medium text-amber-700 whitespace-nowrap">
-  Khác
-</span>
+          Khác
+        </span>
         <div className="flex items-center gap-1">
-          <span className="text-sm sm:text-base font-bold text-amber-700 whitespace-nowrap">
+          <span className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap">
             {formatCurrency(monthlyExpenses.otherExpense) || "0 ₫"}
           </span>
           <Input
@@ -1436,41 +1470,55 @@ className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap curso
   </div>
 </div>
 
-      {/* ===== TỔNG CHI PHÍ, DT TRƯỚC THUẾ & LỢI NHUẬN ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-  <Card className="border-red-200 bg-red-50/50 shadow-sm w-auto inline-flex h-fit self-start">
-    <CardContent className="px-2 py-0 flex items-center justify-between gap-2">
-      <span className="text-sm sm:text-base font-medium text-red-700 whitespace-nowrap">
-        Tổng định phí
-      </span>
+      {/* ===== TỔNG ĐỊNH PHÍ / TỔNG ĐỊNH PHÍ THÁNG / DT TRƯỚC THUẾ / LỢI NHUẬN ===== */}
+      <div className="flex flex-wrap gap-1.5">
+        {/* Tổng định phí - xanh lá */}
+        <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm w-auto inline-flex h-fit self-start">
+          <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
+            <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
+              Tổng định phí
+            </span>
+            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
+              {formatCurrency(totalExpense) || "0 ₫"}
+            </span>
+          </CardContent>
+        </Card>
 
-      <span className="text-base sm:text-lg font-bold text-red-700 whitespace-nowrap">
-        {formatCurrency(totalExpense) || "0 ₫"}
-      </span>
-    </CardContent>
-  </Card>
+        {/* Tổng định phí tháng = Tổng định phí × số ngày thực tế đã diễn ra - xanh lá */}
+        <Card className="border-emerald-300 bg-emerald-50/50 shadow-sm w-auto inline-flex h-fit self-start">
+          <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
+            <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
+              Tổng định phí tháng ({actualDaysPassed} ngày)
+            </span>
+            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
+              {formatCurrency(totalExpenseActual) || "0 ₫"}
+            </span>
+          </CardContent>
+        </Card>
 
-        {/* <Card className="border-orange-200 bg-orange-50/50 shadow-sm">
-          <CardContent className="px-3 py-2 flex items-center justify-between gap-2">
-            <span className="text-xs sm:text-sm font-medium text-orange-700 whitespace-nowrap">
+        {/* DT trước thuế - xanh lá */}
+        <Card className="border-emerald-200 bg-emerald-50/50 shadow-sm w-auto inline-flex h-fit self-start">
+          <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
+            <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
               DT trước thuế
             </span>
-            <span className="text-sm sm:text-base font-bold text-orange-700 whitespace-nowrap">
+            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
               {formatCurrency(totals.preTax) || "0 ₫"}
             </span>
           </CardContent>
         </Card>
 
-        <Card className={`border-slate-300 shadow-sm ${profit >= 0 ? "bg-emerald-50/50" : "bg-red-50/50"}`}>
-          <CardContent className="px-3 py-2 flex items-center justify-between gap-2">
-            <span className={`text-xs sm:text-sm font-medium whitespace-nowrap ${profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+        {/* Lợi nhuận = DT trước thuế − Tổng định phí tháng. Mặc định xanh, âm thì đỏ */}
+        <Card className={`shadow-sm w-auto inline-flex h-fit self-start ${profit >= 0 ? "border-emerald-300 bg-emerald-50/50" : "border-red-300 bg-red-50/50"}`}>
+          <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
+            <span className={`text-sm sm:text-base font-medium whitespace-nowrap ${profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
               Lợi nhuận
             </span>
-            <span className={`text-sm sm:text-base font-bold whitespace-nowrap ${profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+            <span className={`text-base sm:text-lg font-bold whitespace-nowrap ${profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
               {formatCurrency(profit) || "0 ₫"}
             </span>
           </CardContent>
-        </Card> */}
+        </Card>
       </div>
     </div>
   );
