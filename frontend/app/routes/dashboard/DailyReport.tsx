@@ -1415,7 +1415,7 @@ const DailyReport = () => {
       {/* ===== CHI PHÍ THÁNG (EDITABLE) ===== */}
       <div className="space-y-2">
   <div className="flex items-center justify-between">
-    <h2 className="text-base sm:text-lg font-bold text-slate-800">Định phí tháng</h2>
+    <h2 className="text-base sm:text-lg font-bold text-slate-800">Định phí ngày</h2>
     {savingExpense && (
       <span className="text-xs text-slate-500 flex items-center gap-1">
         <Loader2 className="w-3 h-3 animate-spin" /> Đang lưu...
