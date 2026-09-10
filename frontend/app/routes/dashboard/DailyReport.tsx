@@ -63,6 +63,7 @@ const DailyReport = () => {
   const [isCompactMode, setIsCompactMode] = useState(false);
   const [showFounderPoints, setShowFounderPoints] = useState(false);
   const [showNote, setShowNote] = useState(true);
+  const [showActions, setShowActions] = useState(true);
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
@@ -949,6 +950,15 @@ className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap curso
             <span className="hidden xs:inline">Ghi chú</span>
           </Button>
 
+          <Button 
+            variant="outline" 
+            onClick={() => setShowActions(!showActions)} 
+            className="gap-1 sm:gap-2 bg-slate-50 text-slate-700 border-slate-300 text-xs sm:text-sm px-2 sm:px-4"
+          >
+            {showActions ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />} 
+            <span className="hidden xs:inline">Lưu/Xoá</span>
+          </Button>
+
           <input
             ref={fileInputRef}
             id="excel-import"
@@ -1060,8 +1070,12 @@ className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap curso
                 {showNote && (
                   <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[220px] px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px]">Ghi chú</TableHead>
                 )}
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Lưu</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Xoá</TableHead>
+                {showActions && (
+                  <>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Lưu</TableHead>
+                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Xoá</TableHead>
+                  </>
+                )}
               </TableRow>
             </TableHeader>
             
@@ -1100,8 +1114,12 @@ className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap curso
                     {showNote && (
                       <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
                     )}
-                    <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
-                    <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
+                    {showActions && (
+                      <>
+                        <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
+                        <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
+                      </>
+                    )}
                   </TableRow>
 
                   {group.records.map((row: DailyRevenue) => {
@@ -1281,36 +1299,40 @@ className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap curso
                           </TableCell>
                         )}
 
-                        <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
-                          <div className="flex items-center justify-center">
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              onClick={() => handleSaveRow(row)} 
-                              disabled={isSaving}
-                              className="text-emerald-600 hover:bg-emerald-100 h-5 w-5 sm:h-7 sm:w-7"
-                            >
-                              {isSaving ? (
-                                <Loader2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 animate-spin" />
-                              ) : (
-                                <Save className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {showActions && (
+                          <>
+                            <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
+                              <div className="flex items-center justify-center">
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  onClick={() => handleSaveRow(row)} 
+                                  disabled={isSaving}
+                                  className="text-emerald-600 hover:bg-emerald-100 h-5 w-5 sm:h-7 sm:w-7"
+                                >
+                                  {isSaving ? (
+                                    <Loader2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 animate-spin" />
+                                  ) : (
+                                    <Save className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TableCell>
 
-                        <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
-                          <div className="flex items-center justify-center">
-                            <Button size="icon" variant="ghost" onClick={()=>row._id && handleDeleteRow(row._id)} className="text-red-500 hover:bg-red-100 h-5 w-5 sm:h-7 sm:w-7">
-                              <Trash2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5"/>
-                            </Button>
-                          </div>
-                        </TableCell>
+                            <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
+                              <div className="flex items-center justify-center">
+                                <Button size="icon" variant="ghost" onClick={()=>row._id && handleDeleteRow(row._id)} className="text-red-500 hover:bg-red-100 h-5 w-5 sm:h-7 sm:w-7">
+                                  <Trash2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5"/>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </>
+                        )}
                       </TableRow>
                     );
                   })}
                 </React.Fragment>
-              )) : (<TableRow><TableCell colSpan={showNote ? 16 : 15} className="border border-slate-300 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
+              )) : (<TableRow><TableCell colSpan={14 + (showFounderPoints ? 1 : 0) + (showNote ? 1 : 0) + (showActions ? 2 : 0) - (isCompactMode ? 5 : 0)} className="border border-slate-300 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
             </TableBody>
             
             <TableFooter className="bg-slate-800 text-white sticky bottom-0 z-10 border-t-4 border-slate-900">
@@ -1344,8 +1366,12 @@ className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap curso
                 {showNote && (
                   <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
                 )}
-                <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
-                <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+                {showActions && (
+                  <>
+                    <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+                    <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+                  </>
+                )}
               </TableRow>
             </TableFooter>
           </Table>
