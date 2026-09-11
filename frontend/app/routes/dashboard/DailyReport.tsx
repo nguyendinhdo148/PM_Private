@@ -1487,7 +1487,7 @@ const DailyReport = () => {
         </Card>
 
         {/* Lợi nhuận = Tổng DT trước thuế − Tổng định phí tháng. Mặc định xanh, âm thì đỏ */}
-        <Card className={`shadow-sm w-auto inline-flex h-fit self-start ${profit >= 0 ? "border-emerald-300 bg-emerald-50/50" : "border-red-300 bg-red-50/50"}`}>
+        {/* <Card className={`shadow-sm w-auto inline-flex h-fit self-start ${profit >= 0 ? "border-emerald-300 bg-emerald-50/50" : "border-red-300 bg-red-50/50"}`}>
           <CardContent className="px-2 py-0 flex items-center justify-between gap-3">
             <span className={`text-sm sm:text-base font-medium whitespace-nowrap ${profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
               Lợi nhuận
@@ -1496,7 +1496,7 @@ const DailyReport = () => {
               {formatCurrency(profit) || "0 ₫"}
             </span>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
