@@ -1206,7 +1206,9 @@ const DailyReport = () => {
                               </TableCell>
                             )}
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                              <Input type="text" 
+                              <Input
+                                key={`full-food-${row._id}`}
+                                type="text"
                                 defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
@@ -1214,7 +1216,9 @@ const DailyReport = () => {
                               />
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                              <Input type="text" 
+                              <Input
+                                key={`full-drink-${row._id}`}
+                                type="text"
                                 defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
@@ -1222,7 +1226,9 @@ const DailyReport = () => {
                               />
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                              <Input type="text" 
+                              <Input
+                                key={`full-other-${row._id}`}
+                                type="text"
                                 defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
@@ -1233,7 +1239,9 @@ const DailyReport = () => {
                         ) : (
                           <>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                              <Input type="text" 
+                              <Input
+                                key={`compact-food-${row._id}`}
+                                type="text"
                                 defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
@@ -1241,7 +1249,9 @@ const DailyReport = () => {
                               />
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                              <Input type="text" 
+                              <Input
+                                key={`compact-drink-${row._id}`}
+                                type="text"
                                 defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
@@ -1249,7 +1259,9 @@ const DailyReport = () => {
                               />
                             </TableCell>
                             <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                              <Input type="text" 
+                              <Input
+                                key={`compact-other-${row._id}`}
+                                type="text"
                                 defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue) : ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
