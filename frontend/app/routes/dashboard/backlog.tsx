@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { fetchData, postData, updateData, deleteData } from "@/lib/fetch-util";
+import * as XLSX from "xlsx";
 
 export default function BacklogPage() {
   const [monthData, setMonthData] = useState<any>(null);
@@ -16,6 +17,11 @@ export default function BacklogPage() {
   
   // States cho Tab & Lọc
   const [activeTab, setActiveTab] = useState<"UNPOSTED" | "POSTED">("UNPOSTED");
+
+  // States cho bộ lọc
+  const [searchName, setSearchName] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
 
   // States cho Form Tháng
   const [isEditingMonth, setIsEditingMonth] = useState(false);
@@ -50,6 +56,13 @@ export default function BacklogPage() {
   };
 
   useEffect(() => { fetchMonthData(); }, [selectedMonth]);
+
+  // Reset bộ lọc khi đổi tháng
+  useEffect(() => {
+    setSearchName("");
+    setFilterFromDate("");
+    setFilterToDate("");
+  }, [selectedMonth]);
 
   const handleCreateMonth = async () => {
     try {
@@ -86,7 +99,6 @@ export default function BacklogPage() {
     setFormData((prev: any) => {
       const newData = { ...prev, [name]: value };
       
-      // Tự động tính TRƯỚC PPV = Tiền hàng - Tiền KM
       if (name === "goodsAmount" || name === "discountAmount") {
         if (newData.goodsAmount === "" && newData.discountAmount === "") {
           newData.beforeServiceCharge = ""; 
@@ -138,20 +150,194 @@ export default function BacklogPage() {
     }
   };
 
-  // =================== TÍNH TOÁN & LỌC ===================
-  const filteredInvoices = invoices.filter(inv => inv.status === activeTab);
+  // =================== HÀM LỌC CHUNG ===================
+  // Lọc theo tên + khoảng ngày
+  const applyFilters = (list: any[]) => {
+    return list.filter(inv => {
+      // Lọc theo tên khách hàng (không phân biệt hoa thường)
+      if (searchName.trim()) {
+        const keyword = searchName.trim().toLowerCase();
+        const name = (inv.customerName || "").toLowerCase();
+        const invoiceNum = (inv.invoiceNumber || "").toLowerCase();
+        const table = (inv.table || "").toLowerCase();
+        if (!name.includes(keyword) && !invoiceNum.includes(keyword) && !table.includes(keyword)) {
+          return false;
+        }
+      }
 
-  // 1. Thống kê TỔNG TIỀN
-  const totalUnposted = invoices.filter(i => i.status === "UNPOSTED").reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
-  const totalPosted = invoices.filter(i => i.status === "POSTED").reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+      // Lọc theo ngày
+      if (inv.date) {
+        const invDate = new Date(inv.date);
+        invDate.setHours(0, 0, 0, 0);
+
+        if (filterFromDate) {
+          const from = new Date(filterFromDate);
+          from.setHours(0, 0, 0, 0);
+          if (invDate < from) return false;
+        }
+        if (filterToDate) {
+          const to = new Date(filterToDate);
+          to.setHours(23, 59, 59, 999);
+          if (invDate > to) return false;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  // =================== TÍNH TOÁN & LỌC ===================
+  // Lọc toàn bộ invoices theo bộ lọc hiện tại
+  const filteredAll = useMemo(() => applyFilters(invoices), [invoices, searchName, filterFromDate, filterToDate]);
+
+  // Lọc theo tab hiện tại (để hiển thị bảng)
+  const filteredInvoices = filteredAll.filter(inv => inv.status === activeTab);
+
+  // Đếm số lượng theo tab (sau khi lọc)
+  const countUnposted = filteredAll.filter(i => i.status === "UNPOSTED").length;
+  const countPosted = filteredAll.filter(i => i.status === "POSTED").length;
+
+  // 1. Thống kê TỔNG TIỀN (theo dữ liệu đã lọc)
+  const totalUnposted = filteredAll.filter(i => i.status === "UNPOSTED").reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+  const totalPosted = filteredAll.filter(i => i.status === "POSTED").reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
   const diffTotal = totalUnposted - totalPosted; 
 
-  // 2. Thống kê TRƯỚC PPV
-  const ppvUnposted = invoices.filter(i => i.status === "UNPOSTED").reduce((sum, i) => sum + (Number(i.beforeServiceCharge) || 0), 0);
-  const ppvPosted = invoices.filter(i => i.status === "POSTED").reduce((sum, i) => sum + (Number(i.beforeServiceCharge) || 0), 0);
+  // 2. Thống kê TRƯỚC PPV (theo dữ liệu đã lọc)
+  const ppvUnposted = filteredAll.filter(i => i.status === "UNPOSTED").reduce((sum, i) => sum + (Number(i.beforeServiceCharge) || 0), 0);
+  const ppvPosted = filteredAll.filter(i => i.status === "POSTED").reduce((sum, i) => sum + (Number(i.beforeServiceCharge) || 0), 0);
   const diffPpv = ppvUnposted - ppvPosted;
 
   const formatCurrency = (num: number) => new Intl.NumberFormat('vi-VN').format(num || 0);
+
+  const hasFilter = searchName.trim() !== "" || filterFromDate !== "" || filterToDate !== "";
+
+  const clearFilters = () => {
+    setSearchName("");
+    setFilterFromDate("");
+    setFilterToDate("");
+  };
+
+  // =================== XUẤT EXCEL ===================
+  const handleExportExcel = () => {
+    if (!monthData || invoices.length === 0) {
+      alert("Không có dữ liệu để xuất!");
+      return;
+    }
+
+    // Dùng dữ liệu ĐÃ LỌC để xuất
+    const unpostedInvoices = filteredAll.filter(i => i.status === "UNPOSTED");
+    const postedInvoices = filteredAll.filter(i => i.status === "POSTED");
+
+    if (unpostedInvoices.length === 0 && postedInvoices.length === 0) {
+      alert("Không có dữ liệu nào khớp với bộ lọc để xuất!");
+      return;
+    }
+
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return "";
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('vi-VN');
+    };
+
+    // Tạo dòng mô tả bộ lọc
+    const filterDescParts: string[] = [];
+    if (searchName.trim()) filterDescParts.push(`Tên/Mã HĐ/Bàn: "${searchName.trim()}"`);
+    if (filterFromDate) filterDescParts.push(`Từ ngày: ${formatDate(filterFromDate)}`);
+    if (filterToDate) filterDescParts.push(`Đến ngày: ${formatDate(filterToDate)}`);
+    const filterDesc = filterDescParts.length > 0 ? filterDescParts.join(" | ") : "";
+
+    const createSheetData = (data: any[], title: string) => {
+      const header: any[][] = [
+        ["DANH SÁCH HÓA ĐƠN " + title.toUpperCase() + " - THÁNG " + selectedMonth],
+      ];
+
+      // Thêm dòng mô tả bộ lọc nếu có
+      if (filterDesc) {
+        header.push([`Bộ lọc: ${filterDesc}`]);
+      } else {
+        header.push([]);
+      }
+
+      header.push([]);
+      header.push(["STT", "Ngày", "Số hóa đơn", "Khách hàng", "Bàn", "Ghi chú", 
+                   "Số tiền hàng", "Số tiền KM", "TRƯỚC PPV", "TỔNG TIỀN"]);
+
+      const rows = data.map((inv, idx) => [
+        idx + 1,
+        formatDate(inv.date),
+        inv.invoiceNumber || "",
+        inv.customerName || "",
+        inv.table || "",
+        inv.note || "",
+        Number(inv.goodsAmount) || 0,
+        Number(inv.discountAmount) || 0,
+        Number(inv.beforeServiceCharge) || 0,
+        Number(inv.totalAmount) || 0
+      ]);
+
+      const totalGoods = data.reduce((sum, i) => sum + (Number(i.goodsAmount) || 0), 0);
+      const totalDiscount = data.reduce((sum, i) => sum + (Number(i.discountAmount) || 0), 0);
+      const totalPPV = data.reduce((sum, i) => sum + (Number(i.beforeServiceCharge) || 0), 0);
+      const totalAmount = data.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+
+      const totalRow = [
+        "", "", "", "", "", "TỔNG CỘNG",
+        totalGoods, totalDiscount, totalPPV, totalAmount
+      ];
+
+      return { rows: [...header, ...rows, [], totalRow], headerRowIndex: filterDesc ? 3 : 2 };
+    };
+
+    const unpostedSheet = createSheetData(unpostedInvoices, "CHƯA POST");
+    const postedSheet = createSheetData(postedInvoices, "ĐÃ POST");
+
+    const wb = XLSX.utils.book_new();
+
+    const wsUnposted = XLSX.utils.aoa_to_sheet(unpostedSheet.rows);
+    const wsPosted = XLSX.utils.aoa_to_sheet(postedSheet.rows);
+
+    const colWidths = [
+      { wch: 5 }, { wch: 12 }, { wch: 15 }, { wch: 22 },
+      { wch: 10 }, { wch: 25 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 },
+    ];
+
+    wsUnposted["!cols"] = colWidths;
+    wsPosted["!cols"] = colWidths;
+
+    // Merge title row
+    wsUnposted["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }];
+    wsPosted["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }];
+
+    // Nếu có filter desc thì merge thêm dòng đó
+    if (filterDesc) {
+      wsUnposted["!merges"].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 9 } });
+      wsPosted["!merges"].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 9 } });
+    }
+
+    // Apply number format cho cột số (G, H, I, J) — bắt đầu từ sau header row
+    const applyNumberFormat = (ws: any, startRow: number) => {
+      const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+      for (let r = startRow; r <= range.e.r; r++) {
+        ["G", "H", "I", "J"].forEach(col => {
+          const cellRef = col + (r + 1);
+          if (ws[cellRef] && typeof ws[cellRef].v === "number") {
+            ws[cellRef].z = "#,##0";
+          }
+        });
+      }
+    };
+
+    applyNumberFormat(wsUnposted, unpostedSheet.headerRowIndex + 1);
+    applyNumberFormat(wsPosted, postedSheet.headerRowIndex + 1);
+
+    XLSX.utils.book_append_sheet(wb, wsUnposted, "Chưa Post");
+    XLSX.utils.book_append_sheet(wb, wsPosted, "Đã Post");
+
+    // Tên file có kèm dấu hiệu nếu đang lọc
+    const fileName = `HoaDon_Thang_${selectedMonth}${hasFilter ? "_DaLoc" : ""}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
 
   // =================== RENDER GIAO DIỆN ===================
   return (
@@ -164,9 +350,26 @@ export default function BacklogPage() {
             <h1 className="text-xl font-bold text-gray-800">Quản Lý Hóa Đơn Tạm Tính</h1>
           </div>
           <div className="flex items-center gap-3 mt-4 sm:mt-0">
+            <button
+              onClick={handleExportExcel}
+              disabled={!monthData || invoices.length === 0}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded font-medium text-sm transition-all shadow-sm ${
+                !monthData || invoices.length === 0
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+              }`}
+              title={hasFilter ? "Xuất Excel theo bộ lọc hiện tại" : "Xuất toàn bộ dữ liệu"}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" x2="12" y1="15" y2="3"></line>
+              </svg>
+              {hasFilter ? "Xuất Excel (đã lọc)" : "Xuất Excel"}
+            </button>
+
             <label className="font-medium text-gray-700">Chọn Tháng:</label>
             <div className="relative flex items-center">
-              {/* Canh giữa icon hoàn hảo bằng top-1/2 và -translate-y-1/2 */}
               <svg 
                 xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none z-10"
@@ -176,7 +379,6 @@ export default function BacklogPage() {
                 <line x1="8" x2="8" y1="2" y2="6"></line>
                 <line x1="3" x2="21" y1="10" y2="10"></line>
               </svg>
-              {/* Áp dụng Webkit indicator phủ toàn bộ input để click vào đâu cũng mở lịch */}
               <input 
                 type="month" 
                 value={selectedMonth}
@@ -200,6 +402,73 @@ export default function BacklogPage() {
         {/* NẾU ĐÃ CÓ THÁNG */}
         {monthData && (
           <>
+            {/* THANH BỘ LỌC */}
+            <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex flex-wrap items-end gap-3">
+                {/* Lọc theo tên */}
+                <div className="flex-1 min-w-[220px]">
+                  <label className="text-xs font-medium text-gray-600 block mb-1">
+                    🔍 Tìm theo Tên KH / Số HĐ / Bàn
+                  </label>
+                  <div className="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+                    </svg>
+                    <input
+                      type="text"
+                      value={searchName}
+                      onChange={(e) => setSearchName(e.target.value)}
+                      placeholder="Nhập tên khách hàng, số HĐ hoặc bàn..."
+                      className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Từ ngày */}
+                <div className="min-w-[150px]">
+                  <label className="text-xs font-medium text-gray-600 block mb-1">📅 Từ ngày</label>
+                  <input
+                    type="date"
+                    value={filterFromDate}
+                    onChange={(e) => setFilterFromDate(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+
+                {/* Đến ngày */}
+                <div className="min-w-[150px]">
+                  <label className="text-xs font-medium text-gray-600 block mb-1">📅 Đến ngày</label>
+                  <input
+                    type="date"
+                    value={filterToDate}
+                    onChange={(e) => setFilterToDate(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
+
+                {/* Nút xóa lọc */}
+                <button
+                  onClick={clearFilters}
+                  disabled={!hasFilter}
+                  className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                    hasFilter
+                      ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  ✕ Xóa lọc
+                </button>
+
+                {/* Hiển thị thông tin lọc */}
+                {hasFilter && (
+                  <div className="ml-auto text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded border border-blue-200 font-medium">
+                    Đang lọc: {filteredAll.length}/{invoices.length} hóa đơn
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex gap-4">
               {/* CỘT TRÁI: FORM NHẬP LIỆU */}
               <div className="w-[35%] bg-white p-4 rounded-lg shadow-sm border border-gray-200 h-fit">
@@ -277,7 +546,9 @@ export default function BacklogPage() {
                   
                   {/* Dòng 1: THỐNG KÊ TỔNG TIỀN */}
                   <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                    <h3 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">1. Thống kê Tổng Tiền (Thực thu)</h3>
+                    <h3 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">
+                      1. Thống kê Tổng Tiền (Thực thu){hasFilter && <span className="text-blue-500 ml-1">• theo bộ lọc</span>}
+                    </h3>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="flex flex-col justify-center items-center bg-gray-50 rounded py-2 border border-gray-100">
                         <span className="text-[11px] text-gray-500 font-medium">Chưa Post (Cộng dồn)</span>
@@ -296,7 +567,9 @@ export default function BacklogPage() {
 
                   {/* Dòng 2: THỐNG KÊ TRƯỚC PPV */}
                   <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                    <h3 className="text-xs font-bold text-blue-500 mb-2 uppercase tracking-wide">2. Thống kê Trước PPV</h3>
+                    <h3 className="text-xs font-bold text-blue-500 mb-2 uppercase tracking-wide">
+                      2. Thống kê Trước PPV{hasFilter && <span className="text-blue-500 ml-1">• theo bộ lọc</span>}
+                    </h3>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="flex flex-col justify-center items-center bg-blue-50 rounded py-2 border border-blue-100">
                         <span className="text-[11px] text-blue-600 font-medium">Chưa Post (Cộng dồn)</span>
@@ -323,13 +596,13 @@ export default function BacklogPage() {
                       className={`flex-1 py-2.5 font-medium text-sm text-center transition-colors ${activeTab === 'UNPOSTED' ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
                       onClick={() => setActiveTab('UNPOSTED')}
                     >
-                      CHƯA POST ({invoices.filter(i => i.status === 'UNPOSTED').length})
+                      CHƯA POST ({countUnposted})
                     </button>
                     <button 
                       className={`flex-1 py-2.5 font-medium text-sm text-center transition-colors ${activeTab === 'POSTED' ? 'border-b-2 border-green-600 text-green-600 bg-green-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
                       onClick={() => setActiveTab('POSTED')}
                     >
-                      ĐÃ POST ({invoices.filter(i => i.status === 'POSTED').length})
+                      ĐÃ POST ({countPosted})
                     </button>
                   </div>
 
@@ -352,7 +625,9 @@ export default function BacklogPage() {
                       </thead>
                       <tbody>
                         {filteredInvoices.length === 0 ? (
-                          <tr><td colSpan={10} className="p-8 text-center text-gray-400">Không có hóa đơn nào ở trạng thái này.</td></tr>
+                          <tr><td colSpan={10} className="p-8 text-center text-gray-400">
+                            {hasFilter ? "Không có hóa đơn nào khớp với bộ lọc." : "Không có hóa đơn nào ở trạng thái này."}
+                          </td></tr>
                         ) : (
                           filteredInvoices.map((inv: any) => (
                             <tr key={inv._id} className={`border-b hover:bg-gray-50 ${editId === inv._id ? 'bg-yellow-50' : ''}`}>
