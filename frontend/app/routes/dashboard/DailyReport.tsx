@@ -887,7 +887,7 @@ const DailyReport = () => {
                 handleCancelEditExpense();
               }
             }}
-            className="w-24 sm:w-32 h-6 sm:h-7 text-right text-[10px] sm:text-[13px] border-amber-300 focus-visible:ring-amber-500 p-0.5"
+            className="w-24 sm:w-32 h-6 sm:h-7 text-right text-[10px] sm:text-[13px] border-amber-300 focus-visible:ring-amber-500 p-0.5 tabular-nums"
           />
 
           <Button
@@ -916,7 +916,7 @@ const DailyReport = () => {
       ) : (
         <span
           onClick={() => handleStartEditExpense(field)}
-          className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap cursor-pointer hover:bg-amber-100 px-2 py-0.5 rounded transition-colors"
+          className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap cursor-pointer hover:bg-amber-100 px-2 py-0.5 rounded transition-colors tabular-nums"
           title="Click để chỉnh sửa"
         >
           {formatCurrency(value) || "0 ₫"}
@@ -1047,366 +1047,366 @@ const DailyReport = () => {
       </div>
 
       {/* Table doanh thu ngày */}
-      <Card className="border-slate-300 overflow-hidden">
-        <div className="rounded-md overflow-x-auto">
-          <Table className="border-collapse w-max min-w-full table-fixed text-xs sm:text-sm">
-            <TableHeader>
-              <TableRow className="bg-slate-200">
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Ngày</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Thứ</TableHead>
+      <Card className="border-slate-400 overflow-hidden">
+  <div className="rounded-md overflow-x-auto">
+    <Table className="border-collapse w-max min-w-full table-fixed text-xs sm:text-sm tabular-nums">
+      <TableHeader>
+        <TableRow className="bg-slate-200">
+          <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[100px]">Ngày</TableHead>
+          <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[80px]">Thứ</TableHead>
+          {!isCompactMode ? (
+            <>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[100px]">Tiền mặt</TableHead>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[110px]">Chuyển khoản</TableHead>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[100px]">Cà thẻ</TableHead>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[100px]">Công nợ</TableHead>
+              {showFounderPoints && (
+                <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[100px]">Điểm Founder</TableHead>
+              )}
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[120px]">DT Món ăn trước thuế</TableHead>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[120px]">DT Đồ uống trước thuế</TableHead>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[120px]">DT Khác trước thuế</TableHead>
+            </>
+          ) : (
+            <>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[120px]">DT Món ăn trước thuế</TableHead>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[120px]">DT Đồ uống trước thuế</TableHead>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[120px]">DT Khác trước thuế</TableHead>
+            </>
+          )}
+          <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[130px]">DT trước thuế</TableHead>
+          <TableHead className="border border-slate-400 text-primary font-extrabold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[130px]">Tổng DT (VAT)</TableHead>
+          <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[80px]">SL Khách</TableHead>
+          <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[120px]">Tiêu dùng/Khách</TableHead>
+          <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[80px]">SL Bill</TableHead>
+          {showNote && (
+            <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap min-w-[220px] px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px]">Ghi chú</TableHead>
+          )}
+          {showActions && (
+            <>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[60px]">Lưu</TableHead>
+              <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] w-[60px]">Xoá</TableHead>
+            </>
+          )}
+        </TableRow>
+      </TableHeader>
+      
+      <TableBody>
+        {groupedData.length > 0 ? groupedData.map((group) => {
+          const isSelectedWeek = weekFilter === "all" || group.key === weekFilter;
+
+          return (
+            <React.Fragment key={group.key}>
+              {/* ===== THANH TUẦN: PASTEL XANH LÁ + VIỀN ĐẬM HƠN ===== */}
+              <TableRow className="bg-emerald-50 hover:bg-emerald-50 border-y-2 border-emerald-300">
+                <TableCell colSpan={2} className="border border-emerald-300 font-black text-center whitespace-nowrap bg-emerald-100 text-emerald-800 px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">
+                  TUẦN {group.weekNum}
+                </TableCell>
                 {!isCompactMode ? (
                   <>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Tiền mặt</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Chuyển khoản</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Cà thẻ</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Công nợ</TableHead>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.cash) || "0"}</TableCell>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.transfer) || "0"}</TableCell>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.card) || "0"}</TableCell>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.debt) || "0"}</TableCell>
                     {showFounderPoints && (
-                      <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Điểm Founder</TableHead>
+                      <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.founderPoints) || "0"}</TableCell>
                     )}
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn trước thuế</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống trước thuế</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác trước thuế</TableHead>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.foodRevenue) || "0"}</TableCell>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.drinkRevenue) || "0"}</TableCell>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.otherRevenue) || "0"}</TableCell>
                   </>
                 ) : (
                   <>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Món ăn trước thuế</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Đồ uống trước thuế</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT Khác trước thuế</TableHead>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.foodRevenue) || "0"}</TableCell>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.drinkRevenue) || "0"}</TableCell>
+                    <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{formatCurrency(group.totals.otherRevenue) || "0"}</TableCell>
                   </>
                 )}
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">DT trước thuế</TableHead>
-                <TableHead className="border border-slate-300 text-primary font-extrabold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Tổng DT (VAT)</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">SL Khách</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Tiêu dùng/Khách</TableHead>
-                <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">SL Bill</TableHead>
+                <TableCell className="border border-emerald-300 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-orange-600">{formatCurrency(group.totals.preTax) || "0"}</TableCell>
+                <TableCell className="border border-emerald-300 text-right font-extrabold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-primary">{formatCurrency(group.totals.totalGross) || "0"}</TableCell>
+                <TableCell className="border border-emerald-300 text-center font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{group.totals.guestCount}</TableCell>
+                <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-blue-600">{formatAvgGuest(group.totals.guestCount > 0 ? group.totals.totalGross / group.totals.guestCount : 0) || "0"}</TableCell>
+                <TableCell className="border border-emerald-300 text-center font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700">{group.totals.billCount}</TableCell>
                 {showNote && (
-                  <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap min-w-[220px] px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px]">Ghi chú</TableHead>
+                  <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50"></TableCell>
                 )}
                 {showActions && (
                   <>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Lưu</TableHead>
-                    <TableHead className="border border-slate-300 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">Xoá</TableHead>
+                    <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50"></TableCell>
+                    <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50"></TableCell>
                   </>
                 )}
               </TableRow>
-            </TableHeader>
-            
-            <TableBody>
-              {groupedData.length > 0 ? groupedData.map((group) => {
-                // ===== CHỈ RENDER RECORDS KHI LÀ TUẦN ĐANG CHỌN (HOẶC "ALL") =====
-                const isSelectedWeek = weekFilter === "all" || group.key === weekFilter;
 
+              {/* ===== DÒNG NGÀY ===== */}
+              {isSelectedWeek && group.records.map((row: DailyRevenue) => {
+                const isEditing = editingId === row._id;
+                const totalGross = calculateTotalGross(row);
+                const avgGuest = Number(row.guestCount || 0) > 0 ? totalGross / Number(row.guestCount) : 0;
+                const isSaving = savingRowId === row._id;
+                const preTaxDisplay = calculatePreTaxRevenue(row);
+                const hasNewCols = hasNewColumns(row);
+                
                 return (
-                  <React.Fragment key={group.key}>
-                    <TableRow className="bg-slate-700 hover:bg-slate-700 text-white font-bold">
-                      <TableCell colSpan={2} className="border border-slate-600 font-black text-center whitespace-nowrap bg-slate-800 text-white px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">
-                        TUẦN {group.weekNum}
-                      </TableCell>
-                      {!isCompactMode ? (
-                        <>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.cash) || "0"}</TableCell>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.transfer) || "0"}</TableCell>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.card) || "0"}</TableCell>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.debt) || "0"}</TableCell>
-                          {showFounderPoints && (
-                            <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.founderPoints) || "0"}</TableCell>
-                          )}
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.foodRevenue) || "0"}</TableCell>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.drinkRevenue) || "0"}</TableCell>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.otherRevenue) || "0"}</TableCell>
-                        </>
-                      ) : (
-                        <>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.foodRevenue) || "0"}</TableCell>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.drinkRevenue) || "0"}</TableCell>
-                          <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{formatCurrency(group.totals.otherRevenue) || "0"}</TableCell>
-                        </>
-                      )}
-                      <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-orange-200">{formatCurrency(group.totals.preTax) || "0"}</TableCell>
-                      <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-white bg-slate-800">{formatCurrency(group.totals.totalGross) || "0"}</TableCell>
-                      <TableCell className="border border-slate-600 text-center font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{group.totals.guestCount}</TableCell>
-                      <TableCell className="border border-slate-600 text-right font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-blue-200">{formatAvgGuest(group.totals.guestCount > 0 ? group.totals.totalGross / group.totals.guestCount : 0) || "0"}</TableCell>
-                      <TableCell className="border border-slate-600 text-center font-medium whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-slate-100">{group.totals.billCount}</TableCell>
-                      {showNote && (
-                        <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
-                      )}
-                      {showActions && (
-                        <>
-                          <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
-                          <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-1.5 bg-slate-700"></TableCell>
-                        </>
-                      )}
-                    </TableRow>
+                  <TableRow 
+                    key={row._id} 
+                    ref={isEditing ? editRowRef : null}
+                    className={isEditing ? "bg-emerald-50/60 outline-2 outline-emerald-400 -outline-offset-2 relative z-10" : "hover:bg-slate-50 transition-colors"}
+                  >
+                    <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                      <Input type="date" defaultValue={row.date}
+                        onFocus={() => row._id && setEditingId(row._id)}
+                        onBlur={(e) => updateLocalRow(row._id!, "date", e.target.value)}
+                        className="w-20 sm:w-full h-6 sm:h-7 text-[10px] sm:text-[13px] border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 p-0.5 sm:p-1 tabular-nums" />
+                    </TableCell>
+                    
+                    <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap bg-slate-50">
+                      <div className="w-14 sm:w-full h-6 sm:h-7 text-[10px] sm:text-[13px] font-bold text-slate-700 text-center flex items-center justify-center">
+                        {row.dayOfWeek}
+                      </div>
+                    </TableCell>
 
-                    {/* ===== CHỈ RENDER RECORDS NẾU LÀ TUẦN ĐANG CHỌN ===== */}
-                    {isSelectedWeek && group.records.map((row: DailyRevenue) => {
-                      const isEditing = editingId === row._id;
-                      const totalGross = calculateTotalGross(row);
-                      const avgGuest = Number(row.guestCount || 0) > 0 ? totalGross / Number(row.guestCount) : 0;
-                      const isSaving = savingRowId === row._id;
-                      const preTaxDisplay = calculatePreTaxRevenue(row);
-                      const hasNewCols = hasNewColumns(row);
-                      
-                      return (
-                        <TableRow 
-                          key={row._id} 
-                          ref={isEditing ? editRowRef : null}
-                          className={isEditing ? "bg-emerald-50/60 outline-2 outline-emerald-400 -outline-offset-2 relative z-10" : "hover:bg-slate-50 transition-colors"}
-                        >
-                          <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                            <Input type="date" defaultValue={row.date}
-                              onFocus={() => row._id && setEditingId(row._id)}
-                              onBlur={(e) => updateLocalRow(row._id!, "date", e.target.value)}
-                              className="w-20 sm:w-32 h-6 sm:h-7 text-[10px] sm:text-[13px] border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 p-0.5 sm:p-1" />
-                          </TableCell>
-                          
-                          <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap bg-slate-50">
-                            <div className="w-14 sm:w-20 h-6 sm:h-7 text-[10px] sm:text-[13px] font-bold text-slate-700 text-center flex items-center justify-center">
-                              {row.dayOfWeek}
-                            </div>
-                          </TableCell>
-
-                          {!isCompactMode ? (
-                            <>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input type="text" 
-                                  defaultValue={formatCurrencyNoUnit(row.cash)}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleNumberFieldInput(row._id!, "cash", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1" 
-                                />
-                              </TableCell>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input type="text" 
-                                  defaultValue={formatCurrencyNoUnit(row.transfer)}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleNumberFieldInput(row._id!, "transfer", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input type="text" 
-                                  defaultValue={formatCurrencyNoUnit(row.card)}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleNumberFieldInput(row._id!, "card", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input type="text" 
-                                  defaultValue={formatCurrencyNoUnit(row.debt)}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleNumberFieldInput(row._id!, "debt", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                              {showFounderPoints && (
-                                <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                  <Input type="text" 
-                                    defaultValue={formatCurrencyNoUnit(row.founderPoints)}
-                                    onFocus={() => row._id && setEditingId(row._id)}
-                                    onBlur={(e) => handleNumberFieldInput(row._id!, "founderPoints", e.target.value)}
-                                    className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                  />
-                                </TableCell>
-                              )}
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input
-                                  key={`full-food-${row._id}`}
-                                  type="text"
-                                  defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue) : ""}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input
-                                  key={`full-drink-${row._id}`}
-                                  type="text"
-                                  defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue) : ""}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input
-                                  key={`full-other-${row._id}`}
-                                  type="text"
-                                  defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue) : ""}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                            </>
-                          ) : (
-                            <>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input
-                                  key={`compact-food-${row._id}`}
-                                  type="text"
-                                  defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue) : ""}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input
-                                  key={`compact-drink-${row._id}`}
-                                  type="text"
-                                  defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue) : ""}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                              <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                                <Input
-                                  key={`compact-other-${row._id}`}
-                                  type="text"
-                                  defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue) : ""}
-                                  onFocus={() => row._id && setEditingId(row._id)}
-                                  onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
-                                  className="w-16 sm:w-28 text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                                />
-                              </TableCell>
-                            </>
-                          )}
-
-                          <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
+                    {!isCompactMode ? (
+                      <>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input type="text" 
+                            defaultValue={formatCurrencyNoUnit(row.cash)}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleNumberFieldInput(row._id!, "cash", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums" 
+                          />
+                        </TableCell>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input type="text" 
+                            defaultValue={formatCurrencyNoUnit(row.transfer)}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleNumberFieldInput(row._id!, "transfer", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input type="text" 
+                            defaultValue={formatCurrencyNoUnit(row.card)}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleNumberFieldInput(row._id!, "card", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input type="text" 
+                            defaultValue={formatCurrencyNoUnit(row.debt)}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleNumberFieldInput(row._id!, "debt", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                        {showFounderPoints && (
+                          <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                             <Input type="text" 
-                              value={formatCurrencyNoUnit(preTaxDisplay) || "0"}
-                              readOnly
-                              className="w-16 sm:w-32 text-right h-6 sm:h-7 bg-orange-50 border-orange-200 font-bold text-orange-700 text-[10px] sm:text-[13px] p-0.5 sm:p-1" />
-                          </TableCell>
-
-                          <TableCell className="border border-slate-300 p-0.5 sm:p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[10px] sm:text-[13px]">
-                            {formatCurrency(totalGross) || "0 ₫"}
-                          </TableCell>
-
-                          <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                            <Input type="text" 
-                              defaultValue={row.guestCount || ""}
+                              defaultValue={formatCurrencyNoUnit(row.founderPoints)}
                               onFocus={() => row._id && setEditingId(row._id)}
-                              onBlur={(e) => handleNumberFieldInput(row._id!, "guestCount", e.target.value)}
-                              className="w-10 sm:w-14 text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
+                              onBlur={(e) => handleNumberFieldInput(row._id!, "founderPoints", e.target.value)}
+                              className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
                             />
                           </TableCell>
-
-                          <TableCell className="border border-slate-300 p-0.5 sm:p-1 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30 text-[10px] sm:text-[13px]">
-                            {formatAvgGuest(avgGuest) || "0 ₫"}
-                          </TableCell>
-
-                          <TableCell className="border border-slate-300 p-0.5 sm:p-1 whitespace-nowrap">
-                            <Input type="text" 
-                              defaultValue={row.billCount || ""}
-                              onFocus={() => row._id && setEditingId(row._id)}
-                              onBlur={(e) => handleNumberFieldInput(row._id!, "billCount", e.target.value)}
-                              className="w-10 sm:w-14 text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-300 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1"
-                            />
-                          </TableCell>
-
-                          {showNote && (
-                            <TableCell className="border border-slate-300 p-0.5 sm:p-1 min-w-[220px] align-top">
-                              <textarea
-                                ref={(el) => {
-                                  if (el) {
-                                    autoResizeTextarea(el);
-                                  }
-                                }}
-                                defaultValue={row.note || ""}
-                                rows={1}
-                                onFocus={() => row._id && setEditingId(row._id)}
-                                onBlur={(e) => updateLocalRow(row._id!, "note", e.target.value)}
-                                onKeyDown={(e) => handleTextareaKeyDown(e, row)}
-                                onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
-                                className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
-                              />
-                            </TableCell>
-                          )}
-
-                          {showActions && (
-                            <>
-                              <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
-                                <div className="flex items-center justify-center">
-                                  <Button 
-                                    size="icon" 
-                                    variant="ghost" 
-                                    onClick={() => handleSaveRow(row)} 
-                                    disabled={isSaving}
-                                    className="text-emerald-600 hover:bg-emerald-100 h-5 w-5 sm:h-7 sm:w-7"
-                                  >
-                                    {isSaving ? (
-                                      <Loader2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 animate-spin" />
-                                    ) : (
-                                      <Save className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </TableCell>
-
-                              <TableCell className="border border-slate-300 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
-                                <div className="flex items-center justify-center">
-                                  <Button size="icon" variant="ghost" onClick={()=>row._id && handleDeleteRow(row._id)} className="text-red-500 hover:bg-red-100 h-5 w-5 sm:h-7 sm:w-7">
-                                    <Trash2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5"/>
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </>
-                          )}
-                        </TableRow>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              }) : (<TableRow><TableCell colSpan={14 + (showFounderPoints ? 1 : 0) + (showNote ? 1 : 0) + (showActions ? 2 : 0) - (isCompactMode ? 5 : 0)} className="border border-slate-300 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
-            </TableBody>
-            
-            <TableFooter className="bg-slate-800 text-white sticky bottom-0 z-10 border-t-4 border-slate-900">
-              <TableRow className="hover:bg-slate-800">
-                <TableCell colSpan={2} className="border border-slate-600 text-center font-black text-white whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-sm bg-slate-900">TỔNG ({totalDays} Ngày)</TableCell>
-                {!isCompactMode ? (
-                  <>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.cash) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.transfer) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.card) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.debt) || "0"}</TableCell>
-                    {showFounderPoints && (
-                      <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.founderPoints) || "0"}</TableCell>
+                        )}
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input
+                            key={`full-food-${row._id}`}
+                            type="text"
+                            defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue) : ""}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input
+                            key={`full-drink-${row._id}`}
+                            type="text"
+                            defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue) : ""}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input
+                            key={`full-other-${row._id}`}
+                            type="text"
+                            defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue) : ""}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input
+                            key={`compact-food-${row._id}`}
+                            type="text"
+                            defaultValue={hasNewCols ? formatCurrencyNoUnit(row.foodRevenue) : ""}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleRevenueInput(row._id!, "foodRevenue", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input
+                            key={`compact-drink-${row._id}`}
+                            type="text"
+                            defaultValue={hasNewCols ? formatCurrencyNoUnit(row.drinkRevenue) : ""}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleRevenueInput(row._id!, "drinkRevenue", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                          <Input
+                            key={`compact-other-${row._id}`}
+                            type="text"
+                            defaultValue={hasNewCols ? formatCurrencyNoUnit(row.otherRevenue) : ""}
+                            onFocus={() => row._id && setEditingId(row._id)}
+                            onBlur={(e) => handleRevenueInput(row._id!, "otherRevenue", e.target.value)}
+                            className="w-16 sm:w-full text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                          />
+                        </TableCell>
+                      </>
                     )}
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.foodRevenue) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.drinkRevenue) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.otherRevenue) || "0"}</TableCell>
-                  </>
-                ) : (
-                  <>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.foodRevenue) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.drinkRevenue) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.otherRevenue) || "0"}</TableCell>
-                  </>
-                )}
-                <TableCell className="border border-slate-600 text-right font-bold text-orange-300 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatCurrency(totals.preTax) || "0"}</TableCell>
-                <TableCell className="border border-slate-600 text-right font-black text-white whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-sm bg-slate-900">{formatCurrency(totals.totalGross) || "0"}</TableCell>
-                <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{totals.guest}</TableCell>
-                <TableCell className="border border-slate-600 text-right font-bold text-blue-200 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{formatAvgGuest(avgPerGuest) || "0"}</TableCell>
-                <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px]">{totals.bill}</TableCell>
-                {showNote && (
-                  <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
-                )}
-                {showActions && (
-                  <>
-                    <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
-                    <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
-                  </>
-                )}
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </div>
-      </Card>
+
+                    <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                      <Input type="text" 
+                        value={formatCurrencyNoUnit(preTaxDisplay) || "0"}
+                        readOnly
+                        className="w-16 sm:w-full text-right h-6 sm:h-7 bg-orange-50 border-orange-200 font-bold text-orange-700 text-[10px] sm:text-[13px] p-0.5 sm:p-1 tabular-nums" />
+                    </TableCell>
+
+                    <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[10px] sm:text-[13px] tabular-nums">
+                      {formatCurrency(totalGross) || "0 ₫"}
+                    </TableCell>
+
+                    <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                      <Input type="text" 
+                        defaultValue={row.guestCount || ""}
+                        onFocus={() => row._id && setEditingId(row._id)}
+                        onBlur={(e) => handleNumberFieldInput(row._id!, "guestCount", e.target.value)}
+                        className="w-10 sm:w-full text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                      />
+                    </TableCell>
+
+                    <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30 text-[10px] sm:text-[13px] tabular-nums">
+                      {formatAvgGuest(avgGuest) || "0 ₫"}
+                    </TableCell>
+
+                    <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
+                      <Input type="text" 
+                        defaultValue={row.billCount || ""}
+                        onFocus={() => row._id && setEditingId(row._id)}
+                        onBlur={(e) => handleNumberFieldInput(row._id!, "billCount", e.target.value)}
+                        className="w-10 sm:w-full text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
+                      />
+                    </TableCell>
+
+                    {showNote && (
+                      <TableCell className="border border-slate-400 p-0.5 sm:p-1 min-w-[220px] align-top">
+                        <textarea
+                          ref={(el) => {
+                            if (el) {
+                              autoResizeTextarea(el);
+                            }
+                          }}
+                          defaultValue={row.note || ""}
+                          rows={1}
+                          onFocus={() => row._id && setEditingId(row._id)}
+                          onBlur={(e) => updateLocalRow(row._id!, "note", e.target.value)}
+                          onKeyDown={(e) => handleTextareaKeyDown(e, row)}
+                          onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
+                          className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+                        />
+                      </TableCell>
+                    )}
+
+                    {showActions && (
+                      <>
+                        <TableCell className="border border-slate-400 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
+                          <div className="flex items-center justify-center">
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => handleSaveRow(row)} 
+                              disabled={isSaving}
+                              className="text-emerald-600 hover:bg-emerald-100 h-5 w-5 sm:h-7 sm:w-7"
+                            >
+                              {isSaving ? (
+                                <Loader2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 animate-spin" />
+                              ) : (
+                                <Save className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="border border-slate-400 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
+                          <div className="flex items-center justify-center">
+                            <Button size="icon" variant="ghost" onClick={()=>row._id && handleDeleteRow(row._id)} className="text-red-500 hover:bg-red-100 h-5 w-5 sm:h-7 sm:w-7">
+                              <Trash2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5"/>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                );
+              })}
+            </React.Fragment>
+          );
+        }) : (<TableRow><TableCell colSpan={14 + (showFounderPoints ? 1 : 0) + (showNote ? 1 : 0) + (showActions ? 2 : 0) - (isCompactMode ? 5 : 0)} className="border border-slate-400 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
+      </TableBody>
+      
+      <TableFooter className="bg-slate-800 text-white sticky bottom-0 z-10 border-t-4 border-slate-900">
+        <TableRow className="hover:bg-slate-800">
+          <TableCell colSpan={2} className="border border-slate-600 text-center font-black text-white whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-sm bg-slate-900">TỔNG ({totalDays} Ngày)</TableCell>
+          {!isCompactMode ? (
+            <>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.cash) || "0"}</TableCell>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.transfer) || "0"}</TableCell>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.card) || "0"}</TableCell>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.debt) || "0"}</TableCell>
+              {showFounderPoints && (
+                <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.founderPoints) || "0"}</TableCell>
+              )}
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.foodRevenue) || "0"}</TableCell>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.drinkRevenue) || "0"}</TableCell>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.otherRevenue) || "0"}</TableCell>
+            </>
+          ) : (
+            <>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.foodRevenue) || "0"}</TableCell>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.drinkRevenue) || "0"}</TableCell>
+              <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.otherRevenue) || "0"}</TableCell>
+            </>
+          )}
+          <TableCell className="border border-slate-600 text-right font-bold text-orange-300 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.preTax) || "0"}</TableCell>
+          <TableCell className="border border-slate-600 text-right font-black text-white whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-sm bg-slate-900 tabular-nums">{formatCurrency(totals.totalGross) || "0"}</TableCell>
+          <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{totals.guest}</TableCell>
+          <TableCell className="border border-slate-600 text-right font-bold text-blue-200 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatAvgGuest(avgPerGuest) || "0"}</TableCell>
+          <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{totals.bill}</TableCell>
+          {showNote && (
+            <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+          )}
+          {showActions && (
+            <>
+              <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+              <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+            </>
+          )}
+        </TableRow>
+      </TableFooter>
+    </Table>
+  </div>
+</Card> 
 
       {/* ===== CHI PHÍ THÁNG (EDITABLE) ===== */}
       <div className="space-y-2">
@@ -1434,7 +1434,7 @@ const DailyReport = () => {
           Khác
         </span>
         <div className="flex items-center gap-1">
-          <span className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap">
+          <span className="text-base sm:text-lg font-bold text-amber-700 whitespace-nowrap tabular-nums">
             {formatCurrency(monthlyExpenses.otherExpense) || "0 ₫"}
           </span>
           <Input
@@ -1448,7 +1448,7 @@ const DailyReport = () => {
                 handleOtherExpenseAdd();
               }
             }}
-            className="w-16 sm:w-20 h-5 sm:h-6 text-[10px] sm:text-[12px] text-right border-amber-300 focus-visible:ring-amber-500 p-0.5"
+            className="w-16 sm:w-20 h-5 sm:h-6 text-[10px] sm:text-[12px] text-right border-amber-300 focus-visible:ring-amber-500 p-0.5 tabular-nums"
           />
           <Button
             size="icon"
@@ -1474,7 +1474,7 @@ const DailyReport = () => {
             <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
               Tổng định phí ngày
             </span>
-            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
+            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap tabular-nums">
               {formatCurrency(totalExpense) || "0 ₫"}
             </span>
           </CardContent>
@@ -1486,7 +1486,7 @@ const DailyReport = () => {
             <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
               Tổng định phí tháng ({reportDays} ngày)
             </span>
-            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
+            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap tabular-nums">
               {formatCurrency(totalExpenseActual) || "0 ₫"}
             </span>
           </CardContent>
@@ -1498,7 +1498,7 @@ const DailyReport = () => {
             <span className="text-sm sm:text-base font-medium text-emerald-700 whitespace-nowrap">
               Tổng DT trước thuế ({reportDays} ngày)
             </span>
-            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap">
+            <span className="text-base sm:text-lg font-bold text-emerald-700 whitespace-nowrap tabular-nums">
               {formatCurrency(totals.preTax) || "0 ₫"}
             </span>
           </CardContent>
