@@ -283,16 +283,24 @@ export default function TipManagement() {
   const bohStaff = activeStaffList.filter(s => s.department === "BOH");
 
   return (
-    <div className="h-full overflow-auto bg-gray-50 p-1 sm:p-2 text-sm md:text-base">
-      <div className="max-w-[1500px] mx-auto space-y-2 pb-4">
+    <div className="h-full overflow-auto bg-gradient-to-br from-slate-50 via-white to-blue-50/30 p-2 sm:p-3 text-sm">
+      <div className="max-w-[1600px] mx-auto space-y-3 pb-6">
         
         {/* HEADER */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-2.5 rounded shadow-sm border border-gray-200">
-          <h1 className="text-lg font-bold text-gray-800">Hệ Thống Chia Tip</h1>
-          <div className="flex items-center gap-2 mt-1 sm:mt-0">
-            <label className="font-medium text-gray-700 text-xs">Dữ liệu:</label>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+              <Star className="w-5 h-5 text-white" fill="currentColor" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-800 leading-tight">Hệ Thống Chia Tip</h1>
+              <p className="text-[11px] text-slate-500">Quản lý và phân chia tiền tip theo ngày công</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+            <label className="font-semibold text-slate-600 text-xs whitespace-nowrap">Dữ liệu:</label>
             <SelectUI value={selectedBoardId} onValueChange={setSelectedBoardId}>
-              <SelectTrigger className="w-[220px] h-8 bg-white border-blue-200 text-xs">
+              <SelectTrigger className="w-[240px] h-9 bg-white border-slate-300 text-xs rounded-lg shadow-sm">
                 <SelectValue placeholder="Chọn bảng" />
               </SelectTrigger>
               <SelectContent>
@@ -310,43 +318,55 @@ export default function TipManagement() {
         </div>
 
         <Tabs defaultValue="calculator" className="w-full">
-          <TabsList className="mb-1.5 h-8 bg-white border shadow-sm">
-            <TabsTrigger value="calculator" className="text-xs data-[state=active]:bg-blue-50 py-1 px-3">Bảng Tính Tip</TabsTrigger>
-            <TabsTrigger value="staff" className="text-xs data-[state=active]:bg-blue-50 py-1 px-3">Nhân Sự Gốc</TabsTrigger>
+          <TabsList className="mb-2 h-9 bg-white border border-slate-200 shadow-sm rounded-lg p-1">
+            <TabsTrigger value="calculator" className="text-xs data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 py-1.5 px-4 rounded-md font-semibold">
+              Bảng Tính Tip
+            </TabsTrigger>
+            <TabsTrigger value="staff" className="text-xs data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 py-1.5 px-4 rounded-md font-semibold">
+              Nhân Sự Gốc
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="calculator" className="space-y-2 m-0">
+          <TabsContent value="calculator" className="space-y-3 m-0">
             
             {/* THÔNG TIN BẢNG VÀ THỐNG KÊ */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
-              <div className="lg:col-span-5 bg-white p-2.5 rounded border border-gray-200 shadow-sm flex flex-col justify-between">
-                <div className="flex justify-between items-center mb-1.5 pb-1.5 border-b">
-                  <span className="font-bold text-gray-800 text-sm flex items-center gap-2">
-                    {selectedBoardId === "NEW" ? "Khởi Tạo Mới" : "Sửa Bảng"}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+              <div className="lg:col-span-5 bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-100">
+                  <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    {selectedBoardId === "NEW" ? (
+                      <><PlusCircle className="w-4 h-4 text-blue-500" /> Khởi Tạo Mới</>
+                    ) : (
+                      <><FileText className="w-4 h-4 text-blue-500" /> Sửa Bảng</>
+                    )}
                     {selectedBoardId !== "NEW" && (
-                      <Badge variant="outline" className="text-[9px] h-4 px-1 bg-gray-100">
+                      <Badge variant="outline" className="text-[10px] h-5 px-2 bg-amber-50 text-amber-700 border-amber-200 font-semibold">
                         {activeStaffList.filter(s => isStaffDeleted(s)).length} nhân viên đã nghỉ
                       </Badge>
                     )}
                   </span>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-2">
                     {selectedBoardId !== "NEW" && (
-                      <Button variant="destructive" size="sm" className="h-7 text-xs px-2.5" onClick={handleDeleteTipBoard}>Xóa</Button>
+                      <Button variant="destructive" size="sm" className="h-8 text-xs px-3 rounded-lg shadow-sm" onClick={handleDeleteTipBoard}>
+                        <Trash2 className="w-3.5 h-3.5 mr-1" /> Xóa
+                      </Button>
                     )}
-                    <Button size="sm" className="h-7 text-xs px-2.5 bg-blue-600" onClick={handleSaveTip}>Lưu</Button>
+                    <Button size="sm" className="h-8 text-xs px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg shadow-sm font-semibold" onClick={handleSaveTip}>
+                      <Save className="w-3.5 h-3.5 mr-1" /> Lưu
+                    </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2.5">
                   <div>
-                    <span className="text-[10px] text-gray-500 font-bold block mb-0.5">Tháng</span>
-                    <Input placeholder="VD: 3/2026" value={month} onChange={e => setMonth(e.target.value)} className="h-7 text-xs" />
+                    <span className="text-[10px] text-slate-500 font-bold block mb-1 uppercase tracking-wide">Tháng</span>
+                    <Input placeholder="VD: 3/2026" value={month} onChange={e => setMonth(e.target.value)} className="h-9 text-xs rounded-lg border-slate-300 focus-visible:ring-blue-500" />
                   </div>
                   <div>
-                    <span className="text-[10px] text-gray-500 font-bold block mb-0.5">Kỳ</span>
-                    <Input placeholder="VD: 15-30/3" value={periodName} onChange={e => setPeriodName(e.target.value)} className="h-7 text-xs" />
+                    <span className="text-[10px] text-slate-500 font-bold block mb-1 uppercase tracking-wide">Kỳ</span>
+                    <Input placeholder="VD: 15-30/3" value={periodName} onChange={e => setPeriodName(e.target.value)} className="h-9 text-xs rounded-lg border-slate-300 focus-visible:ring-blue-500" />
                   </div>
                   <div>
-                    <span className="text-[10px] text-blue-600 font-bold block mb-0.5">Tổng Tip</span>
+                    <span className="text-[10px] text-blue-600 font-bold block mb-1 uppercase tracking-wide">Tổng Tip</span>
                     <Input 
                       type="text" 
                       placeholder="Nhập..." 
@@ -355,57 +375,59 @@ export default function TipManagement() {
                         const raw = e.target.value.replace(/\./g, "");
                         if (/^\d*$/.test(raw)) setTotalTipStr(raw);
                       }} 
-                      className="h-7 text-xs font-bold border-blue-300" 
+                      className="h-9 text-xs font-bold border-blue-300 focus-visible:ring-blue-500 rounded-lg bg-blue-50/30 tabular-nums text-right" 
                     />
                   </div>
                 </div>
               </div>
 
               {/* KHỐI THỐNG KÊ */}
-              <div className="lg:col-span-7 bg-white p-2 rounded border border-gray-200 shadow-sm">
-                <div className="grid grid-cols-4 gap-1.5 h-full items-center text-center">
-                  <div className="bg-gray-50 p-1.5 rounded border border-gray-100 flex flex-col justify-center">
-                    <p className="text-[9px] text-gray-500 font-bold whitespace-nowrap">
-                      CÒN LẠI <span className="text-red-500 font-medium tracking-tighter">(-500.000đ)</span>
+              <div className="lg:col-span-7 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 h-full items-center text-center">
+                  <div className="bg-gradient-to-br from-rose-50 to-red-50 p-2.5 rounded-lg border border-rose-200 flex flex-col justify-center">
+                    <p className="text-[10px] text-rose-600 font-bold whitespace-nowrap uppercase tracking-wide">
+                      Còn lại <span className="text-rose-500 font-medium">(-500K)</span>
                     </p>
-                    <p className="text-sm font-bold">{formatVND(calculations.remainingTip)}</p>
+                    <p className="text-base font-bold text-rose-700 tabular-nums">{formatVND(calculations.remainingTip)}</p>
                   </div>
-                  <div className="bg-gray-50 p-1.5 rounded border border-gray-100 flex flex-col justify-center">
-                    <p className="text-xs text-gray-500 font-bold mb-1">TỔNG CÔNG</p>
-                    <p className="text-sm font-bold">{calculations.totalDays}</p>
+                  <div className="bg-gradient-to-br from-slate-50 to-gray-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wide">Tổng công</p>
+                    <p className="text-base font-bold text-slate-800 tabular-nums">{calculations.totalDays}</p>
                   </div>
-                  <div className="bg-blue-50 p-1.5 rounded border border-blue-100 flex flex-col justify-center">
-                    <p className="text-[9px] text-blue-600 font-bold">1 CÔNG</p>
-                    <p className="text-sm font-bold text-blue-700">{formatVND(calculations.tipPerDay)}</p>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-2.5 rounded-lg border border-blue-200 flex flex-col justify-center">
+                    <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">1 Công</p>
+                    <p className="text-base font-bold text-blue-700 tabular-nums">{formatVND(calculations.tipPerDay)}</p>
                   </div>
-                  <div className="bg-orange-50 p-1.5 rounded border border-orange-100 flex flex-col justify-center">
-                    <p className="text-[9px] text-orange-600 font-bold">QUỸ PV (+PHẠT)</p>
-                    <p className="text-sm font-bold text-orange-700">{formatVND(calculations.totalServiceFund)}</p>
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-2.5 rounded-lg border border-orange-200 flex flex-col justify-center">
+                    <p className="text-[10px] text-orange-600 font-bold uppercase tracking-wide">Quỹ PV (+Phạt)</p>
+                    <p className="text-base font-bold text-orange-700 tabular-nums">{formatVND(calculations.totalServiceFund)}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* BẢNG CHIA FOH/BOH */}
-            <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden flex flex-col xl:flex-row">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col xl:flex-row">
               
               {/* BẢNG FOH */}
-              <div className="flex-1 border-b xl:border-b-0 xl:border-r border-gray-200">
-                <div className="bg-blue-50 p-1.5 border-b border-blue-200 flex justify-between items-center">
-                   <h3 className="font-bold text-blue-800 text-xs pl-1">FRONT OF HOUSE (FOH)</h3>
-                   <span className="text-[9px] font-medium text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200">-5% Quỹ</span>
+              <div className="flex-1 border-b xl:border-b-0 xl:border-r border-slate-200">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 border-b-2 border-blue-200 flex justify-between items-center">
+                   <h3 className="font-bold text-blue-800 text-xs pl-1 flex items-center gap-1.5 uppercase tracking-wide">
+                     <Users className="w-4 h-4" /> Front Of House (FOH)
+                   </h3>
+                   <span className="text-[10px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded-full border border-blue-300 shadow-sm">-5% Quỹ</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
                       <tr>
-                        <th className="p-1.5 border-b border-r w-[100px] pl-2">Nhân viên</th>
-                        <th className="p-1.5 border-b border-r w-[50px] text-center whitespace-nowrap">Công</th>
-                        <th className="p-1.5 border-b border-r w-[38px] text-center">TOP</th>
-                        <th className="p-1.5 border-b border-r text-right whitespace-nowrap">Cơ Bản</th>
-                        <th className="p-1.5 border-b border-r text-right text-orange-600 whitespace-nowrap">-Quỹ</th>
-                        <th className="p-1.5 border-b border-r w-[70px] text-center text-red-600 whitespace-nowrap">Phạt</th>
-                        <th className="p-1.5 border-b text-right font-bold pr-2 whitespace-nowrap">Thực Nhận</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r w-[120px] pl-3 font-bold uppercase tracking-wide text-[10px]">Nhân viên</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r w-[70px] text-center font-bold uppercase tracking-wide text-[10px]">Ngày công</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r w-[50px] text-center font-bold uppercase tracking-wide text-[10px]">TOP</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r text-right font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">Cơ Bản</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r text-right text-orange-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">-Quỹ</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r w-[90px] text-center text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">Phạt</th>
+                        <th className="p-2 border-b-2 border-slate-300 text-right font-bold pr-3 uppercase tracking-wide text-[10px] whitespace-nowrap text-emerald-700">Thực Nhận</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -414,41 +436,48 @@ export default function TipManagement() {
                         const isTop = topPerformerId === row._id;
                         const isDeleted = isStaffDeleted(row);
                         return (
-                          <tr key={row._id} className={`border-b ${isTop ? 'bg-yellow-50' : ''} ${isDeleted ? 'bg-gray-100 opacity-75' : 'hover:bg-gray-50'}`}>
-                            <td className="p-1 pl-2 border-r font-medium text-xs flex items-center gap-0.5 whitespace-nowrap">
-                              {row.name}
-                              {isDeleted && (
-                                <Badge variant="destructive" className="text-[8px] h-4 px-1">Đã nghỉ</Badge>
-                              )}
+                          <tr key={row._id} className={`border-b border-slate-100 transition-colors ${isTop ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400' : ''} ${isDeleted ? 'bg-slate-100 opacity-75' : 'hover:bg-blue-50/40'}`}>
+                            <td className="p-2 pl-3 border-r border-slate-100 font-semibold text-xs whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <span className={isDeleted ? 'line-through text-slate-400' : 'text-slate-800'}>{row.name}</span>
+                                {isTop && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />}
+                                {isDeleted && (
+                                  <Badge variant="destructive" className="text-[9px] h-4 px-1.5">Đã nghỉ</Badge>
+                                )}
+                              </div>
                             </td>
-                            <td className="p-2 border-r">
+                            <td className="p-1.5 border-r border-slate-100">
                               <Input 
                                 type="number" 
-                                className={`h-6 w-10 text-center text-xs px-0.5 ${Number(row.workDays) > 0 ? "bg-blue-50 border-blue-300" : ""} ${isDeleted ? "opacity-60" : ""}`} 
+                                className={`h-7 w-14 mx-auto text-center text-sm font-bold px-1 rounded-md transition-all ${Number(row.workDays) > 0 ? "bg-blue-50 border-blue-400 text-blue-700 shadow-sm" : "border-slate-300"} ${isDeleted ? "opacity-60" : ""}`} 
                                 value={row.workDays} 
                                 onChange={(e) => handleWorkDaysChange(row._id, e.target.value)}
                                 disabled={isDeleted && selectedBoardId !== "NEW"}
                               />
                             </td>
-                            <td className="p-0.5 border-r text-center">
+                            <td className="p-1 border-r border-slate-100 text-center">
                                <button 
                                  onClick={() => !isDeleted && setTopPerformerId(isTop ? "" : row._id)} 
-                                 className={`h-5 w-5 rounded inline-flex items-center justify-center text-xs ${isTop ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-400'} ${isDeleted ? 'cursor-not-allowed opacity-50' : ''}`}
+                                 className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${isTop ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110' : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105'} ${isDeleted ? 'cursor-not-allowed opacity-50' : ''}`}
                                  disabled={isDeleted}
                                >★</button>
                             </td>
-                            <td className="p-1 border-r text-right text-gray-600 text-[10px] whitespace-nowrap">{calc ? formatVND(calc.baseTip) : "-"}</td>
-                            <td className="p-1 border-r text-right text-orange-600 text-[10px] whitespace-nowrap">{calc && calc.fundDeduction > 0 ? `-${formatVND(calc.fundDeduction)}` : "-"}</td>
-                            <td className="p-0.5 border-r text-center">
+                            <td className="p-2 border-r border-slate-100 text-right text-slate-600 text-[11px] whitespace-nowrap tabular-nums">{calc ? formatVND(calc.baseTip) : "-"}</td>
+                            <td className="p-2 border-r border-slate-100 text-right text-orange-600 text-[11px] whitespace-nowrap tabular-nums font-medium">{calc && calc.fundDeduction > 0 ? `-${formatVND(calc.fundDeduction)}` : "-"}</td>
+                            <td className="p-1.5 border-r border-slate-100 text-center">
                               <Input 
                                 type="text" 
-                                className={`h-6 w-14 text-right text-xs px-0.5 text-red-600 ${isDeleted ? "opacity-60" : ""}`} 
+                                className={`h-7 w-20 mx-auto text-right text-xs px-1.5 text-red-600 font-semibold rounded-md border-slate-300 focus-visible:ring-red-400 tabular-nums ${isDeleted ? "opacity-60" : ""}`} 
                                 value={row.penalty ? Number(row.penalty).toLocaleString("vi-VN") : ""} 
                                 onChange={(e) => handlePenaltyChange(row._id, e.target.value)}
                                 disabled={isDeleted && selectedBoardId !== "NEW"}
                               />
                             </td>
-                            <td className="p-1 pr-2 text-right font-bold text-green-700 text-xs whitespace-nowrap">{calc ? formatVND(calc.finalTip) : "-"}</td>
+                            <td className="p-2 pr-3 text-right whitespace-nowrap">
+                              <span className="font-bold text-emerald-700 text-sm tabular-nums bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                                {calc ? formatVND(calc.finalTip) : "-"}
+                              </span>
+                            </td>
                           </tr>
                         );
                       })}
@@ -459,19 +488,21 @@ export default function TipManagement() {
 
               {/* BẢNG BOH */}
               <div className="flex-1">
-                <div className="bg-green-50 p-1.5 border-b border-green-200 flex justify-between items-center">
-                   <h3 className="font-bold text-green-800 text-xs pl-1">BACK OF HOUSE (BOH)</h3>
-                   <span className="text-[9px] font-medium text-green-600 bg-white px-1.5 py-0.5 rounded border border-green-200">Giữ Nguyên</span>
+                <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-2.5 border-b-2 border-emerald-200 flex justify-between items-center">
+                   <h3 className="font-bold text-emerald-800 text-xs pl-1 flex items-center gap-1.5 uppercase tracking-wide">
+                     <Users className="w-4 h-4" /> Back Of House (BOH)
+                   </h3>
+                   <span className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-300 shadow-sm">Giữ Nguyên</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
                       <tr>
-                        <th className="p-1.5 border-b border-r w-[100px] pl-2">Nhân viên</th>
-                        <th className="p-1.5 border-b border-r w-[50px] text-center whitespace-nowrap">Công</th>
-                        <th className="p-1.5 border-b border-r w-[38px] text-center">TOP</th>
-                        <th className="p-1.5 border-b border-r text-right whitespace-nowrap">Cơ Bản</th>
-                        <th className="p-1.5 border-b text-right font-bold pr-2 whitespace-nowrap">Thực Nhận</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r w-[120px] pl-3 font-bold uppercase tracking-wide text-[10px]">Nhân viên</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r w-[70px] text-center font-bold uppercase tracking-wide text-[10px]">Ngày công</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r w-[50px] text-center font-bold uppercase tracking-wide text-[10px]">TOP</th>
+                        <th className="p-2 border-b-2 border-slate-300 border-r text-right font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">Cơ Bản</th>
+                        <th className="p-2 border-b-2 border-slate-300 text-right font-bold pr-3 uppercase tracking-wide text-[10px] whitespace-nowrap text-emerald-700">Thực Nhận</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -480,31 +511,38 @@ export default function TipManagement() {
                         const isTop = topPerformerId === row._id;
                         const isDeleted = isStaffDeleted(row);
                         return (
-                          <tr key={row._id} className={`border-b ${isTop ? 'bg-yellow-50' : ''} ${isDeleted ? 'bg-gray-100 opacity-75' : 'hover:bg-gray-50'}`}>
-                            <td className="p-1 pl-2 border-r font-medium text-xs flex items-center gap-0.5 whitespace-nowrap">
-                              {row.name}
-                              {isDeleted && (
-                                <Badge variant="destructive" className="text-[8px] h-4 px-1">Đã nghỉ</Badge>
-                              )}
+                          <tr key={row._id} className={`border-b border-slate-100 transition-colors ${isTop ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400' : ''} ${isDeleted ? 'bg-slate-100 opacity-75' : 'hover:bg-emerald-50/40'}`}>
+                            <td className="p-2 pl-3 border-r border-slate-100 font-semibold text-xs whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <span className={isDeleted ? 'line-through text-slate-400' : 'text-slate-800'}>{row.name}</span>
+                                {isTop && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />}
+                                {isDeleted && (
+                                  <Badge variant="destructive" className="text-[9px] h-4 px-1.5">Đã nghỉ</Badge>
+                                )}
+                              </div>
                             </td>
-                            <td className="p-2 border-r">
+                            <td className="p-1.5 border-r border-slate-100">
                               <Input 
                                 type="number" 
-                                className={`h-8 text-center text-sm px-1 ${Number(row.workDays) > 0 ? "bg-green-50 border-green-300" : ""} ${isDeleted ? "opacity-60" : ""}`} 
+                                className={`h-7 w-14 mx-auto text-center text-sm font-bold px-1 rounded-md transition-all ${Number(row.workDays) > 0 ? "bg-emerald-50 border-emerald-400 text-emerald-700 shadow-sm" : "border-slate-300"} ${isDeleted ? "opacity-60" : ""}`} 
                                 value={row.workDays} 
                                 onChange={(e) => handleWorkDaysChange(row._id, e.target.value)}
                                 disabled={isDeleted && selectedBoardId !== "NEW"}
                               />
                             </td>
-                            <td className="p-0.5 border-r text-center">
+                            <td className="p-1 border-r border-slate-100 text-center">
                                <button 
                                  onClick={() => !isDeleted && setTopPerformerId(isTop ? "" : row._id)} 
-                                 className={`h-5 w-5 rounded inline-flex items-center justify-center text-xs ${isTop ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-400'} ${isDeleted ? 'cursor-not-allowed opacity-50' : ''}`}
+                                 className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${isTop ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110' : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105'} ${isDeleted ? 'cursor-not-allowed opacity-50' : ''}`}
                                  disabled={isDeleted}
                                >★</button>
                             </td>
-                            <td className="p-1 border-r text-right text-gray-600 text-[10px] whitespace-nowrap">{calc ? formatVND(calc.baseTip) : "-"}</td>
-                            <td className="p-1 pr-2 text-right font-bold text-green-700 text-xs whitespace-nowrap">{calc ? formatVND(calc.finalTip) : "-"}</td>
+                            <td className="p-2 border-r border-slate-100 text-right text-slate-600 text-[11px] whitespace-nowrap tabular-nums">{calc ? formatVND(calc.baseTip) : "-"}</td>
+                            <td className="p-2 pr-3 text-right whitespace-nowrap">
+                              <span className="font-bold text-emerald-700 text-sm tabular-nums bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                                {calc ? formatVND(calc.finalTip) : "-"}
+                              </span>
+                            </td>
                           </tr>
                         );
                       })}
@@ -517,53 +555,61 @@ export default function TipManagement() {
 
           {/* TAB 2: QUẢN LÝ NHÂN SỰ */}
           <TabsContent value="staff" className="m-0">
-            <Card className="border-gray-200 shadow-sm">
+            <Card className="border-slate-200 shadow-sm rounded-xl">
               <CardContent className="p-5 space-y-4">
-                <div className="flex gap-3 items-end bg-gray-50 p-3 rounded border border-gray-100 w-fit flex-wrap">
+                <div className="flex gap-3 items-end bg-gradient-to-r from-blue-50 to-indigo-50/50 p-4 rounded-xl border border-blue-100 w-fit flex-wrap shadow-sm">
                   <div>
-                    <label className="text-xs font-bold mb-1 block">Tên nhân viên</label>
-                    <Input placeholder="Nhập..." value={newStaffName} onChange={e => setNewStaffName(e.target.value)} className="h-9 text-sm bg-white w-[220px]" />
+                    <label className="text-xs font-bold mb-1.5 block text-slate-700 uppercase tracking-wide">Tên nhân viên</label>
+                    <Input placeholder="Nhập..." value={newStaffName} onChange={e => setNewStaffName(e.target.value)} className="h-10 text-sm bg-white w-[240px] rounded-lg border-slate-300 focus-visible:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold mb-1 block">Bộ phận</label>
+                    <label className="text-xs font-bold mb-1.5 block text-slate-700 uppercase tracking-wide">Bộ phận</label>
                     <SelectUI value={newStaffDept} onValueChange={(val: "FOH"|"BOH") => setNewStaffDept(val)}>
-                      <SelectTrigger className="h-9 text-sm bg-white w-[110px]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-10 text-sm bg-white w-[120px] rounded-lg border-slate-300"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="FOH" className="text-sm">FOH</SelectItem>
                         <SelectItem value="BOH" className="text-sm">BOH</SelectItem>
                       </SelectContent>
                     </SelectUI>
                   </div>
-                  <Button className="h-9 text-sm bg-blue-600 px-4" onClick={handleAddMasterStaff}>Thêm Mới</Button>
+                  <Button className="h-10 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 rounded-lg shadow-sm font-semibold" onClick={handleAddMasterStaff}>
+                    <PlusCircle className="w-4 h-4 mr-1.5" /> Thêm Mới
+                  </Button>
                 </div>
 
-                <div className="border rounded overflow-hidden w-fit min-w-[450px]">
+                <div className="border border-slate-200 rounded-xl overflow-hidden w-fit min-w-[500px] shadow-sm">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-gray-100">
+                    <thead className="bg-slate-100">
                       <tr>
-                        <th className="p-2.5 border-b">Tên nhân sự</th>
-                        <th className="p-2.5 border-b">Bộ phận</th>
-                        <th className="p-2.5 border-b">Trạng thái</th>
-                        <th className="p-2.5 border-b text-center">Xóa</th>
+                        <th className="p-3 border-b-2 border-slate-200 font-bold uppercase tracking-wide text-[10px] text-slate-600">Tên nhân sự</th>
+                        <th className="p-3 border-b-2 border-slate-200 font-bold uppercase tracking-wide text-[10px] text-slate-600">Bộ phận</th>
+                        <th className="p-3 border-b-2 border-slate-200 font-bold uppercase tracking-wide text-[10px] text-slate-600">Trạng thái</th>
+                        <th className="p-3 border-b-2 border-slate-200 font-bold uppercase tracking-wide text-[10px] text-slate-600 text-center">Xóa</th>
                       </tr>
                     </thead>
                     <tbody>
                       {masterStaff.map(staff => (
-                        <tr key={staff._id} className={`border-b ${staff.isDeleted ? 'bg-gray-100' : 'hover:bg-gray-50'}`}>
-                          <td className={`p-2.5 font-medium ${staff.isDeleted ? 'line-through text-gray-400' : ''}`}>{staff.name}</td>
-                          <td className="p-2.5"><Badge variant="outline" className={`text-xs h-6 px-2 ${staff.isDeleted ? 'text-gray-400' : ''}`}>{staff.department}</Badge></td>
-                          <td className="p-2.5">
+                        <tr key={staff._id} className={`border-b border-slate-100 transition-colors ${staff.isDeleted ? 'bg-slate-50' : 'hover:bg-blue-50/40'}`}>
+                          <td className={`p-3 font-semibold ${staff.isDeleted ? 'line-through text-slate-400' : 'text-slate-800'}`}>{staff.name}</td>
+                          <td className="p-3">
+                            <Badge variant="outline" className={`text-xs h-6 px-2 font-semibold ${staff.isDeleted ? 'text-slate-400 border-slate-200' : staff.department === 'FOH' ? 'text-blue-600 border-blue-200 bg-blue-50' : 'text-emerald-600 border-emerald-200 bg-emerald-50'}`}>
+                              {staff.department}
+                            </Badge>
+                          </td>
+                          <td className="p-3">
                             {staff.isDeleted ? (
-                              <Badge variant="destructive" className="text-xs h-5 px-1.5">Đã nghỉ</Badge>
+                              <Badge variant="destructive" className="text-xs h-5 px-2 font-semibold">Đã nghỉ</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-xs h-5 px-1.5 text-green-600 border-green-200">Đang làm</Badge>
+                              <Badge variant="outline" className="text-xs h-5 px-2 text-emerald-600 border-emerald-200 bg-emerald-50 font-semibold">Đang làm</Badge>
                             )}
                           </td>
-                          <td className="p-2.5 text-center">
+                          <td className="p-3 text-center">
                             {!staff.isDeleted ? (
-                              <button onClick={() => handleDeleteMasterStaff(staff._id)} className="text-red-500 hover:text-red-700 text-base">❌</button>
+                              <button onClick={() => handleDeleteMasterStaff(staff._id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-md transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             ) : (
-                              <span className="text-gray-300 text-xs">Đã xóa</span>
+                              <span className="text-slate-300 text-xs italic">Đã xóa</span>
                             )}
                           </td>
                         </tr>
@@ -572,9 +618,9 @@ export default function TipManagement() {
                   </table>
                 </div>
                 
-                <div className="text-xs text-gray-500 flex items-center gap-2 p-2 bg-yellow-50 rounded border border-yellow-200">
-                  <AlertCircle className="w-4 h-4 text-yellow-600" />
-                  <span>Lưu ý: Nhân viên đã nghỉ vẫn xuất hiện trong các bảng tip cũ để đảm bảo dữ liệu lịch sử không bị mất.</span>
+                <div className="text-xs text-amber-700 flex items-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-200 shadow-sm">
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span><strong>Lưu ý:</strong> Nhân viên đã nghỉ vẫn xuất hiện trong các bảng tip cũ để đảm bảo dữ liệu lịch sử không bị mất.</span>
                 </div>
               </CardContent>
             </Card>
