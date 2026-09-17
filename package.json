@@ -11,5 +11,8 @@
     "dev": "cd backend && npm run dev"
   },
   "description": "Project Management Application",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "modern-screenshot": "^4.7.0"
+  }
 }

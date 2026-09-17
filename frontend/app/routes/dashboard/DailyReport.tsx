@@ -199,9 +199,6 @@ const DailyReport = () => {
     const style = document.createElement('style');
     style.id = 'screenshot-fix';
     style.innerHTML = `
-      #report-container table {
-        table-layout: fixed !important;
-      }
       #report-container table th {
         height: 40px !important;
         white-space: nowrap !important;
@@ -892,261 +889,409 @@ const DailyReport = () => {
   };
 
   const handleScreenshot = async () => {
-    const element = document.getElementById("report-container");
-    if (!element) {
-      alert("Không tìm thấy nội dung báo cáo để chụp!");
-      return;
-    }
+  const element = document.getElementById("report-container");
+  if (!element) {
+    alert("Không tìm thấy nội dung báo cáo để chụp!");
+    return;
+  }
 
-    // Lưu snapshot state hiện tại
-    const snapshot = {
-      compact: isCompactMode,
-      founder: showFounderPoints,
-      note: showNote,
-      actions: showActions,
-      week: weekFilter,
-    };
-    setScreenshotSnapshot(snapshot);
+  const snapshot = {
+    compact: isCompactMode,
+    founder: showFounderPoints,
+    note: showNote,
+    actions: showActions,
+    week: weekFilter,
+  };
+  setScreenshotSnapshot(snapshot);
 
-    const scrollWrapper = element.querySelector('.overflow-x-auto') as HTMLElement | null;
-    const footer = element.querySelector('tfoot') as HTMLElement | null;
+  const scrollWrapper = element.querySelector(".overflow-x-auto") as HTMLElement | null;
+  const footer = element.querySelector("tfoot") as HTMLElement | null;
+  const tableCard = element.querySelector(".overflow-hidden") as HTMLElement | null;
 
-    const originalWrapperStyle = scrollWrapper ? {
-      overflow: scrollWrapper.style.overflow,
-      overflowX: scrollWrapper.style.overflowX,
-    } : null;
-    const originalFooterClass = footer?.className || "";
-    const originalElementStyle = {
+  // ===== LƯU TẤT CẢ INLINE STYLE SẼ BỊ THAY ĐỔI =====
+  const savedStyles = {
+    element: {
       width: element.style.width,
+      minWidth: element.style.minWidth,
+      maxWidth: element.style.maxWidth,
+      padding: element.style.padding,
       position: element.style.position,
-    };
-
-    try {
-      setIsScreenshotMode(true);
-      injectScreenshotCSS();
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      const freshElement = document.getElementById("report-container");
-      if (!freshElement) throw new Error("Không tìm thấy element sau re-render");
-
-      const freshWrapper = freshElement.querySelector('.overflow-x-auto') as HTMLElement | null;
-      const freshFooter = freshElement.querySelector('tfoot') as HTMLElement | null;
-
-      if (freshWrapper) {
-        freshWrapper.style.overflow = "visible";
-        freshWrapper.style.overflowX = "visible";
-      }
-
-      if (freshFooter) {
-        freshFooter.classList.remove("sticky", "bottom-0");
-      }
-
-      freshElement.style.width = "max-content";
-      freshElement.style.position = "relative";
-
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      const canvas = await html2canvas(freshElement, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        width: freshElement.scrollWidth,
-        height: freshElement.scrollHeight,
-        windowWidth: freshElement.scrollWidth,
-        windowHeight: freshElement.scrollHeight,
-        scrollX: 0,
-        scrollY: 0,
-        onclone: (clonedDoc, clonedElement) => {
-          // 1. Copy TẤT CẢ stylesheet (Tailwind, custom CSS) sang document clone
-          const originalStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
-          originalStyles.forEach((styleNode) => {
-            try {
-              const clonedStyle = styleNode.cloneNode(true) as HTMLElement;
-              clonedDoc.head.appendChild(clonedStyle);
-            } catch (e) {
-              // Bỏ qua nếu không clone được (cross-origin link)
-            }
-          });
-
-          // 2. Copy tất cả CSS variables từ :root
-          try {
-            const rootStyles = getComputedStyle(document.documentElement);
-            const cssVars: string[] = [];
-            for (let i = 0; i < rootStyles.length; i++) {
-              const prop = rootStyles[i];
-              if (prop.startsWith('--')) {
-                cssVars.push(`${prop}: ${rootStyles.getPropertyValue(prop)};`);
-              }
-            }
-            if (cssVars.length > 0) {
-              const varStyle = clonedDoc.createElement('style');
-              varStyle.textContent = `:root { ${cssVars.join(' ')} }`;
-              clonedDoc.head.appendChild(varStyle);
-            }
-          } catch (e) {
-            // Bỏ qua nếu không đọc được
-          }
-
-          // 3. Inject bridge CSS — đảm bảo các class Tailwind quan trọng hoạt động
-          const bridgeStyle = clonedDoc.createElement('style');
-          bridgeStyle.textContent = `
-            * { box-sizing: border-box; }
-            body, td, th, div, span, p, h1, h2, h3 {
-              font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-              color: #1e293b;
-            }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #94a3b8; }
-            .border { border-width: 1px; border-style: solid; }
-            .border-collapse { border-collapse: collapse; }
-            .border-slate-400 { border-color: #94a3b8 !important; }
-            .border-slate-600 { border-color: #475569 !important; }
-            .border-slate-900 { border-color: #0f172a !important; }
-            .border-emerald-300 { border-color: #6ee7b7 !important; }
-            .border-t-4 { border-top-width: 4px !important; border-top-style: solid !important; }
-            .border-y-2 { border-top-width: 2px !important; border-bottom-width: 2px !important; border-top-style: solid !important; border-bottom-style: solid !important; }
-            .bg-slate-200 { background-color: #e2e8f0 !important; }
-            .bg-slate-800 { background-color: #1e293b !important; }
-            .bg-slate-900 { background-color: #0f172a !important; }
-            .bg-emerald-50 { background-color: #ecfdf5 !important; }
-            .bg-emerald-100 { background-color: #d1fae5 !important; }
-            .bg-orange-50 { background-color: #fff7ed !important; }
-            .bg-blue-50\\/30 { background-color: rgba(239, 246, 255, 0.3) !important; }
-            .bg-primary\\/5 { background-color: rgba(59, 130, 246, 0.05) !important; }
-            .text-slate-800 { color: #1e293b !important; }
-            .text-slate-700 { color: #334155 !important; }
-            .text-emerald-700 { color: #047857 !important; }
-            .text-emerald-800 { color: #065f46 !important; }
-            .text-orange-600 { color: #ea580c !important; }
-            .text-orange-700 { color: #c2410c !important; }
-            .text-orange-300 { color: #fdba74 !important; }
-            .text-blue-600 { color: #2563eb !important; }
-            .text-blue-200 { color: #bfdbfe !important; }
-            .text-primary { color: #3b82f6 !important; }
-            .text-white { color: #ffffff !important; }
-            .font-bold { font-weight: 700 !important; }
-            .font-black { font-weight: 900 !important; }
-            .font-semibold { font-weight: 600 !important; }
-            .font-extrabold { font-weight: 800 !important; }
-            .font-medium { font-weight: 500 !important; }
-            .text-center { text-align: center !important; }
-            .text-right { text-align: right !important; }
-            .text-left { text-align: left !important; }
-            .whitespace-nowrap { white-space: nowrap !important; }
-            .tabular-nums { font-variant-numeric: tabular-nums !important; }
-            .flex { display: flex !important; }
-            .items-center { align-items: center !important; }
-            .justify-end { justify-content: flex-end !important; }
-            .justify-center { justify-content: center !important; }
-            .justify-between { justify-content: space-between !important; }
-            .w-full { width: 100% !important; }
-            .h-6 { height: 1.5rem !important; }
-            .h-7 { height: 1.75rem !important; }
-            .px-1 { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
-            .py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
-            .px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-            .py-1\\\\.5 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
-            .p-0\\\\.5 { padding: 0.125rem !important; }
-            .text-\\\\[10px\\\\] { font-size: 10px !important; }
-            .text-\\\\[13px\\\\] { font-size: 13px !important; }
-            .sm\\\\:text-\\\\[13px\\\\] { font-size: 13px !important; }
-            .sm\\\\:text-sm { font-size: 0.875rem !important; }
-            .sm\\\\:p-1 { padding: 0.25rem !important; }
-            .sm\\\\:py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
-            .sm\\\\:text-\\\\[13px\\\\] { font-size: 13px !important; }
-            .gap-2 { gap: 0.5rem !important; }
-            .gap-3 { gap: 0.75rem !important; }
-            .rounded { border-radius: 0.25rem !important; }
-            .rounded-md { border-radius: 0.375rem !important; }
-            .rounded-lg { border-radius: 0.5rem !important; }
-            .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; }
-            .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important; }
-            .inline-flex { display: inline-flex !important; }
-            .border-amber-200 { border-color: #fde68a !important; }
-            .border-emerald-200 { border-color: #a7f3d0 !important; }
-            .border-emerald-300 { border-color: #6ee7b7 !important; }
-            .bg-amber-50\\/50 { background-color: rgba(255, 251, 235, 0.5) !important; }
-            .bg-emerald-50\\/50 { background-color: rgba(236, 253, 245, 0.5) !important; }
-            .bg-emerald-50\\/60 { background-color: rgba(236, 253, 245, 0.6) !important; }
-            .text-amber-700 { color: #b45309 !important; }
-            .text-emerald-700 { color: #047857 !important; }
-            .text-slate-500 { color: #64748b !important; }
-            .text-muted-foreground { color: #64748b !important; }
-            .font-bold { font-weight: 700 !important; }
-            .self-start { align-self: flex-start !important; }
-            .h-fit { height: fit-content !important; }
-            .w-auto { width: auto !important; }
-            .min-w-\\\\[200px\\\\] { min-width: 200px !important; }
-            .min-w-\\\\[100px\\\\] { min-width: 100px !important; }
-            .min-w-\\\\[80px\\\\] { min-width: 80px !important; }
-            .min-w-\\\\[110px\\\\] { min-width: 110px !important; }
-            .min-w-\\\\[120px\\\\] { min-width: 120px !important; }
-            .min-w-\\\\[90px\\\\] { min-width: 90px !important; }
-            .min-w-\\\\[130px\\\\] { min-width: 130px !important; }
-            .min-w-\\\\[140px\\\\] { min-width: 140px !important; }
-            .min-w-\\\\[150px\\\\] { min-width: 150px !important; }
-            .min-w-\\\\[160px\\\\] { min-width: 160px !important; }
-            .min-w-\\\\[220px\\\\] { min-width: 220px !important; }
-            .w-\\\\[100px\\\\] { width: 100px !important; }
-            .w-\\\\[80px\\\\] { width: 80px !important; }
-            .w-\\\\[110px\\\\] { width: 110px !important; }
-            .w-\\\\[120px\\\\] { width: 120px !important; }
-            .w-\\\\[90px\\\\] { width: 90px !important; }
-            .w-\\\\[130px\\\\] { width: 130px !important; }
-            .w-\\\\[140px\\\\] { width: 140px !important; }
-            .w-\\\\[150px\\\\] { width: 150px !important; }
-            .w-\\\\[160px\\\\] { width: 160px !important; }
-            .w-\\\\[60px\\\\] { width: 60px !important; }
-            .text-\\\\[10px\\\\] { font-size: 10px !important; }
-            .text-base { font-size: 1rem !important; }
-            .text-sm { font-size: 0.875rem !important; }
-            .text-lg { font-size: 1.125rem !important; }
-            .text-xs { font-size: 0.75rem !important; }
-            .text-xl { font-size: 1.25rem !important; }
-            .text-3xl { font-size: 1.875rem !important; }
-            .text-4xl { font-size: 2.25rem !important; }
-            .py-0 { padding-top: 0 !important; padding-bottom: 0 !important; }
-            .py-0\\\\.5 { padding-top: 0.125rem !important; padding-bottom: 0.125rem !important; }
-            .px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
-            .h-24 { height: 6rem !important; }
-            .h-32 { height: 8rem !important; }
-          `;
-          clonedDoc.head.appendChild(bridgeStyle);
-
-          // 4. Đảm bảo element clone có đúng width
-          try {
-            clonedElement.style.width = `${freshElement.scrollWidth}px`;
-          } catch (e) {}
-        },
-      });
-
-      const image = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = image;
-      link.download = `Bao_Cao_Doanh_Thu_${new Date().getTime()}.png`;
-      link.click();
-    } catch (error) {
-      console.error("Lỗi khi chụp ảnh:", error);
-      alert("❌ Có lỗi xảy ra khi chụp ảnh báo cáo!");
-    } finally {
-      removeScreenshotCSS();
-      setIsScreenshotMode(false);
-      setScreenshotSnapshot(null);
-
-      if (scrollWrapper && originalWrapperStyle) {
-        scrollWrapper.style.overflow = originalWrapperStyle.overflow;
-        scrollWrapper.style.overflowX = originalWrapperStyle.overflowX;
-      }
-      if (footer) {
-        footer.className = originalFooterClass;
-      }
-      element.style.width = originalElementStyle.width;
-      element.style.position = originalElementStyle.position;
-    }
+    },
+    wrapper: scrollWrapper
+      ? {
+          overflow: scrollWrapper.style.overflow,
+          overflowX: scrollWrapper.style.overflowX,
+          width: scrollWrapper.style.width,
+          minWidth: scrollWrapper.style.minWidth,
+          maxWidth: scrollWrapper.style.maxWidth,
+        }
+      : null,
+    tableCard: tableCard
+      ? {
+          width: tableCard.style.width,
+          minWidth: tableCard.style.minWidth,
+          maxWidth: tableCard.style.maxWidth,
+        }
+      : null,
+    footerClass: footer?.className || "",
   };
 
-  // Khi đang chụp ảnh, dùng snapshot; ngược lại dùng state thật
+  try {
+    setIsScreenshotMode(true);
+    injectScreenshotCSS();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    const freshElement = document.getElementById("report-container");
+    if (!freshElement) {
+      throw new Error("Không tìm thấy element sau khi render screenshot");
+    }
+
+    const freshWrapper = freshElement.querySelector(".overflow-x-auto") as HTMLElement | null;
+    const freshFooter = freshElement.querySelector("tfoot") as HTMLElement | null;
+    const freshTable = freshElement.querySelector("table") as HTMLElement | null;
+    const freshTableCard = freshElement.querySelector(".overflow-hidden") as HTMLElement | null;
+
+    if (!freshTable) {
+      throw new Error("Không tìm thấy bảng báo cáo");
+    }
+
+    // Mở toàn bộ bảng để chụp
+    if (freshWrapper) {
+      freshWrapper.style.overflow = "visible";
+      freshWrapper.style.overflowX = "visible";
+      freshWrapper.style.width = "max-content";
+    }
+
+    if (freshFooter) {
+      freshFooter.classList.remove("sticky", "bottom-0");
+    }
+
+    // Container lấy đúng kích thước nội dung
+    freshElement.style.width = "max-content";
+    freshElement.style.position = "relative";
+    // ⚠️ Bỏ padding tạm thời để đo chính xác
+    freshElement.style.padding = "0";
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // ===== TÍNH CHIỀU RỘNG THỰC CỦA BẢNG =====
+    // Dùng scrollWidth để lấy đúng chiều rộng nội dung bảng, không phụ thuộc scroll position
+    const tableWidth = Math.ceil(freshTable.scrollWidth);
+
+    // Lấy padding ban đầu của #report-container
+    const computedStyle = window.getComputedStyle(element);
+    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+
+    // Tổng chiều rộng = bảng + padding 2 bên (để không cắt mép phải)
+    const contentWidth = tableWidth + paddingLeft + paddingRight;
+
+    // Ép Card chứa bảng chỉ rộng bằng bảng thực tế
+    if (freshTableCard) {
+      freshTableCard.style.width = `${tableWidth}px`;
+      freshTableCard.style.minWidth = `${tableWidth}px`;
+      freshTableCard.style.maxWidth = `${tableWidth}px`;
+    }
+
+    // Wrapper bảng
+    if (freshWrapper) {
+      freshWrapper.style.width = `${tableWidth}px`;
+      freshWrapper.style.minWidth = `${tableWidth}px`;
+      freshWrapper.style.maxWidth = `${tableWidth}px`;
+    }
+
+    // #report-container = bảng + padding
+    freshElement.style.width = `${contentWidth}px`;
+    freshElement.style.minWidth = `${contentWidth}px`;
+    freshElement.style.maxWidth = `${contentWidth}px`;
+    freshElement.style.padding = `${paddingLeft}px ${paddingRight}px`;
+
+    const canvas = await html2canvas(freshElement, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: "#ffffff",
+      logging: false,
+
+      width: contentWidth,
+      height: freshElement.scrollHeight,
+
+      windowWidth: contentWidth,
+      windowHeight: freshElement.scrollHeight,
+
+      scrollX: 0,
+      scrollY: 0,
+
+      onclone: (clonedDoc, clonedElement) => {
+        /*
+         * QUAN TRỌNG:
+         * Không phụ thuộc vào Tailwind stylesheet production.
+         * Copy computed style từ DOM thật sang DOM clone.
+         */
+
+        const originalElements = [
+          freshElement,
+          ...Array.from(freshElement.querySelectorAll("*")),
+        ];
+
+        const clonedElements = [
+          clonedElement,
+          ...Array.from(clonedElement.querySelectorAll("*")),
+        ];
+
+        const length = Math.min(
+          originalElements.length,
+          clonedElements.length
+        );
+
+        for (let i = 0; i < length; i++) {
+          const original = originalElements[i] as HTMLElement;
+          const cloned = clonedElements[i] as HTMLElement;
+
+          try {
+            const computed = window.getComputedStyle(original);
+
+            const properties = [
+              "display",
+              "position",
+              "top",
+              "right",
+              "bottom",
+              "left",
+
+              "width",
+              "min-width",
+              "max-width",
+              "height",
+              "min-height",
+              "max-height",
+
+              "margin",
+              "margin-top",
+              "margin-right",
+              "margin-bottom",
+              "margin-left",
+
+              "padding",
+              "padding-top",
+              "padding-right",
+              "padding-bottom",
+              "padding-left",
+
+              "box-sizing",
+
+              "font-family",
+              "font-size",
+              "font-weight",
+              "font-style",
+              "line-height",
+              "letter-spacing",
+              "text-align",
+              "text-transform",
+              "text-decoration",
+              "font-variant-numeric",
+              "white-space",
+
+              "color",
+              "background",
+              "background-color",
+              "background-image",
+
+              "border",
+              "border-width",
+              "border-style",
+              "border-color",
+              "border-top",
+              "border-right",
+              "border-bottom",
+              "border-left",
+              "border-radius",
+
+              "box-shadow",
+
+              "overflow",
+              "overflow-x",
+              "overflow-y",
+
+              "vertical-align",
+
+              "opacity",
+
+              "flex",
+              "flex-direction",
+              "flex-wrap",
+              "flex-grow",
+              "flex-shrink",
+              "align-items",
+              "align-content",
+              "align-self",
+              "justify-content",
+              "justify-items",
+              "gap",
+              "row-gap",
+              "column-gap",
+
+              "grid",
+              "grid-template-columns",
+              "grid-template-rows",
+
+              "visibility",
+              "z-index",
+
+              "transform",
+              "white-space",
+            ];
+
+            properties.forEach((property) => {
+              const value = computed.getPropertyValue(property);
+
+              if (value) {
+                cloned.style.setProperty(
+                  property,
+                  value,
+                  "important"
+                );
+              }
+            });
+
+            if (
+              cloned.tagName === "INPUT" ||
+              cloned.tagName === "TEXTAREA" ||
+              cloned.tagName === "BUTTON"
+            ) {
+              cloned.style.caretColor = "transparent";
+              cloned.style.outline = "none";
+            }
+          } catch (error) {
+            console.warn("Không copy được style:", error);
+          }
+        }
+
+        const screenshotStyle = clonedDoc.createElement("style");
+
+        screenshotStyle.textContent = `
+          * {
+            box-sizing: border-box !important;
+          }
+
+          html,
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+          }
+
+          #report-container {
+            width: ${contentWidth}px !important;
+            min-width: ${contentWidth}px !important;
+            max-width: ${contentWidth}px !important;
+            padding: ${paddingLeft}px ${paddingRight}px !important;
+            position: relative !important;
+            overflow: visible !important;
+            background: #ffffff !important;
+          }
+
+          #report-container .overflow-x-auto {
+            overflow: visible !important;
+            overflow-x: visible !important;
+            width: ${tableWidth}px !important;
+            min-width: ${tableWidth}px !important;
+            max-width: ${tableWidth}px !important;
+          }
+
+          #report-container .overflow-hidden {
+            width: ${tableWidth}px !important;
+            min-width: ${tableWidth}px !important;
+            max-width: ${tableWidth}px !important;
+          }
+
+          #report-container table {
+            border-collapse: collapse !important;
+          }
+
+          #report-container th,
+          #report-container td {
+            vertical-align: middle !important;
+          }
+
+          #report-container tfoot {
+            position: static !important;
+          }
+
+          textarea {
+            resize: none !important;
+          }
+
+          input,
+          textarea,
+          button {
+            caret-color: transparent !important;
+          }
+        `;
+
+        clonedDoc.head.appendChild(screenshotStyle);
+
+        clonedElement.style.width = `${contentWidth}px`;
+        clonedElement.style.minWidth = `${contentWidth}px`;
+        clonedElement.style.maxWidth = `${contentWidth}px`;
+        clonedElement.style.padding = `${paddingLeft}px ${paddingRight}px`;
+        clonedElement.style.overflow = "visible";
+      },
+    });
+
+    const image = canvas.toDataURL("image/png");
+
+    const link = document.createElement("a");
+    link.href = image;
+    link.download = `Bao_Cao_Doanh_Thu_${new Date().getTime()}.png`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+  } catch (error) {
+    console.error("Lỗi khi chụp ảnh:", error);
+    alert("❌ Có lỗi xảy ra khi chụp ảnh báo cáo!");
+  } finally {
+    removeScreenshotCSS();
+
+    setIsScreenshotMode(false);
+    setScreenshotSnapshot(null);
+
+    // ===== RESTORE TẤT CẢ INLINE STYLE =====
+    // Lấy lại element mới nhất vì React có thể đã replace DOM node sau re-render
+    const finalElement = document.getElementById("report-container");
+    if (finalElement) {
+      finalElement.style.width = savedStyles.element.width;
+      finalElement.style.minWidth = savedStyles.element.minWidth;
+      finalElement.style.maxWidth = savedStyles.element.maxWidth;
+      finalElement.style.padding = savedStyles.element.padding;
+      finalElement.style.position = savedStyles.element.position;
+
+      const finalWrapper = finalElement.querySelector(".overflow-x-auto") as HTMLElement | null;
+      if (finalWrapper && savedStyles.wrapper) {
+        finalWrapper.style.overflow = savedStyles.wrapper.overflow;
+        finalWrapper.style.overflowX = savedStyles.wrapper.overflowX;
+        finalWrapper.style.width = savedStyles.wrapper.width;
+        finalWrapper.style.minWidth = savedStyles.wrapper.minWidth;
+        finalWrapper.style.maxWidth = savedStyles.wrapper.maxWidth;
+      }
+
+      const finalTableCard = finalElement.querySelector(".overflow-hidden") as HTMLElement | null;
+      if (finalTableCard && savedStyles.tableCard) {
+        finalTableCard.style.width = savedStyles.tableCard.width;
+        finalTableCard.style.minWidth = savedStyles.tableCard.minWidth;
+        finalTableCard.style.maxWidth = savedStyles.tableCard.maxWidth;
+      }
+
+      const finalFooter = finalElement.querySelector("tfoot") as HTMLElement | null;
+      if (finalFooter) {
+        finalFooter.className = savedStyles.footerClass;
+      }
+    }
+  }
+};
+
   const renderCompact = isScreenshotMode && screenshotSnapshot 
     ? screenshotSnapshot.compact 
     : isCompactMode;
