@@ -66,6 +66,13 @@ const DailyReport = () => {
   const [showActions, setShowActions] = useState(true);
 
   const [isScreenshotMode, setIsScreenshotMode] = useState(false);
+  const [screenshotSnapshot, setScreenshotSnapshot] = useState<{
+    compact: boolean;
+    founder: boolean;
+    note: boolean;
+    actions: boolean;
+    week: string;
+  } | null>(null);
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
@@ -193,15 +200,26 @@ const DailyReport = () => {
       const style = document.createElement('style');
       style.id = 'screenshot-fix';
       style.innerHTML = `
-        #report-container table td,
+        #report-container table {
+          table-layout: fixed !important;
+        }
         #report-container table th {
+          height: 40px !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          vertical-align: middle !important;
+          padding: 2px 4px !important;
+          line-height: 1.2 !important;
+        }
+        #report-container table td {
           height: 28px !important;
           vertical-align: middle !important;
           padding: 2px 4px !important;
+          overflow: hidden !important;
         }
         #report-container table td > div,
         #report-container table td > span {
-          height: 100% !important;
           display: flex !important;
           align-items: center !important;
         }
@@ -881,6 +899,16 @@ const DailyReport = () => {
       return;
     }
 
+    // Lưu snapshot state hiện tại
+    const snapshot = {
+      compact: isCompactMode,
+      founder: showFounderPoints,
+      note: showNote,
+      actions: showActions,
+      week: weekFilter,
+    };
+    setScreenshotSnapshot(snapshot);
+
     const scrollWrapper = element.querySelector('.overflow-x-auto') as HTMLElement | null;
     const footer = element.querySelector('tfoot') as HTMLElement | null;
 
@@ -896,7 +924,7 @@ const DailyReport = () => {
 
     try {
       setIsScreenshotMode(true);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       const freshElement = document.getElementById("report-container");
       if (!freshElement) throw new Error("Không tìm thấy element sau re-render");
@@ -916,7 +944,7 @@ const DailyReport = () => {
       freshElement.style.width = "max-content";
       freshElement.style.position = "relative";
 
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       const canvas = await html2canvas(freshElement, {
         scale: 2,
@@ -941,6 +969,7 @@ const DailyReport = () => {
       alert("❌ Có lỗi xảy ra khi chụp ảnh báo cáo!");
     } finally {
       setIsScreenshotMode(false);
+      setScreenshotSnapshot(null);
 
       if (scrollWrapper && originalWrapperStyle) {
         scrollWrapper.style.overflow = originalWrapperStyle.overflow;
@@ -954,10 +983,27 @@ const DailyReport = () => {
     }
   };
 
-  const effectiveCompactMode = isScreenshotMode ? false : isCompactMode;
-  const effectiveShowFounderPoints = showFounderPoints;
-  const effectiveShowNote = isScreenshotMode ? false : showNote;
-  const effectiveShowActions = isScreenshotMode ? false : showActions;
+  // Khi đang chụp ảnh, dùng snapshot; ngược lại dùng state thật
+  const renderCompact = isScreenshotMode && screenshotSnapshot 
+    ? screenshotSnapshot.compact 
+    : isCompactMode;
+
+  const renderFounder = isScreenshotMode && screenshotSnapshot 
+    ? screenshotSnapshot.founder 
+    : showFounderPoints;
+
+  const renderNote = isScreenshotMode 
+    ? false 
+    : showNote;
+
+  const renderActions = isScreenshotMode 
+    ? false 
+    : showActions;
+
+  const renderWeek = isScreenshotMode && screenshotSnapshot 
+    ? screenshotSnapshot.week 
+    : weekFilter;
+
   const hideCashColumns = isScreenshotMode;
 
   // ===== RENDER Ô 3 CỘT DT TRƯỚC THUẾ (click-to-edit, căn phải chuẩn) =====
@@ -969,12 +1015,11 @@ const DailyReport = () => {
     const isEditingThisCell = editingCell?.rowId === row._id && editingCell?.field === field;
     const displayValue = hasNewCols ? (formatCurrencyNoUnit(row[field]) || "") : "";
 
-    // Khi chụp ảnh: hiển thị text thuần, căn phải, không có input
     if (isScreenshotMode) {
       return (
         <TableCell
           className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap"
-          style={{ width: 150, minWidth: 150 }}
+          style={{ width: 160, minWidth: 160 }}
         >
           <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums">
             {displayValue || "0"}
@@ -986,7 +1031,7 @@ const DailyReport = () => {
     return (
       <TableCell
         className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap"
-        style={{ width: 150, minWidth: 150 }}
+        style={{ width: 160, minWidth: 160 }}
       >
         {isEditingThisCell ? (
           <Input
@@ -1038,7 +1083,7 @@ const DailyReport = () => {
 
     return (
       <Card className="border-amber-200 bg-amber-50/50 shadow-sm w-auto inline-flex h-fit self-start">
-        <CardContent className="px-2 py-0 flex items-center justify-between gap-2">
+        <CardContent className="px-3 py-1 flex items-center justify-between gap-3 min-w-[200px]">
           <span className="text-sm sm:text-base font-medium text-amber-700 whitespace-nowrap">
             {label}
           </span>
@@ -1215,13 +1260,32 @@ const DailyReport = () => {
         <div className="rounded-md overflow-x-auto">
           <Table
             className="border-collapse text-xs sm:text-sm tabular-nums"
-            style={{ width: "max-content", minWidth: "100%" }}
+            style={{ 
+              width: "max-content", 
+              minWidth: "100%",
+              tableLayout: isScreenshotMode ? "fixed" : "auto"
+            }}
           >
+            {/* ===== COLGROUP: CỐ ĐỊNH WIDTH TỪNG CỘT ===== */}
+            {isScreenshotMode && (
+              <colgroup>
+                <col style={{ width: 100 }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: 160 }} />
+                <col style={{ width: 160 }} />
+                <col style={{ width: 160 }} />
+                <col style={{ width: 130 }} />
+                <col style={{ width: 140 }} />
+                <col style={{ width: 90 }} />
+                <col style={{ width: 130 }} />
+                <col style={{ width: 90 }} />
+              </colgroup>
+            )}
             <TableHeader>
               <TableRow className="bg-slate-200">
                 <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[100px] w-[100px]">Ngày</TableHead>
                 <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[80px] w-[80px]">Thứ</TableHead>
-                {!effectiveCompactMode ? (
+                {!renderCompact ? (
                   <>
                     {!hideCashColumns && (
                       <>
@@ -1231,18 +1295,18 @@ const DailyReport = () => {
                         <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[110px] w-[110px]">Công nợ</TableHead>
                       </>
                     )}
-                    {effectiveShowFounderPoints && (
+                    {renderFounder && (
                       <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[110px] w-[110px]">Điểm Founder</TableHead>
                     )}
-                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[150px] w-[150px]">DT Món ăn trước thuế</TableHead>
-                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[150px] w-[150px]">DT Đồ uống trước thuế</TableHead>
-                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[150px] w-[150px]">DT Khác trước thuế</TableHead>
+                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[160px] w-[160px]">DT Món ăn trước thuế</TableHead>
+                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[160px] w-[160px]">DT Đồ uống trước thuế</TableHead>
+                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[160px] w-[160px]">DT Khác trước thuế</TableHead>
                   </>
                 ) : (
                   <>
-                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[150px] w-[150px]">DT Món ăn trước thuế</TableHead>
-                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[150px] w-[150px]">DT Đồ uống trước thuế</TableHead>
-                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[150px] w-[150px]">DT Khác trước thuế</TableHead>
+                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[160px] w-[160px]">DT Món ăn trước thuế</TableHead>
+                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[160px] w-[160px]">DT Đồ uống trước thuế</TableHead>
+                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[160px] w-[160px]">DT Khác trước thuế</TableHead>
                   </>
                 )}
                 <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[130px] w-[130px]">DT trước thuế</TableHead>
@@ -1250,10 +1314,10 @@ const DailyReport = () => {
                 <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[90px] w-[90px]">SL Khách</TableHead>
                 <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[130px] w-[130px]">Tiêu dùng/Khách</TableHead>
                 <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[90px] w-[90px]">SL Bill</TableHead>
-                {effectiveShowNote && (
+                {renderNote && (
                   <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap min-w-[220px] px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[13px]">Ghi chú</TableHead>
                 )}
-                {effectiveShowActions && (
+                {renderActions && (
                   <>
                     <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[60px] w-[60px]">Lưu</TableHead>
                     <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[60px] w-[60px]">Xoá</TableHead>
@@ -1264,7 +1328,7 @@ const DailyReport = () => {
             
             <TableBody>
               {groupedData.length > 0 ? groupedData.map((group) => {
-                const isSelectedWeek = weekFilter === "all" || group.key === weekFilter;
+                const isSelectedWeek = renderWeek === "all" || group.key === renderWeek;
 
                 return (
                   <React.Fragment key={group.key}>
@@ -1272,7 +1336,7 @@ const DailyReport = () => {
                       <TableCell colSpan={2} className="border border-emerald-300 font-black text-center whitespace-nowrap bg-emerald-100 text-emerald-800 px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px]">
                         TUẦN {group.weekNum}
                       </TableCell>
-                      {!effectiveCompactMode ? (
+                      {!renderCompact ? (
                         <>
                           {!hideCashColumns && (
                             <>
@@ -1282,7 +1346,7 @@ const DailyReport = () => {
                               <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.debt) || "0"}</TableCell>
                             </>
                           )}
-                          {effectiveShowFounderPoints && (
+                          {renderFounder && (
                             <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.founderPoints) || "0"}</TableCell>
                           )}
                           <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.foodRevenue) || "0"}</TableCell>
@@ -1301,10 +1365,10 @@ const DailyReport = () => {
                       <TableCell className="border border-emerald-300 text-center font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{group.totals.guestCount}</TableCell>
                       <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-blue-600 tabular-nums">{formatAvgGuest(group.totals.guestCount > 0 ? group.totals.totalGross / group.totals.guestCount : 0) || "0"}</TableCell>
                       <TableCell className="border border-emerald-300 text-center font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{group.totals.billCount}</TableCell>
-                      {effectiveShowNote && (
+                      {renderNote && (
                         <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50"></TableCell>
                       )}
-                      {effectiveShowActions && (
+                      {renderActions && (
                         <>
                           <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50"></TableCell>
                           <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50"></TableCell>
@@ -1345,7 +1409,7 @@ const DailyReport = () => {
                             </div>
                           </TableCell>
 
-                          {!effectiveCompactMode ? (
+                          {!renderCompact ? (
                             <>
                               {!hideCashColumns && (
                                 <>
@@ -1407,7 +1471,7 @@ const DailyReport = () => {
                                   </TableCell>
                                 </>
                               )}
-                              {effectiveShowFounderPoints && (
+                              {renderFounder && (
                                 <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                                   {isScreenshotMode ? (
                                     <div className="w-full min-w-[110px] h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums">
@@ -1423,7 +1487,6 @@ const DailyReport = () => {
                                   )}
                                 </TableCell>
                               )}
-                              {/* ===== 3 CỘT DT TRƯỚC THUẾ: click-to-edit ===== */}
                               {renderRevenueCell(row, "foodRevenue", hasNewCols)}
                               {renderRevenueCell(row, "drinkRevenue", hasNewCols)}
                               {renderRevenueCell(row, "otherRevenue", hasNewCols)}
@@ -1480,7 +1543,7 @@ const DailyReport = () => {
                             )}
                           </TableCell>
 
-                          {effectiveShowNote && (
+                          {renderNote && (
                             <TableCell className="border border-slate-400 p-0.5 sm:p-1 min-w-[220px] align-top">
                               <textarea
                                 ref={(el) => {
@@ -1499,7 +1562,7 @@ const DailyReport = () => {
                             </TableCell>
                           )}
 
-                          {effectiveShowActions && (
+                          {renderActions && (
                             <>
                               <TableCell className="border border-slate-400 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
                                 <div className="flex items-center justify-center">
@@ -1539,7 +1602,7 @@ const DailyReport = () => {
             <TableFooter className="bg-slate-800 text-white sticky bottom-0 z-10 border-t-4 border-slate-900">
               <TableRow className="hover:bg-slate-800">
                 <TableCell colSpan={2} className="border border-slate-600 text-center font-black text-white whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-sm bg-slate-900">TỔNG ({totalDays} Ngày)</TableCell>
-                {!effectiveCompactMode ? (
+                {!renderCompact ? (
                   <>
                     {!hideCashColumns && (
                       <>
@@ -1549,7 +1612,7 @@ const DailyReport = () => {
                         <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.debt) || "0"}</TableCell>
                       </>
                     )}
-                    {effectiveShowFounderPoints && (
+                    {renderFounder && (
                       <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.founderPoints) || "0"}</TableCell>
                     )}
                     <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.foodRevenue) || "0"}</TableCell>
@@ -1568,10 +1631,10 @@ const DailyReport = () => {
                 <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{totals.guest}</TableCell>
                 <TableCell className="border border-slate-600 text-right font-bold text-blue-200 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatAvgGuest(avgPerGuest) || "0"}</TableCell>
                 <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{totals.bill}</TableCell>
-                {effectiveShowNote && (
+                {renderNote && (
                   <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
                 )}
-                {effectiveShowActions && (
+                {renderActions && (
                   <>
                     <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
                     <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
@@ -1603,7 +1666,7 @@ const DailyReport = () => {
           {renderExpenseCard("employeeSalary", "Lương nhân viên")}
 
           <Card className="border-amber-200 bg-amber-50/50 shadow-sm w-auto inline-flex h-fit self-start">
-            <CardContent className="px-2 py-0.5 flex items-center justify-between gap-2">
+            <CardContent className="px-3 py-1 flex items-center justify-between gap-3 min-w-[200px]">
               <span className="text-sm sm:text-base font-medium text-amber-700 whitespace-nowrap">
                 Khác
               </span>

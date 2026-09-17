@@ -1,0 +1,2 @@
+backupdata
+& "C:\Users\dinhd\OneDrive\Documents\mongodb-database-tools-windows-x86_64-100.17.0\bin\mongodump.exe" --uri="mongodb+srv://nguyendinhdo2k4_db_user:2uJp1b412sdjc8wb@taskpm.l7jlmpm.mongodb.net/project_management_db?appName=Cluster0" --archive=".\backupdata_17092026"
