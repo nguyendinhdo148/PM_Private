@@ -194,49 +194,48 @@ const DailyReport = () => {
     }
   }, [editingId]);
 
-  // ===== INJECT CSS KHI CHỤP ẢNH ĐỂ ĐẢM BẢO THẲNG HÀNG =====
-  useEffect(() => {
-    if (isScreenshotMode) {
-      const style = document.createElement('style');
-      style.id = 'screenshot-fix';
-      style.innerHTML = `
-        #report-container table {
-          table-layout: fixed !important;
-        }
-        #report-container table th {
-          height: 40px !important;
-          white-space: nowrap !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          vertical-align: middle !important;
-          padding: 2px 4px !important;
-          line-height: 1.2 !important;
-        }
-        #report-container table td {
-          height: 28px !important;
-          vertical-align: middle !important;
-          padding: 2px 4px !important;
-          overflow: hidden !important;
-        }
-        #report-container table td > div,
-        #report-container table td > span {
-          display: flex !important;
-          align-items: center !important;
-        }
-        #report-container table td > div.justify-end {
-          justify-content: flex-end !important;
-        }
-        #report-container table td > div.justify-center {
-          justify-content: center !important;
-        }
-      `;
-      document.head.appendChild(style);
-      return () => {
-        const existing = document.getElementById('screenshot-fix');
-        if (existing) existing.remove();
-      };
-    }
-  }, [isScreenshotMode]);
+  // ===== HELPER: INJECT / REMOVE CSS KHI CHỤP ẢNH =====
+  const injectScreenshotCSS = () => {
+    const style = document.createElement('style');
+    style.id = 'screenshot-fix';
+    style.innerHTML = `
+      #report-container table {
+        table-layout: fixed !important;
+      }
+      #report-container table th {
+        height: 40px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        vertical-align: middle !important;
+        padding: 2px 4px !important;
+        line-height: 1.2 !important;
+      }
+      #report-container table td {
+        height: 28px !important;
+        vertical-align: middle !important;
+        padding: 2px 4px !important;
+        overflow: hidden !important;
+      }
+      #report-container table td > div,
+      #report-container table td > span {
+        display: flex !important;
+        align-items: center !important;
+      }
+      #report-container table td > div.justify-end {
+        justify-content: flex-end !important;
+      }
+      #report-container table td > div.justify-center {
+        justify-content: center !important;
+      }
+    `;
+    document.head.appendChild(style);
+  };
+
+  const removeScreenshotCSS = () => {
+    const existing = document.getElementById('screenshot-fix');
+    if (existing) existing.remove();
+  };
 
   const formatCurrency = (amount: number) => {
     if (!amount || isNaN(amount) || amount === 0) return "";
@@ -924,6 +923,7 @@ const DailyReport = () => {
 
     try {
       setIsScreenshotMode(true);
+      injectScreenshotCSS();
       await new Promise((resolve) => setTimeout(resolve, 400));
 
       const freshElement = document.getElementById("report-container");
@@ -957,6 +957,168 @@ const DailyReport = () => {
         windowHeight: freshElement.scrollHeight,
         scrollX: 0,
         scrollY: 0,
+        onclone: (clonedDoc, clonedElement) => {
+          // 1. Copy TẤT CẢ stylesheet (Tailwind, custom CSS) sang document clone
+          const originalStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
+          originalStyles.forEach((styleNode) => {
+            try {
+              const clonedStyle = styleNode.cloneNode(true) as HTMLElement;
+              clonedDoc.head.appendChild(clonedStyle);
+            } catch (e) {
+              // Bỏ qua nếu không clone được (cross-origin link)
+            }
+          });
+
+          // 2. Copy tất cả CSS variables từ :root
+          try {
+            const rootStyles = getComputedStyle(document.documentElement);
+            const cssVars: string[] = [];
+            for (let i = 0; i < rootStyles.length; i++) {
+              const prop = rootStyles[i];
+              if (prop.startsWith('--')) {
+                cssVars.push(`${prop}: ${rootStyles.getPropertyValue(prop)};`);
+              }
+            }
+            if (cssVars.length > 0) {
+              const varStyle = clonedDoc.createElement('style');
+              varStyle.textContent = `:root { ${cssVars.join(' ')} }`;
+              clonedDoc.head.appendChild(varStyle);
+            }
+          } catch (e) {
+            // Bỏ qua nếu không đọc được
+          }
+
+          // 3. Inject bridge CSS — đảm bảo các class Tailwind quan trọng hoạt động
+          const bridgeStyle = clonedDoc.createElement('style');
+          bridgeStyle.textContent = `
+            * { box-sizing: border-box; }
+            body, td, th, div, span, p, h1, h2, h3 {
+              font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+              color: #1e293b;
+            }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #94a3b8; }
+            .border { border-width: 1px; border-style: solid; }
+            .border-collapse { border-collapse: collapse; }
+            .border-slate-400 { border-color: #94a3b8 !important; }
+            .border-slate-600 { border-color: #475569 !important; }
+            .border-slate-900 { border-color: #0f172a !important; }
+            .border-emerald-300 { border-color: #6ee7b7 !important; }
+            .border-t-4 { border-top-width: 4px !important; border-top-style: solid !important; }
+            .border-y-2 { border-top-width: 2px !important; border-bottom-width: 2px !important; border-top-style: solid !important; border-bottom-style: solid !important; }
+            .bg-slate-200 { background-color: #e2e8f0 !important; }
+            .bg-slate-800 { background-color: #1e293b !important; }
+            .bg-slate-900 { background-color: #0f172a !important; }
+            .bg-emerald-50 { background-color: #ecfdf5 !important; }
+            .bg-emerald-100 { background-color: #d1fae5 !important; }
+            .bg-orange-50 { background-color: #fff7ed !important; }
+            .bg-blue-50\\/30 { background-color: rgba(239, 246, 255, 0.3) !important; }
+            .bg-primary\\/5 { background-color: rgba(59, 130, 246, 0.05) !important; }
+            .text-slate-800 { color: #1e293b !important; }
+            .text-slate-700 { color: #334155 !important; }
+            .text-emerald-700 { color: #047857 !important; }
+            .text-emerald-800 { color: #065f46 !important; }
+            .text-orange-600 { color: #ea580c !important; }
+            .text-orange-700 { color: #c2410c !important; }
+            .text-orange-300 { color: #fdba74 !important; }
+            .text-blue-600 { color: #2563eb !important; }
+            .text-blue-200 { color: #bfdbfe !important; }
+            .text-primary { color: #3b82f6 !important; }
+            .text-white { color: #ffffff !important; }
+            .font-bold { font-weight: 700 !important; }
+            .font-black { font-weight: 900 !important; }
+            .font-semibold { font-weight: 600 !important; }
+            .font-extrabold { font-weight: 800 !important; }
+            .font-medium { font-weight: 500 !important; }
+            .text-center { text-align: center !important; }
+            .text-right { text-align: right !important; }
+            .text-left { text-align: left !important; }
+            .whitespace-nowrap { white-space: nowrap !important; }
+            .tabular-nums { font-variant-numeric: tabular-nums !important; }
+            .flex { display: flex !important; }
+            .items-center { align-items: center !important; }
+            .justify-end { justify-content: flex-end !important; }
+            .justify-center { justify-content: center !important; }
+            .justify-between { justify-content: space-between !important; }
+            .w-full { width: 100% !important; }
+            .h-6 { height: 1.5rem !important; }
+            .h-7 { height: 1.75rem !important; }
+            .px-1 { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
+            .py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+            .px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+            .py-1\\\\.5 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
+            .p-0\\\\.5 { padding: 0.125rem !important; }
+            .text-\\\\[10px\\\\] { font-size: 10px !important; }
+            .text-\\\\[13px\\\\] { font-size: 13px !important; }
+            .sm\\\\:text-\\\\[13px\\\\] { font-size: 13px !important; }
+            .sm\\\\:text-sm { font-size: 0.875rem !important; }
+            .sm\\\\:p-1 { padding: 0.25rem !important; }
+            .sm\\\\:py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+            .sm\\\\:text-\\\\[13px\\\\] { font-size: 13px !important; }
+            .gap-2 { gap: 0.5rem !important; }
+            .gap-3 { gap: 0.75rem !important; }
+            .rounded { border-radius: 0.25rem !important; }
+            .rounded-md { border-radius: 0.375rem !important; }
+            .rounded-lg { border-radius: 0.5rem !important; }
+            .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; }
+            .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important; }
+            .inline-flex { display: inline-flex !important; }
+            .border-amber-200 { border-color: #fde68a !important; }
+            .border-emerald-200 { border-color: #a7f3d0 !important; }
+            .border-emerald-300 { border-color: #6ee7b7 !important; }
+            .bg-amber-50\\/50 { background-color: rgba(255, 251, 235, 0.5) !important; }
+            .bg-emerald-50\\/50 { background-color: rgba(236, 253, 245, 0.5) !important; }
+            .bg-emerald-50\\/60 { background-color: rgba(236, 253, 245, 0.6) !important; }
+            .text-amber-700 { color: #b45309 !important; }
+            .text-emerald-700 { color: #047857 !important; }
+            .text-slate-500 { color: #64748b !important; }
+            .text-muted-foreground { color: #64748b !important; }
+            .font-bold { font-weight: 700 !important; }
+            .self-start { align-self: flex-start !important; }
+            .h-fit { height: fit-content !important; }
+            .w-auto { width: auto !important; }
+            .min-w-\\\\[200px\\\\] { min-width: 200px !important; }
+            .min-w-\\\\[100px\\\\] { min-width: 100px !important; }
+            .min-w-\\\\[80px\\\\] { min-width: 80px !important; }
+            .min-w-\\\\[110px\\\\] { min-width: 110px !important; }
+            .min-w-\\\\[120px\\\\] { min-width: 120px !important; }
+            .min-w-\\\\[90px\\\\] { min-width: 90px !important; }
+            .min-w-\\\\[130px\\\\] { min-width: 130px !important; }
+            .min-w-\\\\[140px\\\\] { min-width: 140px !important; }
+            .min-w-\\\\[150px\\\\] { min-width: 150px !important; }
+            .min-w-\\\\[160px\\\\] { min-width: 160px !important; }
+            .min-w-\\\\[220px\\\\] { min-width: 220px !important; }
+            .w-\\\\[100px\\\\] { width: 100px !important; }
+            .w-\\\\[80px\\\\] { width: 80px !important; }
+            .w-\\\\[110px\\\\] { width: 110px !important; }
+            .w-\\\\[120px\\\\] { width: 120px !important; }
+            .w-\\\\[90px\\\\] { width: 90px !important; }
+            .w-\\\\[130px\\\\] { width: 130px !important; }
+            .w-\\\\[140px\\\\] { width: 140px !important; }
+            .w-\\\\[150px\\\\] { width: 150px !important; }
+            .w-\\\\[160px\\\\] { width: 160px !important; }
+            .w-\\\\[60px\\\\] { width: 60px !important; }
+            .text-\\\\[10px\\\\] { font-size: 10px !important; }
+            .text-base { font-size: 1rem !important; }
+            .text-sm { font-size: 0.875rem !important; }
+            .text-lg { font-size: 1.125rem !important; }
+            .text-xs { font-size: 0.75rem !important; }
+            .text-xl { font-size: 1.25rem !important; }
+            .text-3xl { font-size: 1.875rem !important; }
+            .text-4xl { font-size: 2.25rem !important; }
+            .py-0 { padding-top: 0 !important; padding-bottom: 0 !important; }
+            .py-0\\\\.5 { padding-top: 0.125rem !important; padding-bottom: 0.125rem !important; }
+            .px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+            .h-24 { height: 6rem !important; }
+            .h-32 { height: 8rem !important; }
+          `;
+          clonedDoc.head.appendChild(bridgeStyle);
+
+          // 4. Đảm bảo element clone có đúng width
+          try {
+            clonedElement.style.width = `${freshElement.scrollWidth}px`;
+          } catch (e) {}
+        },
       });
 
       const image = canvas.toDataURL("image/png");
@@ -968,6 +1130,7 @@ const DailyReport = () => {
       console.error("Lỗi khi chụp ảnh:", error);
       alert("❌ Có lỗi xảy ra khi chụp ảnh báo cáo!");
     } finally {
+      removeScreenshotCSS();
       setIsScreenshotMode(false);
       setScreenshotSnapshot(null);
 
@@ -1266,7 +1429,6 @@ const DailyReport = () => {
               tableLayout: isScreenshotMode ? "fixed" : "auto"
             }}
           >
-            {/* ===== COLGROUP: CỐ ĐỊNH WIDTH TỪNG CỘT ===== */}
             {isScreenshotMode && (
               <colgroup>
                 <col style={{ width: 100 }} />
