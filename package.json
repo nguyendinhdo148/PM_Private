@@ -13,6 +13,7 @@
   "description": "Project Management Application",
   "private": true,
   "dependencies": {
+    "groq-sdk": "^1.6.0",
     "modern-screenshot": "^4.7.0"
   }
 }

@@ -83,7 +83,6 @@ const DailyReport = () => {
 
   const editRowRef = useRef<HTMLTableRowElement>(null);
 
-  // ===== STATE CHO Ô ĐANG EDIT (3 cột DT Món ăn / Đồ uống / Khác) =====
   const [editingCell, setEditingCell] = useState<{ rowId: string; field: string } | null>(null);
   const [editingCellValue, setEditingCellValue] = useState<string>("");
 
@@ -194,36 +193,37 @@ const DailyReport = () => {
     }
   }, [editingId]);
 
-  // ===== HELPER: INJECT / REMOVE CSS KHI CHỤP ẢNH =====
+  // ===== CSS INJECT KHI CHỤP ẢNH =====
   const injectScreenshotCSS = () => {
     const style = document.createElement('style');
     style.id = 'screenshot-fix';
     style.innerHTML = `
-      #report-container table th {
-        height: 40px !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        vertical-align: middle !important;
-        padding: 2px 4px !important;
-        line-height: 1.2 !important;
-      }
+      #report-container table th,
       #report-container table td {
-        height: 28px !important;
+        white-space: nowrap !important;
         vertical-align: middle !important;
-        padding: 2px 4px !important;
-        overflow: hidden !important;
+        min-width: max-content !important;
+        width: auto !important;
+        max-width: none !important;
       }
       #report-container table td > div,
-      #report-container table td > span {
-        display: flex !important;
-        align-items: center !important;
+      #report-container table td > span,
+      #report-container table td > input,
+      #report-container table td > textarea {
+        min-width: max-content !important;
+        width: auto !important;
+        max-width: none !important;
+        white-space: nowrap !important;
       }
       #report-container table td > div.justify-end {
         justify-content: flex-end !important;
       }
       #report-container table td > div.justify-center {
         justify-content: center !important;
+      }
+      #report-container table {
+        table-layout: auto !important;
+        width: max-content !important;
       }
     `;
     document.head.appendChild(style);
@@ -889,408 +889,431 @@ const DailyReport = () => {
   };
 
   const handleScreenshot = async () => {
-  const element = document.getElementById("report-container");
-  if (!element) {
-    alert("Không tìm thấy nội dung báo cáo để chụp!");
-    return;
-  }
-
-  const snapshot = {
-    compact: isCompactMode,
-    founder: showFounderPoints,
-    note: showNote,
-    actions: showActions,
-    week: weekFilter,
-  };
-  setScreenshotSnapshot(snapshot);
-
-  const scrollWrapper = element.querySelector(".overflow-x-auto") as HTMLElement | null;
-  const footer = element.querySelector("tfoot") as HTMLElement | null;
-  const tableCard = element.querySelector(".overflow-hidden") as HTMLElement | null;
-
-  // ===== LƯU TẤT CẢ INLINE STYLE SẼ BỊ THAY ĐỔI =====
-  const savedStyles = {
-    element: {
-      width: element.style.width,
-      minWidth: element.style.minWidth,
-      maxWidth: element.style.maxWidth,
-      padding: element.style.padding,
-      position: element.style.position,
-    },
-    wrapper: scrollWrapper
-      ? {
-          overflow: scrollWrapper.style.overflow,
-          overflowX: scrollWrapper.style.overflowX,
-          width: scrollWrapper.style.width,
-          minWidth: scrollWrapper.style.minWidth,
-          maxWidth: scrollWrapper.style.maxWidth,
-        }
-      : null,
-    tableCard: tableCard
-      ? {
-          width: tableCard.style.width,
-          minWidth: tableCard.style.minWidth,
-          maxWidth: tableCard.style.maxWidth,
-        }
-      : null,
-    footerClass: footer?.className || "",
-  };
-
-  try {
-    setIsScreenshotMode(true);
-    injectScreenshotCSS();
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const freshElement = document.getElementById("report-container");
-    if (!freshElement) {
-      throw new Error("Không tìm thấy element sau khi render screenshot");
+    const element = document.getElementById("report-container");
+    if (!element) {
+      alert("Không tìm thấy nội dung báo cáo để chụp!");
+      return;
     }
 
-    const freshWrapper = freshElement.querySelector(".overflow-x-auto") as HTMLElement | null;
-    const freshFooter = freshElement.querySelector("tfoot") as HTMLElement | null;
-    const freshTable = freshElement.querySelector("table") as HTMLElement | null;
-    const freshTableCard = freshElement.querySelector(".overflow-hidden") as HTMLElement | null;
+    const snapshot = {
+      compact: isCompactMode,
+      founder: showFounderPoints,
+      note: showNote,
+      actions: showActions,
+      week: weekFilter,
+    };
+    setScreenshotSnapshot(snapshot);
 
-    if (!freshTable) {
-      throw new Error("Không tìm thấy bảng báo cáo");
-    }
+    const scrollWrapper = element.querySelector(".overflow-x-auto") as HTMLElement | null;
+    const footer = element.querySelector("tfoot") as HTMLElement | null;
+    const tableCard = element.querySelector(".overflow-hidden") as HTMLElement | null;
 
-    // Mở toàn bộ bảng để chụp
-    if (freshWrapper) {
-      freshWrapper.style.overflow = "visible";
-      freshWrapper.style.overflowX = "visible";
-      freshWrapper.style.width = "max-content";
-    }
-
-    if (freshFooter) {
-      freshFooter.classList.remove("sticky", "bottom-0");
-    }
-
-    // Container lấy đúng kích thước nội dung
-    freshElement.style.width = "max-content";
-    freshElement.style.position = "relative";
-    // ⚠️ Bỏ padding tạm thời để đo chính xác
-    freshElement.style.padding = "0";
-
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    // ===== TÍNH CHIỀU RỘNG THỰC CỦA BẢNG =====
-    // Dùng scrollWidth để lấy đúng chiều rộng nội dung bảng, không phụ thuộc scroll position
-    const tableWidth = Math.ceil(freshTable.scrollWidth);
-
-    // Lấy padding ban đầu của #report-container
-    const computedStyle = window.getComputedStyle(element);
-    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-    const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-
-    // Tổng chiều rộng = bảng + padding 2 bên (để không cắt mép phải)
-    const contentWidth = tableWidth + paddingLeft + paddingRight;
-
-    // Ép Card chứa bảng chỉ rộng bằng bảng thực tế
-    if (freshTableCard) {
-      freshTableCard.style.width = `${tableWidth}px`;
-      freshTableCard.style.minWidth = `${tableWidth}px`;
-      freshTableCard.style.maxWidth = `${tableWidth}px`;
-    }
-
-    // Wrapper bảng
-    if (freshWrapper) {
-      freshWrapper.style.width = `${tableWidth}px`;
-      freshWrapper.style.minWidth = `${tableWidth}px`;
-      freshWrapper.style.maxWidth = `${tableWidth}px`;
-    }
-
-    // #report-container = bảng + padding
-    freshElement.style.width = `${contentWidth}px`;
-    freshElement.style.minWidth = `${contentWidth}px`;
-    freshElement.style.maxWidth = `${contentWidth}px`;
-    freshElement.style.padding = `${paddingLeft}px ${paddingRight}px`;
-
-    const canvas = await html2canvas(freshElement, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: "#ffffff",
-      logging: false,
-
-      width: contentWidth,
-      height: freshElement.scrollHeight,
-
-      windowWidth: contentWidth,
-      windowHeight: freshElement.scrollHeight,
-
-      scrollX: 0,
-      scrollY: 0,
-
-      onclone: (clonedDoc, clonedElement) => {
-        /*
-         * QUAN TRỌNG:
-         * Không phụ thuộc vào Tailwind stylesheet production.
-         * Copy computed style từ DOM thật sang DOM clone.
-         */
-
-        const originalElements = [
-          freshElement,
-          ...Array.from(freshElement.querySelectorAll("*")),
-        ];
-
-        const clonedElements = [
-          clonedElement,
-          ...Array.from(clonedElement.querySelectorAll("*")),
-        ];
-
-        const length = Math.min(
-          originalElements.length,
-          clonedElements.length
-        );
-
-        for (let i = 0; i < length; i++) {
-          const original = originalElements[i] as HTMLElement;
-          const cloned = clonedElements[i] as HTMLElement;
-
-          try {
-            const computed = window.getComputedStyle(original);
-
-            const properties = [
-              "display",
-              "position",
-              "top",
-              "right",
-              "bottom",
-              "left",
-
-              "width",
-              "min-width",
-              "max-width",
-              "height",
-              "min-height",
-              "max-height",
-
-              "margin",
-              "margin-top",
-              "margin-right",
-              "margin-bottom",
-              "margin-left",
-
-              "padding",
-              "padding-top",
-              "padding-right",
-              "padding-bottom",
-              "padding-left",
-
-              "box-sizing",
-
-              "font-family",
-              "font-size",
-              "font-weight",
-              "font-style",
-              "line-height",
-              "letter-spacing",
-              "text-align",
-              "text-transform",
-              "text-decoration",
-              "font-variant-numeric",
-              "white-space",
-
-              "color",
-              "background",
-              "background-color",
-              "background-image",
-
-              "border",
-              "border-width",
-              "border-style",
-              "border-color",
-              "border-top",
-              "border-right",
-              "border-bottom",
-              "border-left",
-              "border-radius",
-
-              "box-shadow",
-
-              "overflow",
-              "overflow-x",
-              "overflow-y",
-
-              "vertical-align",
-
-              "opacity",
-
-              "flex",
-              "flex-direction",
-              "flex-wrap",
-              "flex-grow",
-              "flex-shrink",
-              "align-items",
-              "align-content",
-              "align-self",
-              "justify-content",
-              "justify-items",
-              "gap",
-              "row-gap",
-              "column-gap",
-
-              "grid",
-              "grid-template-columns",
-              "grid-template-rows",
-
-              "visibility",
-              "z-index",
-
-              "transform",
-              "white-space",
-            ];
-
-            properties.forEach((property) => {
-              const value = computed.getPropertyValue(property);
-
-              if (value) {
-                cloned.style.setProperty(
-                  property,
-                  value,
-                  "important"
-                );
-              }
-            });
-
-            if (
-              cloned.tagName === "INPUT" ||
-              cloned.tagName === "TEXTAREA" ||
-              cloned.tagName === "BUTTON"
-            ) {
-              cloned.style.caretColor = "transparent";
-              cloned.style.outline = "none";
-            }
-          } catch (error) {
-            console.warn("Không copy được style:", error);
-          }
-        }
-
-        const screenshotStyle = clonedDoc.createElement("style");
-
-        screenshotStyle.textContent = `
-          * {
-            box-sizing: border-box !important;
-          }
-
-          html,
-          body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #ffffff !important;
-          }
-
-          #report-container {
-            width: ${contentWidth}px !important;
-            min-width: ${contentWidth}px !important;
-            max-width: ${contentWidth}px !important;
-            padding: ${paddingLeft}px ${paddingRight}px !important;
-            position: relative !important;
-            overflow: visible !important;
-            background: #ffffff !important;
-          }
-
-          #report-container .overflow-x-auto {
-            overflow: visible !important;
-            overflow-x: visible !important;
-            width: ${tableWidth}px !important;
-            min-width: ${tableWidth}px !important;
-            max-width: ${tableWidth}px !important;
-          }
-
-          #report-container .overflow-hidden {
-            width: ${tableWidth}px !important;
-            min-width: ${tableWidth}px !important;
-            max-width: ${tableWidth}px !important;
-          }
-
-          #report-container table {
-            border-collapse: collapse !important;
-          }
-
-          #report-container th,
-          #report-container td {
-            vertical-align: middle !important;
-          }
-
-          #report-container tfoot {
-            position: static !important;
-          }
-
-          textarea {
-            resize: none !important;
-          }
-
-          input,
-          textarea,
-          button {
-            caret-color: transparent !important;
-          }
-        `;
-
-        clonedDoc.head.appendChild(screenshotStyle);
-
-        clonedElement.style.width = `${contentWidth}px`;
-        clonedElement.style.minWidth = `${contentWidth}px`;
-        clonedElement.style.maxWidth = `${contentWidth}px`;
-        clonedElement.style.padding = `${paddingLeft}px ${paddingRight}px`;
-        clonedElement.style.overflow = "visible";
+    const savedStyles = {
+      element: {
+        width: element.style.width,
+        minWidth: element.style.minWidth,
+        maxWidth: element.style.maxWidth,
+        padding: element.style.padding,
+        position: element.style.position,
       },
-    });
+      wrapper: scrollWrapper
+        ? {
+            overflow: scrollWrapper.style.overflow,
+            overflowX: scrollWrapper.style.overflowX,
+            width: scrollWrapper.style.width,
+            minWidth: scrollWrapper.style.minWidth,
+            maxWidth: scrollWrapper.style.maxWidth,
+          }
+        : null,
+      tableCard: tableCard
+        ? {
+            width: tableCard.style.width,
+            minWidth: tableCard.style.minWidth,
+            maxWidth: tableCard.style.maxWidth,
+          }
+        : null,
+      footerClass: footer?.className || "",
+    };
 
-    const image = canvas.toDataURL("image/png");
+    try {
+      setIsScreenshotMode(true);
+      injectScreenshotCSS();
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const link = document.createElement("a");
-    link.href = image;
-    link.download = `Bao_Cao_Doanh_Thu_${new Date().getTime()}.png`;
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-  } catch (error) {
-    console.error("Lỗi khi chụp ảnh:", error);
-    alert("❌ Có lỗi xảy ra khi chụp ảnh báo cáo!");
-  } finally {
-    removeScreenshotCSS();
-
-    setIsScreenshotMode(false);
-    setScreenshotSnapshot(null);
-
-    // ===== RESTORE TẤT CẢ INLINE STYLE =====
-    // Lấy lại element mới nhất vì React có thể đã replace DOM node sau re-render
-    const finalElement = document.getElementById("report-container");
-    if (finalElement) {
-      finalElement.style.width = savedStyles.element.width;
-      finalElement.style.minWidth = savedStyles.element.minWidth;
-      finalElement.style.maxWidth = savedStyles.element.maxWidth;
-      finalElement.style.padding = savedStyles.element.padding;
-      finalElement.style.position = savedStyles.element.position;
-
-      const finalWrapper = finalElement.querySelector(".overflow-x-auto") as HTMLElement | null;
-      if (finalWrapper && savedStyles.wrapper) {
-        finalWrapper.style.overflow = savedStyles.wrapper.overflow;
-        finalWrapper.style.overflowX = savedStyles.wrapper.overflowX;
-        finalWrapper.style.width = savedStyles.wrapper.width;
-        finalWrapper.style.minWidth = savedStyles.wrapper.minWidth;
-        finalWrapper.style.maxWidth = savedStyles.wrapper.maxWidth;
+      const freshElement = document.getElementById("report-container");
+      if (!freshElement) {
+        throw new Error("Không tìm thấy element sau khi render screenshot");
       }
 
-      const finalTableCard = finalElement.querySelector(".overflow-hidden") as HTMLElement | null;
-      if (finalTableCard && savedStyles.tableCard) {
-        finalTableCard.style.width = savedStyles.tableCard.width;
-        finalTableCard.style.minWidth = savedStyles.tableCard.minWidth;
-        finalTableCard.style.maxWidth = savedStyles.tableCard.maxWidth;
+      const freshWrapper = freshElement.querySelector(".overflow-x-auto") as HTMLElement | null;
+      const freshFooter = freshElement.querySelector("tfoot") as HTMLElement | null;
+      const freshTable = freshElement.querySelector("table") as HTMLElement | null;
+      const freshTableCard = freshElement.querySelector(".overflow-hidden") as HTMLElement | null;
+
+      if (!freshTable) {
+        throw new Error("Không tìm thấy bảng báo cáo");
       }
 
-      const finalFooter = finalElement.querySelector("tfoot") as HTMLElement | null;
-      if (finalFooter) {
-        finalFooter.className = savedStyles.footerClass;
+      // ===== FIX QUAN TRỌNG: BỎ TABLE-LAYOUT FIXED, ĐỂ BẢNG TỰ GIÃN =====
+      freshTable.style.tableLayout = "auto";
+      freshTable.style.width = "max-content";
+      freshTable.style.minWidth = "max-content";
+
+      // Bỏ mọi giới hạn width của colgroup
+      const cols = freshTable.querySelectorAll("colgroup col");
+      cols.forEach((col) => {
+        (col as HTMLElement).style.width = "auto";
+        (col as HTMLElement).style.minWidth = "auto";
+        (col as HTMLElement).style.maxWidth = "none";
+      });
+
+      // Mở toàn bộ wrapper
+      if (freshWrapper) {
+        freshWrapper.style.overflow = "visible";
+        freshWrapper.style.overflowX = "visible";
+        freshWrapper.style.width = "max-content";
+        freshWrapper.style.minWidth = "max-content";
+        freshWrapper.style.maxWidth = "none";
+      }
+
+      if (freshFooter) {
+        freshFooter.classList.remove("sticky", "bottom-0");
+      }
+
+      freshElement.style.width = "max-content";
+      freshElement.style.position = "relative";
+      freshElement.style.padding = "0";
+
+      // Đợi layout ổn định sau khi bỏ giới hạn
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      // ===== ĐO LẠI CHIỀU RỘNG THỰC TẾ SAU KHI GIÃN CỘT =====
+      const tableWidth = Math.ceil(freshTable.scrollWidth);
+
+      const computedStyle = window.getComputedStyle(element);
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+
+      const contentWidth = tableWidth + paddingLeft + paddingRight;
+
+      if (freshTableCard) {
+        freshTableCard.style.width = `${tableWidth}px`;
+        freshTableCard.style.minWidth = `${tableWidth}px`;
+        freshTableCard.style.maxWidth = `${tableWidth}px`;
+      }
+
+      if (freshWrapper) {
+        freshWrapper.style.width = `${tableWidth}px`;
+        freshWrapper.style.minWidth = `${tableWidth}px`;
+        freshWrapper.style.maxWidth = `${tableWidth}px`;
+      }
+
+      freshElement.style.width = `${contentWidth}px`;
+      freshElement.style.minWidth = `${contentWidth}px`;
+      freshElement.style.maxWidth = `${contentWidth}px`;
+      freshElement.style.padding = `${paddingLeft}px ${paddingRight}px`;
+
+      const canvas = await html2canvas(freshElement, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: "#ffffff",
+        logging: false,
+
+        width: contentWidth,
+        height: freshElement.scrollHeight,
+
+        windowWidth: contentWidth,
+        windowHeight: freshElement.scrollHeight,
+
+        scrollX: 0,
+        scrollY: 0,
+
+        onclone: (clonedDoc, clonedElement) => {
+          const originalElements = [
+            freshElement,
+            ...Array.from(freshElement.querySelectorAll("*")),
+          ];
+
+          const clonedElements = [
+            clonedElement,
+            ...Array.from(clonedElement.querySelectorAll("*")),
+          ];
+
+          const length = Math.min(
+            originalElements.length,
+            clonedElements.length
+          );
+
+          for (let i = 0; i < length; i++) {
+            const original = originalElements[i] as HTMLElement;
+            const cloned = clonedElements[i] as HTMLElement;
+
+            try {
+              const computed = window.getComputedStyle(original);
+
+              const properties = [
+                "display",
+                "position",
+                "top",
+                "right",
+                "bottom",
+                "left",
+
+                "width",
+                "min-width",
+                "max-width",
+                "height",
+                "min-height",
+                "max-height",
+
+                "margin",
+                "margin-top",
+                "margin-right",
+                "margin-bottom",
+                "margin-left",
+
+                "padding",
+                "padding-top",
+                "padding-right",
+                "padding-bottom",
+                "padding-left",
+
+                "box-sizing",
+
+                "font-family",
+                "font-size",
+                "font-weight",
+                "font-style",
+                "line-height",
+                "letter-spacing",
+                "text-align",
+                "text-transform",
+                "text-decoration",
+                "font-variant-numeric",
+                "white-space",
+
+                "color",
+                "background",
+                "background-color",
+                "background-image",
+
+                "border",
+                "border-width",
+                "border-style",
+                "border-color",
+                "border-top",
+                "border-right",
+                "border-bottom",
+                "border-left",
+                "border-radius",
+
+                "box-shadow",
+
+                "overflow",
+                "overflow-x",
+                "overflow-y",
+
+                "vertical-align",
+
+                "opacity",
+
+                "flex",
+                "flex-direction",
+                "flex-wrap",
+                "flex-grow",
+                "flex-shrink",
+                "align-items",
+                "align-content",
+                "align-self",
+                "justify-content",
+                "justify-items",
+                "gap",
+                "row-gap",
+                "column-gap",
+
+                "grid",
+                "grid-template-columns",
+                "grid-template-rows",
+
+                "visibility",
+                "z-index",
+
+                "transform",
+                "white-space",
+              ];
+
+              properties.forEach((property) => {
+                const value = computed.getPropertyValue(property);
+
+                if (value) {
+                  cloned.style.setProperty(
+                    property,
+                    value,
+                    "important"
+                  );
+                }
+              });
+
+              if (
+                cloned.tagName === "INPUT" ||
+                cloned.tagName === "TEXTAREA" ||
+                cloned.tagName === "BUTTON"
+              ) {
+                cloned.style.caretColor = "transparent";
+                cloned.style.outline = "none";
+              }
+            } catch (error) {
+              console.warn("Không copy được style:", error);
+            }
+          }
+
+          const screenshotStyle = clonedDoc.createElement("style");
+
+          screenshotStyle.textContent = `
+            * {
+              box-sizing: border-box !important;
+            }
+
+            html,
+            body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+            }
+
+            #report-container {
+              width: ${contentWidth}px !important;
+              min-width: ${contentWidth}px !important;
+              max-width: ${contentWidth}px !important;
+              padding: ${paddingLeft}px ${paddingRight}px !important;
+              position: relative !important;
+              overflow: visible !important;
+              background: #ffffff !important;
+            }
+
+            #report-container .overflow-x-auto {
+              overflow: visible !important;
+              overflow-x: visible !important;
+              width: ${tableWidth}px !important;
+              min-width: ${tableWidth}px !important;
+              max-width: ${tableWidth}px !important;
+            }
+
+            #report-container .overflow-hidden {
+              width: ${tableWidth}px !important;
+              min-width: ${tableWidth}px !important;
+              max-width: ${tableWidth}px !important;
+            }
+
+            #report-container table {
+              border-collapse: collapse !important;
+              table-layout: auto !important;
+              width: max-content !important;
+            }
+
+            #report-container th,
+            #report-container td {
+              vertical-align: middle !important;
+              white-space: nowrap !important;
+              min-width: max-content !important;
+              width: auto !important;
+              max-width: none !important;
+            }
+
+            #report-container td > div,
+            #report-container td > span,
+            #report-container td > input,
+            #report-container td > textarea {
+              min-width: max-content !important;
+              width: auto !important;
+              max-width: none !important;
+              white-space: nowrap !important;
+            }
+
+            #report-container tfoot {
+              position: static !important;
+            }
+
+            textarea {
+              resize: none !important;
+            }
+
+            input,
+            textarea,
+            button {
+              caret-color: transparent !important;
+            }
+          `;
+
+          clonedDoc.head.appendChild(screenshotStyle);
+
+          clonedElement.style.width = `${contentWidth}px`;
+          clonedElement.style.minWidth = `${contentWidth}px`;
+          clonedElement.style.maxWidth = `${contentWidth}px`;
+          clonedElement.style.padding = `${paddingLeft}px ${paddingRight}px`;
+          clonedElement.style.overflow = "visible";
+        },
+      });
+
+      const image = canvas.toDataURL("image/png");
+
+      const link = document.createElement("a");
+      link.href = image;
+      link.download = `Bao_Cao_Doanh_Thu_${new Date().getTime()}.png`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+    } catch (error) {
+      console.error("Lỗi khi chụp ảnh:", error);
+      alert("❌ Có lỗi xảy ra khi chụp ảnh báo cáo!");
+    } finally {
+      removeScreenshotCSS();
+
+      setIsScreenshotMode(false);
+      setScreenshotSnapshot(null);
+
+      const finalElement = document.getElementById("report-container");
+      if (finalElement) {
+        finalElement.style.width = savedStyles.element.width;
+        finalElement.style.minWidth = savedStyles.element.minWidth;
+        finalElement.style.maxWidth = savedStyles.element.maxWidth;
+        finalElement.style.padding = savedStyles.element.padding;
+        finalElement.style.position = savedStyles.element.position;
+
+        const finalWrapper = finalElement.querySelector(".overflow-x-auto") as HTMLElement | null;
+        if (finalWrapper && savedStyles.wrapper) {
+          finalWrapper.style.overflow = savedStyles.wrapper.overflow;
+          finalWrapper.style.overflowX = savedStyles.wrapper.overflowX;
+          finalWrapper.style.width = savedStyles.wrapper.width;
+          finalWrapper.style.minWidth = savedStyles.wrapper.minWidth;
+          finalWrapper.style.maxWidth = savedStyles.wrapper.maxWidth;
+        }
+
+        const finalTableCard = finalElement.querySelector(".overflow-hidden") as HTMLElement | null;
+        if (finalTableCard && savedStyles.tableCard) {
+          finalTableCard.style.width = savedStyles.tableCard.width;
+          finalTableCard.style.minWidth = savedStyles.tableCard.minWidth;
+          finalTableCard.style.maxWidth = savedStyles.tableCard.maxWidth;
+        }
+
+        const finalFooter = finalElement.querySelector("tfoot") as HTMLElement | null;
+        if (finalFooter) {
+          finalFooter.className = savedStyles.footerClass;
+        }
+
+        // Reset lại table layout về mặc định
+        const finalTable = finalElement.querySelector("table") as HTMLElement | null;
+        if (finalTable) {
+          finalTable.style.tableLayout = "";
+          finalTable.style.width = "";
+          finalTable.style.minWidth = "";
+        }
       }
     }
-  }
-};
+  };
 
   const renderCompact = isScreenshotMode && screenshotSnapshot 
     ? screenshotSnapshot.compact 
@@ -1315,6 +1338,7 @@ const DailyReport = () => {
   const hideCashColumns = isScreenshotMode;
 
   // ===== RENDER Ô 3 CỘT DT TRƯỚC THUẾ (click-to-edit, căn phải chuẩn) =====
+  // BỎ width/minWidth CỨNG KHI Ở SCREENSHOT MODE
   const renderRevenueCell = (
     row: DailyRevenue,
     field: "foodRevenue" | "drinkRevenue" | "otherRevenue",
@@ -1327,7 +1351,7 @@ const DailyReport = () => {
       return (
         <TableCell
           className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap"
-          style={{ width: 160, minWidth: 160 }}
+          style={{ minWidth: "max-content" }}
         >
           <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums">
             {displayValue || "0"}
@@ -1571,23 +1595,9 @@ const DailyReport = () => {
             style={{ 
               width: "max-content", 
               minWidth: "100%",
-              tableLayout: isScreenshotMode ? "fixed" : "auto"
+              tableLayout: isScreenshotMode ? "auto" : "auto"
             }}
           >
-            {isScreenshotMode && (
-              <colgroup>
-                <col style={{ width: 100 }} />
-                <col style={{ width: 80 }} />
-                <col style={{ width: 160 }} />
-                <col style={{ width: 160 }} />
-                <col style={{ width: 160 }} />
-                <col style={{ width: 130 }} />
-                <col style={{ width: 140 }} />
-                <col style={{ width: 90 }} />
-                <col style={{ width: 130 }} />
-                <col style={{ width: 90 }} />
-              </colgroup>
-            )}
             <TableHeader>
               <TableRow className="bg-slate-200">
                 <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[100px] w-[100px]">Ngày</TableHead>
@@ -1722,7 +1732,7 @@ const DailyReport = () => {
                                 <>
                                   <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                                     {isScreenshotMode ? (
-                                      <div className="w-full min-w-[110px] h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums">
+                                      <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
                                         {formatCurrencyNoUnit(row.cash) || "0"}
                                       </div>
                                     ) : (
@@ -1736,7 +1746,7 @@ const DailyReport = () => {
                                   </TableCell>
                                   <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                                     {isScreenshotMode ? (
-                                      <div className="w-full min-w-[120px] h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums">
+                                      <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
                                         {formatCurrencyNoUnit(row.transfer) || "0"}
                                       </div>
                                     ) : (
@@ -1750,7 +1760,7 @@ const DailyReport = () => {
                                   </TableCell>
                                   <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                                     {isScreenshotMode ? (
-                                      <div className="w-full min-w-[110px] h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums">
+                                      <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
                                         {formatCurrencyNoUnit(row.card) || "0"}
                                       </div>
                                     ) : (
@@ -1764,7 +1774,7 @@ const DailyReport = () => {
                                   </TableCell>
                                   <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                                     {isScreenshotMode ? (
-                                      <div className="w-full min-w-[110px] h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums">
+                                      <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
                                         {formatCurrencyNoUnit(row.debt) || "0"}
                                       </div>
                                     ) : (
@@ -1781,7 +1791,7 @@ const DailyReport = () => {
                               {renderFounder && (
                                 <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                                   {isScreenshotMode ? (
-                                    <div className="w-full min-w-[110px] h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums">
+                                    <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
                                       {formatCurrencyNoUnit(row.founderPoints) || "0"}
                                     </div>
                                   ) : (
@@ -1807,18 +1817,18 @@ const DailyReport = () => {
                           )}
 
                           <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap bg-orange-50">
-                            <div className="min-w-[130px] w-[130px] text-right h-6 sm:h-7 flex items-center justify-end px-1 font-bold text-orange-700 text-[10px] sm:text-[13px] tabular-nums whitespace-nowrap overflow-visible">
+                            <div className="w-full text-right h-6 sm:h-7 flex items-center justify-end px-1 font-bold text-orange-700 text-[10px] sm:text-[13px] tabular-nums whitespace-nowrap overflow-visible">
                               {formatCurrencyNoUnit(preTaxDisplay) || "0"}
                             </div>
                           </TableCell>
 
-                          <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[10px] sm:text-[13px] tabular-nums min-w-[140px] w-[140px]">
+                          <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[10px] sm:text-[13px] tabular-nums">
                             {formatCurrency(totalGross) || "0 ₫"}
                           </TableCell>
 
                           <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                             {isScreenshotMode ? (
-                              <div className="w-full min-w-[90px] h-6 sm:h-7 flex items-center justify-center text-[10px] sm:text-[13px] font-medium tabular-nums">
+                              <div className="w-full h-6 sm:h-7 flex items-center justify-center text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
                                 {row.guestCount || "0"}
                               </div>
                             ) : (
@@ -1837,7 +1847,7 @@ const DailyReport = () => {
 
                           <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
                             {isScreenshotMode ? (
-                              <div className="w-full min-w-[90px] h-6 sm:h-7 flex items-center justify-center text-[10px] sm:text-[13px] font-medium tabular-nums">
+                              <div className="w-full h-6 sm:h-7 flex items-center justify-center text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
                                 {row.billCount || "0"}
                               </div>
                             ) : (

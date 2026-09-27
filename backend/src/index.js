@@ -1,6 +1,6 @@
+import "dotenv/config";
 import cors from "cors";
 import express from "express";
-import dotenv from "dotenv";
 import morgan from "morgan";
 import http from "http";
 import { Server } from "socket.io";
@@ -12,8 +12,6 @@ import routes from "./routes/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
@@ -43,8 +41,6 @@ const PORT = process.env.PORT || 5000;
 // API Routes
 app.use("/api-v1", routes);
 
-// ĐÃ SỬA: Xóa phần phục vụ file tĩnh (static files) của Frontend
-// Thêm một route gốc để kiểm tra Backend xem đã chạy thành công chưa
 app.get("/", (req, res) => {
   res.status(200).json({ 
     status: "success",
@@ -73,27 +69,22 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.userId);
   
-  // Join user to personal room
   socket.join(`user:${socket.userId}`);
   
-  // Join conversation room
   socket.on("join-conversation", (conversationId) => {
     socket.join(`conversation:${conversationId}`);
     console.log(`User ${socket.userId} joined conversation ${conversationId}`);
   });
   
-  // Leave conversation room
   socket.on("leave-conversation", (conversationId) => {
     socket.leave(`conversation:${conversationId}`);
   });
   
-  // Send message (broadcast to conversation room)
   socket.on("send-message", (data) => {
     const { conversationId, messageData } = data;
     io.to(`conversation:${conversationId}`).emit("new-message", messageData);
   });
   
-  // Typing indicator
   socket.on("typing", (data) => {
     const { conversationId, isTyping } = data;
     socket.to(`conversation:${conversationId}`).emit("user-typing", {

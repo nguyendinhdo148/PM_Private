@@ -24,6 +24,9 @@ import cancelReportRoutes from "./cancelReport.js";
 // <-- IMPORT ROUTE GỬI RƯỢU (BOTTLE KEEP) -->
 import bottleKeepRoutes from "./bottleKeep.js";
 
+// <-- IMPORT ROUTE AI -->
+import aiRoutes from "./ai-routes.js";
+
 const router = express.Router();
 
 router.use("/auth", authRoutes);
@@ -49,5 +52,8 @@ router.use("/cancel-reports", cancelReportRoutes);
 
 // <-- GẮN API GỬI RƯỢU VÀO ĐÂY -->
 router.use("/bottle-keep", bottleKeepRoutes);
+
+// <-- GẮN API AI VÀO ĐÂY -->
+router.use("/ai", aiRoutes);
 
 export default router;
