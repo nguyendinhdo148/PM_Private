@@ -32,6 +32,7 @@ type TipBoard = {
   periodName: string;
   totalTip: number;
   topPerformerName: string;
+  applyBonus?: boolean; // Lưu trạng thái trích 500K
   details: TipDetail[];
   createdAt?: string;
 };
@@ -46,6 +47,7 @@ export default function TipManagement() {
   const [totalTipStr, setTotalTipStr] = useState<string>("");
   const [topPerformerId, setTopPerformerId] = useState<string>("");
   const [activeStaffList, setActiveStaffList] = useState<StaffMember[]>([]);
+  const [applyBonus, setApplyBonus] = useState(true); // Mặc định trừ 500K thưởng TOP 1
 
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffDept, setNewStaffDept] = useState<"FOH" | "BOH">("FOH");
@@ -79,6 +81,7 @@ export default function TipManagement() {
 
   const resetFormToNew = (staffBase: StaffMember[] = masterStaff) => {
     setMonth(""); setPeriodName(""); setTotalTipStr(""); setTopPerformerId("");
+    setApplyBonus(true); // Reset về mặc định có trích 500K
     // Chỉ lấy nhân viên chưa bị xóa cho bảng mới
     const activeStaff = staffBase.filter(s => !s.isDeleted);
     setActiveStaffList(activeStaff.map(s => ({ ...s, workDays: "", penalty: "" })));
@@ -122,6 +125,9 @@ export default function TipManagement() {
         setPeriodName(board.periodName); 
         setTotalTipStr(board.totalTip ? board.totalTip.toString() : "");
         
+        // Khôi phục trạng thái trích 500K (mặc định true nếu board cũ không có field này)
+        setApplyBonus(board.applyBonus !== false);
+        
         // Tìm top performer
         const topDetail = board.details.find((d: any) => d.isTopPerformer);
         const topStaff = masterStaff.find(s => s.name === topDetail?.employeeName);
@@ -136,7 +142,8 @@ export default function TipManagement() {
 
   const calculations = useMemo(() => {
     const tipValue = Number(totalTipStr) || 0;
-    const remainingTip = Math.max(0, tipValue - BONUS_AMOUNT);
+    const bonus = applyBonus ? BONUS_AMOUNT : 0;
+    const remainingTip = Math.max(0, tipValue - bonus);
     
     const activeMembers = activeStaffList.filter(s => Number(s.workDays) > 0);
     const totalDays = activeMembers.reduce((acc, curr) => acc + Number(curr.workDays), 0);
@@ -147,7 +154,8 @@ export default function TipManagement() {
     const details = activeMembers.map((staff) => {
       const days = Number(staff.workDays);
       const penalty = Number(staff.penalty) || 0; 
-      const isTop = staff._id === topPerformerId;
+      // Chỉ coi là TOP khi có bật trích bonus
+      const isTop = applyBonus && staff._id === topPerformerId;
       const baseTip = days * tipPerDay;
       
       let fundDeduction = 0;
@@ -167,8 +175,8 @@ export default function TipManagement() {
       return { ...staff, days, isTop, baseTip, fundDeduction, penalty, finalTip };
     });
 
-    return { remainingTip, totalDays, tipPerDay, totalServiceFund, details };
-  }, [totalTipStr, activeStaffList, topPerformerId]);
+    return { remainingTip, totalDays, tipPerDay, totalServiceFund, details, applyBonus };
+  }, [totalTipStr, activeStaffList, topPerformerId, applyBonus]);
 
   const formatVND = (amount: number) => Math.round(amount).toLocaleString("vi-VN") + "đ";
 
@@ -190,7 +198,7 @@ export default function TipManagement() {
     
     // Tìm tên top performer
     let topPerformerName = "";
-    if (topPerformerId) {
+    if (applyBonus && topPerformerId) {
       const topStaff = activeStaffList.find(s => s._id === topPerformerId);
       topPerformerName = topStaff?.name || "";
     }
@@ -200,6 +208,7 @@ export default function TipManagement() {
       periodName, 
       totalTip: Number(totalTipStr),
       topPerformerName,
+      applyBonus,
       staffList: calculations.details.map(d => ({ 
         employeeName: d.name, 
         department: d.department, 
@@ -379,6 +388,23 @@ export default function TipManagement() {
                     />
                   </div>
                 </div>
+
+                {/* CHECKBOX BẬT/TẮT TRÍCH 500K THƯỞNG TOP 1 */}
+                <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-slate-100">
+                  <input
+                    type="checkbox"
+                    id="applyBonus"
+                    checked={applyBonus}
+                    onChange={e => setApplyBonus(e.target.checked)}
+                    className="w-4 h-4 accent-blue-600 cursor-pointer"
+                  />
+                  <label htmlFor="applyBonus" className="text-xs font-semibold text-slate-700 cursor-pointer select-none flex items-center gap-1.5">
+                    Trích <span className="text-rose-600 font-bold">500.000đ</span> thưởng cho TOP 1
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${applyBonus ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
+                      {applyBonus ? "ĐANG BẬT" : "CHIA ĐỀU"}
+                    </span>
+                  </label>
+                </div>
               </div>
 
               {/* KHỐI THỐNG KÊ */}
@@ -386,7 +412,7 @@ export default function TipManagement() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 h-full items-center text-center">
                   <div className="bg-gradient-to-br from-rose-50 to-red-50 p-2.5 rounded-lg border border-rose-200 flex flex-col justify-center">
                     <p className="text-[10px] text-rose-600 font-bold whitespace-nowrap uppercase tracking-wide">
-                      Còn lại <span className="text-rose-500 font-medium">(-500K)</span>
+                      Còn lại {applyBonus && <span className="text-rose-500 font-medium">(-500K)</span>}
                     </p>
                     <p className="text-base font-bold text-rose-700 tabular-nums">{formatVND(calculations.remainingTip)}</p>
                   </div>
@@ -435,12 +461,13 @@ export default function TipManagement() {
                         const calc = calculations.details.find(d => d._id === row._id);
                         const isTop = topPerformerId === row._id;
                         const isDeleted = isStaffDeleted(row);
+                        const showTopHighlight = isTop && applyBonus;
                         return (
-                          <tr key={row._id} className={`border-b border-slate-100 transition-colors ${isTop ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400' : ''} ${isDeleted ? 'bg-slate-100 opacity-75' : 'hover:bg-blue-50/40'}`}>
+                          <tr key={row._id} className={`border-b border-slate-100 transition-colors ${showTopHighlight ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400' : ''} ${isDeleted ? 'bg-slate-100 opacity-75' : 'hover:bg-blue-50/40'}`}>
                             <td className="p-2 pl-3 border-r border-slate-100 font-semibold text-xs whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
                                 <span className={isDeleted ? 'line-through text-slate-400' : 'text-slate-800'}>{row.name}</span>
-                                {isTop && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />}
+                                {isTop && <Star className={`w-3.5 h-3.5 ${applyBonus ? 'text-yellow-500 fill-yellow-500' : 'text-slate-400'}`} />}
                                 {isDeleted && (
                                   <Badge variant="destructive" className="text-[9px] h-4 px-1.5">Đã nghỉ</Badge>
                                 )}
@@ -458,8 +485,9 @@ export default function TipManagement() {
                             <td className="p-1 border-r border-slate-100 text-center">
                                <button 
                                  onClick={() => !isDeleted && setTopPerformerId(isTop ? "" : row._id)} 
-                                 className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${isTop ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110' : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105'} ${isDeleted ? 'cursor-not-allowed opacity-50' : ''}`}
+                                 className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${isTop ? (applyBonus ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110' : 'bg-slate-300 text-white scale-110') : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105'} ${isDeleted ? 'cursor-not-allowed opacity-50' : ''}`}
                                  disabled={isDeleted}
+                                 title={applyBonus ? "Chọn làm TOP 1 (+500K)" : "Chỉ đánh dấu, không cộng thưởng"}
                                >★</button>
                             </td>
                             <td className="p-2 border-r border-slate-100 text-right text-slate-600 text-[11px] whitespace-nowrap tabular-nums">{calc ? formatVND(calc.baseTip) : "-"}</td>
@@ -510,12 +538,13 @@ export default function TipManagement() {
                         const calc = calculations.details.find(d => d._id === row._id);
                         const isTop = topPerformerId === row._id;
                         const isDeleted = isStaffDeleted(row);
+                        const showTopHighlight = isTop && applyBonus;
                         return (
-                          <tr key={row._id} className={`border-b border-slate-100 transition-colors ${isTop ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400' : ''} ${isDeleted ? 'bg-slate-100 opacity-75' : 'hover:bg-emerald-50/40'}`}>
+                          <tr key={row._id} className={`border-b border-slate-100 transition-colors ${showTopHighlight ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400' : ''} ${isDeleted ? 'bg-slate-100 opacity-75' : 'hover:bg-emerald-50/40'}`}>
                             <td className="p-2 pl-3 border-r border-slate-100 font-semibold text-xs whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
                                 <span className={isDeleted ? 'line-through text-slate-400' : 'text-slate-800'}>{row.name}</span>
-                                {isTop && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />}
+                                {isTop && <Star className={`w-3.5 h-3.5 ${applyBonus ? 'text-yellow-500 fill-yellow-500' : 'text-slate-400'}`} />}
                                 {isDeleted && (
                                   <Badge variant="destructive" className="text-[9px] h-4 px-1.5">Đã nghỉ</Badge>
                                 )}
@@ -533,8 +562,9 @@ export default function TipManagement() {
                             <td className="p-1 border-r border-slate-100 text-center">
                                <button 
                                  onClick={() => !isDeleted && setTopPerformerId(isTop ? "" : row._id)} 
-                                 className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${isTop ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110' : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105'} ${isDeleted ? 'cursor-not-allowed opacity-50' : ''}`}
+                                 className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${isTop ? (applyBonus ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110' : 'bg-slate-300 text-white scale-110') : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105'} ${isDeleted ? 'cursor-not-allowed opacity-50' : ''}`}
                                  disabled={isDeleted}
+                                 title={applyBonus ? "Chọn làm TOP 1 (+500K)" : "Chỉ đánh dấu, không cộng thưởng"}
                                >★</button>
                             </td>
                             <td className="p-2 border-r border-slate-100 text-right text-slate-600 text-[11px] whitespace-nowrap tabular-nums">{calc ? formatVND(calc.baseTip) : "-"}</td>
