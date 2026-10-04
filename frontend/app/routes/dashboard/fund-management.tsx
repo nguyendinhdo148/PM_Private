@@ -74,7 +74,7 @@ export default function FundManagement() {
     return s;
   }, [transactions]);
 
-  // Logic tính quỹ
+  // Logic tính quỹ (GIỮ NGUYÊN)
   const actualTotalFund = stats.DEPOSIT - stats.WITHDRAWAL; 
   const pendingAdvances = stats.ADVANCE - stats.REFUND; 
   const currentBalance = actualTotalFund - pendingAdvances; 
@@ -198,10 +198,8 @@ export default function FundManagement() {
     if (!formData.title || !formData.amount || !formData.transactionDate) return;
 
     const numAmount = Number(formData.amount);
-    if (formData.type === "WITHDRAWAL" && !editingId && numAmount > currentBalance) {
-      alert("Quỹ mặt không đủ số dư để trích xuất khoản tiền này, vui lòng thu hồi ứng trước!");
-      return;
-    }
+    // Không chặn trích quỹ nữa — nếu tiền mặt không đủ (hoặc đang âm),
+    // khoản trích sẽ trừ thẳng vào Tổng quỹ thực tế.
 
     try {
       const payload = {
@@ -299,7 +297,12 @@ export default function FundManagement() {
             <div className={cn("text-3xl font-extrabold", currentBalance < 0 ? "text-rose-500" : "text-foreground")}>
               {formatMoney(currentBalance)}
             </div>
-            {currentBalance < 0 && <p className="text-xs text-rose-500 mt-2 flex items-center font-medium"><AlertCircle className="w-3 h-3 mr-1"/>Quỹ âm do có người ứng tiền</p>}
+            {currentBalance < 0 && (
+              <p className="text-xs text-rose-500 mt-2 flex items-center font-medium">
+                <AlertCircle className="w-3 h-3 mr-1"/>
+                Tiền mặt đang âm do có người ứng tiền
+              </p>
+            )}
           </CardContent>
         </Card>
 
