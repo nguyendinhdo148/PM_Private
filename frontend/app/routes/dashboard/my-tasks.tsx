@@ -6,7 +6,7 @@ import {
   Plus, Trash2, List, Download, CalendarDays, CalendarRange,
   ChevronLeft, ChevronRight, Loader2, Send, Copy, Check,
 } from "lucide-react";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchData, postData, deleteData } from "@/lib/fetch-util";
 import * as XLSX from "xlsx";
@@ -88,6 +88,15 @@ const fmtCompact = (n: number) => {
   return n.toString();
 };
 
+const formatCurrency = (val: number) => {
+  if (!val) return "0";
+  return new Intl.NumberFormat("vi-VN").format(val);
+};
+
+// Cache enrich trong memory — tránh refetch khi quay lại trang
+const enrichCache = new Map<string, { data: MonthlyReport; ts: number }>();
+const CACHE_TTL = 1000 * 60 * 5; // 5 phút
+
 // ============================================================
 // AI ANSWER RENDERER
 // ============================================================
@@ -106,21 +115,14 @@ interface ChartSpec {
 
 const SECTION_EMOJIS = "📊|👥|🧾|💰|💸|📌|💡|⚠️|🎯|📈|📉|🔥|✅|❌|💳|🚀|🔗";
 
-/**
- * Parse câu trả lời AI thành intro + sections.
- * QUAN TRỌNG: tự chèn \n\n trước emoji nếu emoji đang nằm giữa dòng,
- * để parser luôn tách đúng section ngay cả khi AI viết dính.
- */
 function parseAiAnswer(text: string): { intro: string[]; sections: Section[] } {
   if (!text) return { intro: [], sections: [] };
 
-  // BƯỚC 1: Chèn \n\n trước mọi emoji section nằm giữa dòng
   const normalized = text.replace(
     new RegExp(`([^\\n])\\s*(${SECTION_EMOJIS})`, "g"),
     (_m, before, emoji) => `${before}\n\n${emoji}`
   );
 
-  // BƯỚC 2: Parse theo dòng
   const lines = normalized.split("\n").map((l) => l.trimEnd());
   const intro: string[] = [];
   const sections: Section[] = [];
@@ -149,9 +151,6 @@ function parseAiAnswer(text: string): { intro: string[]; sections: Section[] } {
   };
 }
 
-/**
- * Extract [CHART:type]{json}[/CHART] blocks khỏi text.
- */
 function extractChartBlocks(text: string): { cleanText: string; charts: ChartSpec[] } {
   const charts: ChartSpec[] = [];
   const chartRegex = /\[CHART:(\w+)\]\s*(\{[\s\S]*?\})\s*\[\/CHART\]/g;
@@ -169,10 +168,6 @@ function extractChartBlocks(text: string): { cleanText: string; charts: ChartSpe
   return { cleanText, charts };
 }
 
-/**
- * Format inline: bỏ markdown, format số, xử lý link.
- * Khi không có link → trả STRING thuần (tránh dấu câu bị tách node).
- */
 function formatInline(text: string): React.ReactNode {
   let cleaned = text.replace(/\*\*(.+?)\*\*/g, "$1");
   cleaned = cleaned.replace(/\*(.+?)\*/g, "$1");
@@ -202,7 +197,7 @@ function formatInline(text: string): React.ReactNode {
   });
 }
 
-function ChartBlock({ spec }: { spec: ChartSpec }) {
+const ChartBlock = React.memo(function ChartBlock({ spec }: { spec: ChartSpec }) {
   const colors = ["#0f172a", "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"];
 
   if (!spec.data || spec.data.length === 0) return null;
@@ -249,7 +244,6 @@ function ChartBlock({ spec }: { spec: ChartSpec }) {
     );
   }
 
-  // default bar
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 my-3">
       {spec.title && (
@@ -268,28 +262,25 @@ function ChartBlock({ spec }: { spec: ChartSpec }) {
       </div>
     </div>
   );
-}
+});
 
-function AiAnswerRenderer({ text }: { text: string }) {
-  const { cleanText, charts } = extractChartBlocks(text);
-  const { intro, sections } = parseAiAnswer(cleanText);
+const AiAnswerRenderer = React.memo(function AiAnswerRenderer({ text }: { text: string }) {
+  const { cleanText, charts } = useMemo(() => extractChartBlocks(text), [text]);
+  const { intro, sections } = useMemo(() => parseAiAnswer(cleanText), [cleanText]);
 
   return (
     <div className="space-y-4 text-sm">
-      {/* INTRO — kết luận ngắn, không nền */}
       {intro.length > 0 && (
         <p className="text-[15px] text-slate-800 leading-relaxed">
           {formatInline(intro.join(" "))}
         </p>
       )}
 
-      {/* SECTIONS — mỗi section có nền riêng, tách biệt rõ */}
       {sections.map((sec, i) => (
         <div
           key={i}
           className="rounded-lg border border-slate-200 bg-slate-50/60 overflow-hidden"
         >
-          {/* Section header */}
           {sec.title && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-white border-b border-slate-200">
               <span className="text-base leading-none">{sec.emoji}</span>
@@ -299,7 +290,6 @@ function AiAnswerRenderer({ text }: { text: string }) {
             </div>
           )}
 
-          {/* Section body */}
           <div className="px-4 py-3 space-y-1.5">
             {sec.lines
               .filter((l) => l.trim())
@@ -361,13 +351,12 @@ function AiAnswerRenderer({ text }: { text: string }) {
         </div>
       ))}
 
-      {/* Charts */}
       {charts.map((spec, i) => (
         <ChartBlock key={i} spec={spec} />
       ))}
     </div>
   );
-}
+});
 
 // ============================================================
 // MAIN
@@ -395,93 +384,141 @@ const MyTasks = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiCopied, setAiCopied] = useState(false);
 
-  const availableYears = useMemo(() => {
-    const years = new Set(reports.map((r) => r.monthKey.split("-")[0]));
-    return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, [reports]);
-
-  useEffect(() => {
-    loadReports();
-  }, []);
-
-  const loadReports = async () => {
+  // ─── LOAD REPORTS: 1 request hiển thị ngay, enrich nền ───
+  const loadReports = useCallback(async () => {
     try {
       const res = (await fetchData("/monthly-reports")) as ApiResponse<MonthlyReport[]>;
-      if (res.success) {
-        setReports(res.data);
-        await enrichReportsWithExpenses(res.data);
-      }
+      if (!res.success) return;
+
+      setReports(res.data);
+
+      // Set ngay với data thô (KPI sẽ hiện ngay, các field breakdown = 0)
+      setEnrichedReports((prev) => {
+        const map = new Map(prev.map((r) => [r._id, r]));
+        return res.data.map((r) => {
+          const cached = map.get(r._id);
+          // ưu tiên cache trong memory nếu có
+          const mem = enrichCache.get(r._id);
+          if (mem && Date.now() - mem.ts < CACHE_TTL) return mem.data;
+          return cached || r;
+        });
+      });
+
+      // Enrich nền, không block UI
+      enrichReportsInBackground(res.data);
     } catch (error) {
       console.error("Lỗi khi tải dữ liệu tháng:", error);
     }
-  };
+  }, []);
 
-  const enrichReportsWithExpenses = async (list: MonthlyReport[]) => {
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
+
+  // ─── ENRICH NỀN: concurrency 4, progressive update, có cache ───
+  const enrichReportsInBackground = useCallback((list: MonthlyReport[]) => {
+    if (list.length === 0) return;
+
+    // Nếu tất cả đã có trong cache → không cần setLoading
+    const needsFetch = list.some((r) => {
+      const c = enrichCache.get(r._id);
+      return !c || Date.now() - c.ts >= CACHE_TTL;
+    });
+    if (!needsFetch) return;
+
     setLoadingExpenses(true);
-    try {
-      const results = await Promise.all(
-        list.map(async (report) => {
-          try {
-            const [expRes, dailyRes] = await Promise.all([
-              fetchData(`/monthly-reports/${report._id}`) as Promise<ApiResponse<any>>,
-              fetchData(`/daily-revenues?reportId=${report._id}`) as Promise<ApiResponse<DailyRevenue[]>>,
-            ]);
 
-            const m = expRes.success ? expRes.data : {};
-            const expensePerDay =
-              (Number(m.rent) || 0) +
-              (Number(m.electricity) || 0) +
-              (Number(m.water) || 0) +
-              (Number(m.internet) || 0) +
-              (Number(m.telephone) || 0) +
-              (Number(m.garbage) || 0) +
-              (Number(m.employeeSalary) || 0) +
-              (Number(m.otherExpense) || 0);
+    let pending = list.length;
+    const queue = [...list];
+    const CONCURRENCY = 4;
+    let active = 0;
 
-            let cash = 0, transfer = 0, card = 0, debt = 0, founderPoints = 0;
-            let foodRevenue = 0, drinkRevenue = 0, otherRevenue = 0;
+    const finalize = () => {
+      pending--;
+      if (pending <= 0) setLoadingExpenses(false);
+    };
 
-            if (dailyRes.success && Array.isArray(dailyRes.data)) {
-              dailyRes.data.forEach((d) => {
-                cash += Number(d.cash) || 0;
-                transfer += Number(d.transfer) || 0;
-                card += Number(d.card) || 0;
-                debt += Number(d.debt) || 0;
-                founderPoints += Number(d.founderPoints) || 0;
-                foodRevenue += Number(d.foodRevenue) || 0;
-                drinkRevenue += Number(d.drinkRevenue) || 0;
-                otherRevenue += Number(d.otherRevenue) || 0;
-              });
-            }
+    const runNext = async (): Promise<void> => {
+      if (queue.length === 0) return;
+      const report = queue.shift()!;
+      active++;
 
-            return {
-              ...report,
-              cash,
-              transfer,
-              card,
-              debt,
-              founderPoints,
-              foodRevenue,
-              drinkRevenue,
-              otherRevenue,
-              totalExpense: expensePerDay * (report.daysCount || 0),
-            };
-          } catch (e) {
-            console.error(`Lỗi enrich tháng ${report.title}:`, e);
-            return { ...report, totalExpense: 0 };
+      try {
+        // Ưu tiên cache memory
+        const cached = enrichCache.get(report._id);
+        const now = Date.now();
+        if (cached && now - cached.ts < CACHE_TTL) {
+          setEnrichedReports((prev) => {
+            const idx = prev.findIndex((r) => r._id === cached.data._id);
+            if (idx === -1) return [...prev, cached.data];
+            const next = prev.slice();
+            next[idx] = cached.data;
+            return next;
+          });
+          return;
+        }
+
+        const dailyRes = (await fetchData(
+          `/daily-revenues?reportId=${report._id}`
+        )) as ApiResponse<DailyRevenue[]>;
+
+        let cash = 0, transfer = 0, card = 0, debt = 0, founderPoints = 0;
+        let foodRevenue = 0, drinkRevenue = 0, otherRevenue = 0;
+
+        if (dailyRes.success && Array.isArray(dailyRes.data)) {
+          for (const d of dailyRes.data) {
+            cash += Number(d.cash) || 0;
+            transfer += Number(d.transfer) || 0;
+            card += Number(d.card) || 0;
+            debt += Number(d.debt) || 0;
+            founderPoints += Number(d.founderPoints) || 0;
+            foodRevenue += Number(d.foodRevenue) || 0;
+            drinkRevenue += Number(d.drinkRevenue) || 0;
+            otherRevenue += Number(d.otherRevenue) || 0;
           }
-        })
-      );
-      setEnrichedReports(results);
-    } finally {
-      setLoadingExpenses(false);
-    }
-  };
+        }
 
-  const formatCurrency = (val: number) => {
-    if (!val) return "0";
-    return new Intl.NumberFormat("vi-VN").format(val);
-  };
+        const enriched: MonthlyReport = {
+          ...report,
+          cash,
+          transfer,
+          card,
+          debt,
+          founderPoints,
+          foodRevenue,
+          drinkRevenue,
+          otherRevenue,
+          // giữ totalExpense nếu backend đã trả sẵn
+          totalExpense: report.totalExpense || 0,
+        };
+
+        enrichCache.set(report._id, { data: enriched, ts: Date.now() });
+
+        setEnrichedReports((prev) => {
+          const idx = prev.findIndex((r) => r._id === enriched._id);
+          if (idx === -1) return [...prev, enriched];
+          const next = prev.slice();
+          next[idx] = enriched;
+          return next;
+        });
+      } catch (e) {
+        console.error(`Lỗi enrich tháng ${report.title}:`, e);
+      } finally {
+        active--;
+        finalize();
+        if (queue.length > 0 && active < CONCURRENCY) runNext();
+      }
+    };
+
+    // Khởi động CONCURRENCY workers
+    for (let i = 0; i < Math.min(CONCURRENCY, list.length); i++) {
+      runNext();
+    }
+  }, []);
+
+  // ─── FETCH RIÊNG EXPENSE CHO THÁNG MỚI NHẤT (chỉ khi thiếu) ───
+  // Đặt sau khi có enrichedReports và filteredData
+  // (đặt bên dưới sau khi tính latestMonth)
 
   const handleCreateMonth = async () => {
     if (!newMonth) return alert("Vui lòng chọn tháng!");
@@ -490,6 +527,8 @@ const MyTasks = () => {
 
     const res = (await postData("/monthly-reports", { monthKey: newMonth, title })) as ApiResponse<MonthlyReport>;
     if (res.success) {
+      // clear cache để fetch lại
+      enrichCache.clear();
       loadReports();
       navigate(`/daily-report/${res.data._id}`);
     } else {
@@ -500,8 +539,12 @@ const MyTasks = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm("CẢNH BÁO: Xoá tháng này sẽ XOÁ SẠCH TOÀN BỘ dữ liệu báo cáo từng ngày bên trong. Bạn chắc chắn chứ?")) return;
     const res = (await deleteData(`/monthly-reports/${id}`)) as ApiResponse<any>;
-    if (res.success) loadReports();
-    else alert(res.message);
+    if (res.success) {
+      enrichCache.delete(id);
+      loadReports();
+    } else {
+      alert(res.message);
+    }
   };
 
   // ============================================================
@@ -512,29 +555,81 @@ const MyTasks = () => {
     [enrichedReports]
   );
 
-  const getFilteredReports = (list: MonthlyReport[]) => {
-    return list.filter((r) => {
-      const year = r.monthKey.split("-")[0];
-      const month = Number(r.monthKey.split("-")[1]);
-      if (filterYear !== "all" && year !== filterYear) return false;
-      if (filterQuarter !== "all") {
-        if (filterQuarter === "Q1" && (month < 1 || month > 3)) return false;
-        if (filterQuarter === "Q2" && (month < 4 || month > 6)) return false;
-        if (filterQuarter === "Q3" && (month < 7 || month > 9)) return false;
-        if (filterQuarter === "Q4" && (month < 10 || month > 12)) return false;
-      }
-      if (filterMonth !== "all" && r.monthKey !== filterMonth) return false;
-      return true;
-    });
-  };
+  const availableYears = useMemo(() => {
+    const years = new Set(reports.map((r) => r.monthKey.split("-")[0]));
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [reports]);
+
+  const getFilteredReports = useCallback(
+    (list: MonthlyReport[]) => {
+      return list.filter((r) => {
+        const [year, monthStr] = r.monthKey.split("-");
+        const month = Number(monthStr);
+        if (filterYear !== "all" && year !== filterYear) return false;
+        if (filterQuarter !== "all") {
+          const q = Math.ceil(month / 3);
+          if (filterQuarter !== `Q${q}`) return false;
+        }
+        if (filterMonth !== "all" && r.monthKey !== filterMonth) return false;
+        return true;
+      });
+    },
+    [filterYear, filterQuarter, filterMonth]
+  );
 
   const filteredData = useMemo(
     () => getFilteredReports(sortedReports),
-    [enrichedReports, filterYear, filterQuarter, filterMonth]
+    [getFilteredReports, sortedReports]
   );
 
   const latestMonth = filteredData[0] || null;
-  const olderMonths = filteredData.slice(1);
+  const olderMonths = useMemo(() => filteredData.slice(1), [filteredData]);
+
+  // Fetch expense riêng cho latestMonth nếu chưa có
+  useEffect(() => {
+    if (!latestMonth) return;
+    if (latestMonth.totalExpense && latestMonth.totalExpense > 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = (await fetchData(
+          `/monthly-reports/${latestMonth._id}`
+        )) as ApiResponse<any>;
+        if (cancelled || !res.success) return;
+        const m = res.data;
+        const expensePerDay =
+          (Number(m.rent) || 0) +
+          (Number(m.electricity) || 0) +
+          (Number(m.water) || 0) +
+          (Number(m.internet) || 0) +
+          (Number(m.telephone) || 0) +
+          (Number(m.garbage) || 0) +
+          (Number(m.employeeSalary) || 0) +
+          (Number(m.otherExpense) || 0);
+        const totalExpense = expensePerDay * (latestMonth.daysCount || 0);
+
+        setEnrichedReports((prev) =>
+          prev.map((r) =>
+            r._id === latestMonth._id ? { ...r, totalExpense } : r
+          )
+        );
+
+        // cập nhật cache
+        const c = enrichCache.get(latestMonth._id);
+        if (c) {
+          enrichCache.set(latestMonth._id, {
+            data: { ...c.data, totalExpense },
+            ts: Date.now(),
+          });
+        }
+      } catch {}
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [latestMonth?._id, latestMonth?.totalExpense, latestMonth?.daysCount]);
 
   const totalOfFilteredData = useMemo(() => {
     return filteredData.reduce(
@@ -591,13 +686,16 @@ const MyTasks = () => {
   // CHART DATA
   // ============================================================
   const allChartData = useMemo(() => {
-    return [...filteredData].reverse().map((r) => ({
-      name: r.monthKey.split("-")[1] + "/" + r.monthKey.split("-")[0],
-      total: r.totalGross,
-      guest: r.guestCount,
-      bill: r.billCount,
-      monthKey: r.monthKey,
-    }));
+    return [...filteredData].reverse().map((r) => {
+      const [y, m] = r.monthKey.split("-");
+      return {
+        name: m + "/" + y,
+        total: r.totalGross,
+        guest: r.guestCount,
+        bill: r.billCount,
+        monthKey: r.monthKey,
+      };
+    });
   }, [filteredData]);
 
   const chartData = useMemo(() => {
@@ -622,7 +720,7 @@ const MyTasks = () => {
       { name: "Đồ uống", value: Number(mixSource.drinkRevenue) || 0, color: "#3b82f6" },
       { name: "Khác", value: Number(mixSource.otherRevenue) || 0, color: "#8b5cf6" },
     ],
-    [mixSource]
+    [mixSource.foodRevenue, mixSource.drinkRevenue, mixSource.otherRevenue]
   );
   const revenueMixTotal =
     (Number(mixSource.foodRevenue) || 0) +
@@ -637,7 +735,7 @@ const MyTasks = () => {
       { name: "Công nợ", value: Number(mixSource.debt) || 0, color: "#f59e0b" },
       { name: "Điểm Founder", value: Number(mixSource.founderPoints) || 0, color: "#8b5cf6" },
     ],
-    [mixSource]
+    [mixSource.cash, mixSource.transfer, mixSource.card, mixSource.debt, mixSource.founderPoints]
   );
   const paymentTotal = paymentMix.reduce((s, p) => s + p.value, 0);
 
@@ -896,21 +994,24 @@ const MyTasks = () => {
     } catch {}
   };
 
-  const quickQuestions = [
-    "Doanh thu các tháng gần đây thế nào?",
-    "Tháng nào cao nhất, tháng nào thấp nhất?",
-    "Xu hướng 6 tháng qua ra sao?",
-    "So sánh quý này với quý trước.",
-    "Cơ cấu doanh thu thay đổi thế nào?",
-    "Chi phí có hợp lý không?",
-    "Tỷ lệ khách/bill có ổn không?",
-    "Phương thức thanh toán nào phổ biến nhất?",
-    "Khách hàng mua nhiều vào ngày nào?",
-    "Công nợ hiện tại bao nhiêu?",
-    "Đề xuất cải thiện doanh thu.",
-    "Maxim Saigon có website gì?",
-    "Cần kiểm tra gì để tăng lợi nhuận?",
-  ];
+  const quickQuestions = useMemo(
+    () => [
+      "Doanh thu các tháng gần đây thế nào?",
+      "Tháng nào cao nhất, tháng nào thấp nhất?",
+      "Xu hướng 6 tháng qua ra sao?",
+      "So sánh quý này với quý trước.",
+      "Cơ cấu doanh thu thay đổi thế nào?",
+      "Chi phí có hợp lý không?",
+      "Tỷ lệ khách/bill có ổn không?",
+      "Phương thức thanh toán nào phổ biến nhất?",
+      "Khách hàng mua nhiều vào ngày nào?",
+      "Công nợ hiện tại bao nhiêu?",
+      "Đề xuất cải thiện doanh thu.",
+      "Maxim Saigon có website gì?",
+      "Cần kiểm tra gì để tăng lợi nhuận?",
+    ],
+    []
+  );
 
   // ============================================================
   // RENDER
