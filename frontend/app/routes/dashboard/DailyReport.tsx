@@ -225,6 +225,16 @@ const DailyReport = () => {
         table-layout: auto !important;
         width: max-content !important;
       }
+      /* Ghi chú: giữ xuống dòng, không bị nowrap */
+      #report-container table td.note-cell,
+      #report-container table td.note-cell > textarea,
+      #report-container table td.note-cell > div {
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+        min-width: 220px !important;
+        max-width: 400px !important;
+        width: 220px !important;
+      }
     `;
     document.head.appendChild(style);
   };
@@ -1231,6 +1241,17 @@ const DailyReport = () => {
               white-space: nowrap !important;
             }
 
+            /* Cột ghi chú khi chụp: xuống dòng, hiển thị đầy đủ nội dung */
+            #report-container td.note-cell,
+            #report-container td.note-cell > textarea,
+            #report-container td.note-cell > div {
+              white-space: pre-wrap !important;
+              word-break: break-word !important;
+              min-width: 220px !important;
+              max-width: 400px !important;
+              width: 220px !important;
+            }
+
             #report-container tfoot {
               position: static !important;
             }
@@ -1323,8 +1344,9 @@ const DailyReport = () => {
     ? screenshotSnapshot.founder 
     : showFounderPoints;
 
+  // Trong chế độ chụp, luôn hiển thị ghi chú
   const renderNote = isScreenshotMode 
-    ? false 
+    ? true 
     : showNote;
 
   const renderActions = isScreenshotMode 
@@ -1683,7 +1705,7 @@ const DailyReport = () => {
                       <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-blue-600 tabular-nums">{formatAvgGuest(group.totals.guestCount > 0 ? group.totals.totalGross / group.totals.guestCount : 0) || "0"}</TableCell>
                       <TableCell className="border border-emerald-300 text-center font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{group.totals.billCount}</TableCell>
                       {renderNote && (
-                        <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50"></TableCell>
+                        <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50 note-cell"></TableCell>
                       )}
                       {renderActions && (
                         <>
@@ -1861,21 +1883,27 @@ const DailyReport = () => {
                           </TableCell>
 
                           {renderNote && (
-                            <TableCell className="border border-slate-400 p-0.5 sm:p-1 min-w-[220px] align-top">
-                              <textarea
-                                ref={(el) => {
-                                  if (el) {
-                                    autoResizeTextarea(el);
-                                  }
-                                }}
-                                defaultValue={row.note || ""}
-                                rows={1}
-                                onFocus={() => row._id && setEditingId(row._id)}
-                                onBlur={(e) => updateLocalRow(row._id!, "note", e.target.value)}
-                                onKeyDown={(e) => handleTextareaKeyDown(e, row)}
-                                onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
-                                className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
-                              />
+                            <TableCell className="border border-slate-400 p-0.5 sm:p-1 min-w-[220px] align-top note-cell">
+                              {isScreenshotMode ? (
+                                <div className="w-full min-w-[220px] max-w-[400px] p-0.5 sm:p-1 text-[10px] sm:text-[13px] whitespace-pre-wrap break-words leading-relaxed">
+                                  {row.note || ""}
+                                </div>
+                              ) : (
+                                <textarea
+                                  ref={(el) => {
+                                    if (el) {
+                                      autoResizeTextarea(el);
+                                    }
+                                  }}
+                                  defaultValue={row.note || ""}
+                                  rows={1}
+                                  onFocus={() => row._id && setEditingId(row._id)}
+                                  onBlur={(e) => updateLocalRow(row._id!, "note", e.target.value)}
+                                  onKeyDown={(e) => handleTextareaKeyDown(e, row)}
+                                  onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
+                                  className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+                                />
+                              )}
                             </TableCell>
                           )}
 
@@ -1949,7 +1977,7 @@ const DailyReport = () => {
                 <TableCell className="border border-slate-600 text-right font-bold text-blue-200 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatAvgGuest(avgPerGuest) || "0"}</TableCell>
                 <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{totals.bill}</TableCell>
                 {renderNote && (
-                  <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2"></TableCell>
+                  <TableCell className="border border-slate-600 px-1 py-1 sm:px-2 sm:py-2 note-cell"></TableCell>
                 )}
                 {renderActions && (
                   <>
