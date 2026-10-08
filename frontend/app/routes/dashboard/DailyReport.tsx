@@ -5,14 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { ArrowLeft, ArrowUp, ArrowDown, Download, Search, Plus, Trash2, EyeOff, Eye, CalendarDays, Upload, Loader2, Save, Check, X, Camera } from "lucide-react";
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom"; 
+import { useParams, useNavigate } from "react-router-dom";
 import { fetchData, updateData, postData, deleteData } from "@/lib/fetch-util";
 import * as XLSX from "xlsx";
 import html2canvas from 'html2canvas-pro';
 
 export interface DailyRevenue {
   _id?: string;
-  reportId: string; 
+  reportId: string;
   date: string;
   dayOfWeek: string;
   cash: number;
@@ -23,8 +23,8 @@ export interface DailyRevenue {
   foodRevenue: number;
   drinkRevenue: number;
   otherRevenue: number;
-  preTaxRevenue: number; 
-  totalGross: number; 
+  preTaxRevenue: number;
+  totalGross: number;
   guestCount: number;
   billCount: number;
   note?: string;
@@ -51,14 +51,16 @@ export interface ApiResponse<T = any> {
   skippedDates?: string[];
 }
 
+const VAT_MULTIPLIER = 1.05;
+
 const DailyReport = () => {
-  const { reportId } = useParams<{ reportId: string }>(); 
+  const { reportId } = useParams<{ reportId: string }>();
   const navigate = useNavigate();
 
   const [data, setData] = useState<DailyRevenue[]>([]);
   const [search, setSearch] = useState("");
   const [weekFilter, setWeekFilter] = useState("all");
-  
+
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [isCompactMode, setIsCompactMode] = useState(false);
   const [showFounderPoints, setShowFounderPoints] = useState(false);
@@ -73,10 +75,10 @@ const DailyReport = () => {
     actions: boolean;
     week: string;
   } | null>(null);
-  
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
-  
+
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -142,7 +144,7 @@ const DailyReport = () => {
     if (reportId) {
       const fetchRevenues = async () => {
         try {
-          const result = (await fetchData(`/daily-revenues?reportId=${reportId}`)) as ApiResponse<DailyRevenue[]>; 
+          const result = (await fetchData(`/daily-revenues?reportId=${reportId}`)) as ApiResponse<DailyRevenue[]>;
           if (result.success) {
             const formattedData = result.data.map(item => ({
               ...item,
@@ -193,7 +195,6 @@ const DailyReport = () => {
     }
   }, [editingId]);
 
-  // ===== CSS INJECT KHI CHỤP ẢNH =====
   const injectScreenshotCSS = () => {
     const style = document.createElement('style');
     style.id = 'screenshot-fix';
@@ -225,7 +226,6 @@ const DailyReport = () => {
         table-layout: auto !important;
         width: max-content !important;
       }
-      /* Ghi chú: giữ xuống dòng, không bị nowrap */
       #report-container table td.note-cell,
       #report-container table td.note-cell > textarea,
       #report-container table td.note-cell > div {
@@ -284,7 +284,7 @@ const DailyReport = () => {
     if (food === 0 && drink === 0 && other === 0) {
       return Number(row.preTaxRevenue) || 0;
     }
-    return Math.round((food + drink + other) * 1.05);
+    return Math.round((food + drink + other) * VAT_MULTIPLIER);
   };
 
   const hasNewColumns = (row: DailyRevenue | any): boolean => {
@@ -321,7 +321,7 @@ const DailyReport = () => {
       };
 
       const result = (await updateData(`/monthly-reports/${reportId}`, payload)) as ApiResponse<any>;
-      
+
       if (result.success) {
         const m = result.data;
         setMonthlyExpenses({
@@ -376,9 +376,9 @@ const DailyReport = () => {
   const handleOtherExpenseAdd = async () => {
     const numValue = parseNumberFromString(otherExpenseInput);
     if (numValue === 0) return;
-    const updated = { 
-      ...monthlyExpenses, 
-      otherExpense: (Number(monthlyExpenses.otherExpense) || 0) + numValue 
+    const updated = {
+      ...monthlyExpenses,
+      otherExpense: (Number(monthlyExpenses.otherExpense) || 0) + numValue
     };
     setMonthlyExpenses(updated);
     setOtherExpenseInput("");
@@ -392,10 +392,10 @@ const DailyReport = () => {
       const payload = { ...row };
       payload.totalGross = calculateTotalGross(payload);
       payload.preTaxRevenue = calculatePreTaxRevenue(payload);
-      
+
       const result = (await updateData(`/daily-revenues/${row._id}`, payload)) as ApiResponse<DailyRevenue>;
       if (result.success) {
-        setData(prev => prev.map(item => 
+        setData(prev => prev.map(item =>
           item._id === row._id ? { ...result.data, date: convertUTCToLocalDate(result.data.date) } : item
         ));
         const toast = document.createElement('div');
@@ -483,7 +483,7 @@ const DailyReport = () => {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      
+
       if (!worksheet) {
         alert("Không tìm thấy sheet dữ liệu!");
         return;
@@ -491,7 +491,7 @@ const DailyReport = () => {
 
       const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
       const dataRows: any[][] = [];
-      
+
       for (let row = range.s.r; row <= range.e.r; row++) {
         const rowData: any[] = [];
         for (let col = range.s.c; col <= range.e.c; col++) {
@@ -511,7 +511,7 @@ const DailyReport = () => {
       for (let i = 1; i < dataRows.length; i++) {
         const row = dataRows[i];
         if (!row || row.every(cell => !cell || String(cell).trim() === "")) continue;
-        
+
         const dateValue = row[0];
         const dateStr = String(dateValue).toUpperCase().trim();
         if (dateStr.includes("TUẦN") || dateStr.includes("TỔNG CỘNG") || dateStr.includes("TOTAL")) continue;
@@ -530,16 +530,16 @@ const DailyReport = () => {
             dateObj = new Date(year, month - 1, day);
           }
         }
-        
+
         if (!dateStrFormatted || !dateObj) continue;
 
         if (data.length > 0) {
           const firstDateParts = data[0].date.split('-');
           const currentParts = dateStrFormatted.split('-');
-          if (parseInt(currentParts[0]) !== parseInt(firstDateParts[0]) || 
+          if (parseInt(currentParts[0]) !== parseInt(firstDateParts[0]) ||
               parseInt(currentParts[1]) !== parseInt(firstDateParts[1])) continue;
         }
-        
+
         if (importedDates.has(dateStrFormatted)) continue;
         importedDates.add(dateStrFormatted);
 
@@ -549,10 +549,15 @@ const DailyReport = () => {
         const card = parseNumber(row[4]);
         const debt = parseNumber(row[5]);
         const founderPoints = parseNumber(row[6]);
-        const foodRevenue = parseNumber(row[7] || 0);
-        const drinkRevenue = parseNumber(row[8] || 0);
-        const otherRevenue = parseNumber(row[9] || 0);
-        const preTaxRevenue = Math.round((foodRevenue + drinkRevenue + otherRevenue) * 1.05);
+        // 👇 Excel cột 7,8,9 là DT trước thuế (đã bao gồm 1.05) → chia ngược lại 1.05 để lưu số gốc
+        const foodRevenueRaw = parseNumber(row[7] || 0);
+        const drinkRevenueRaw = parseNumber(row[8] || 0);
+        const otherRevenueRaw = parseNumber(row[9] || 0);
+        const foodRevenue = foodRevenueRaw > 0 ? Math.round(foodRevenueRaw / VAT_MULTIPLIER) : 0;
+        const drinkRevenue = drinkRevenueRaw > 0 ? Math.round(drinkRevenueRaw / VAT_MULTIPLIER) : 0;
+        const otherRevenue = otherRevenueRaw > 0 ? Math.round(otherRevenueRaw / VAT_MULTIPLIER) : 0;
+
+        const preTaxRevenue = Math.round((foodRevenue + drinkRevenue + otherRevenue) * VAT_MULTIPLIER);
         const totalGross = cash + transfer + card + debt + founderPoints;
         const guestCount = parseNumber(row[12] || 0);
         const billCount = parseNumber(row[13] || 0);
@@ -626,7 +631,7 @@ const DailyReport = () => {
     let nextDateStr = null;
     const existingDates = new Set(data.map(d => d.date));
     const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
-    
+
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       if (!existingDates.has(dateStr)) {
@@ -634,12 +639,12 @@ const DailyReport = () => {
         break;
       }
     }
-    
+
     if (!nextDateStr) {
       alert(`Đã có đủ ${daysInMonth} ngày trong tháng!`);
       return;
     }
-    
+
     const parts = nextDateStr.split('-');
     const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     const daysOfWeek = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
@@ -696,15 +701,15 @@ const DailyReport = () => {
   const processedData = useMemo(() => {
     let filtered = [...data];
     if (search) {
-      filtered = filtered.filter(i => 
-        i.date.includes(search) || 
-        i.note?.toLowerCase().includes(search.toLowerCase()) || 
+      filtered = filtered.filter(i =>
+        i.date.includes(search) ||
+        i.note?.toLowerCase().includes(search.toLowerCase()) ||
         i.dayOfWeek.toLowerCase().includes(search.toLowerCase())
       );
     }
     filtered.sort((a, b) => {
-      return sortDirection === "asc" 
-        ? a.date.localeCompare(b.date) 
+      return sortDirection === "asc"
+        ? a.date.localeCompare(b.date)
         : b.date.localeCompare(a.date);
     });
     return filtered;
@@ -712,7 +717,7 @@ const DailyReport = () => {
 
   const groupedData = useMemo(() => {
     const groupMap = new Map<string, any>();
-    
+
     processedData.forEach((row) => {
       const { year, month, day, weekNum } = getWeekInfo(row.date);
       const groupKey = `${year}-${String(month).padStart(2, '0')}-W${weekNum}`;
@@ -724,31 +729,39 @@ const DailyReport = () => {
           month: month,
           weekNum: weekNum,
           records: [],
-          totals: { 
-            cash: 0, transfer: 0, card: 0, debt: 0, 
-            founderPoints: 0, foodRevenue: 0, drinkRevenue: 0, otherRevenue: 0,
-            preTax: 0, totalGross: 0, 
+          totals: {
+            cash: 0, transfer: 0, card: 0, debt: 0,
+            founderPoints: 0,
+            foodRevenue: 0, drinkRevenue: 0, otherRevenue: 0,
+            foodRevenueDisplay: 0, drinkRevenueDisplay: 0, otherRevenueDisplay: 0,
+            preTax: 0, totalGross: 0,
             guestCount: 0, billCount: 0,
           },
         });
       }
-      
+
       const group = groupMap.get(groupKey);
       group.records.push(row);
-      group.totals.cash += Number(row.cash) || 0; 
-      group.totals.transfer += Number(row.transfer) || 0; 
-      group.totals.card += Number(row.card) || 0; 
+      group.totals.cash += Number(row.cash) || 0;
+      group.totals.transfer += Number(row.transfer) || 0;
+      group.totals.card += Number(row.card) || 0;
       group.totals.debt += Number(row.debt) || 0;
       group.totals.founderPoints += Number(row.founderPoints) || 0;
+
       group.totals.foodRevenue += Number(row.foodRevenue) || 0;
       group.totals.drinkRevenue += Number(row.drinkRevenue) || 0;
       group.totals.otherRevenue += Number(row.otherRevenue) || 0;
-      group.totals.preTax += Number(row.preTaxRevenue) || 0; 
-      group.totals.totalGross += calculateTotalGross(row); 
-      group.totals.guestCount += Number(row.guestCount) || 0; 
+
+      group.totals.foodRevenueDisplay += Math.round((Number(row.foodRevenue) || 0) * VAT_MULTIPLIER);
+      group.totals.drinkRevenueDisplay += Math.round((Number(row.drinkRevenue) || 0) * VAT_MULTIPLIER);
+      group.totals.otherRevenueDisplay += Math.round((Number(row.otherRevenue) || 0) * VAT_MULTIPLIER);
+
+      group.totals.preTax += Number(row.preTaxRevenue) || 0;
+      group.totals.totalGross += calculateTotalGross(row);
+      group.totals.guestCount += Number(row.guestCount) || 0;
       group.totals.billCount += Number(row.billCount) || 0;
     });
-    
+
     return Array.from(groupMap.values()).sort((a, b) => {
       if (a.year !== b.year) return sortDirection === "asc" ? a.year - b.year : b.year - a.year;
       if (a.month !== b.month) return sortDirection === "asc" ? a.month - b.month : b.month - a.month;
@@ -781,22 +794,29 @@ const DailyReport = () => {
     const t = groupedData.reduce((acc, group) => {
       days += group.records.length;
       return {
-        cash: acc.cash + group.totals.cash, 
-        transfer: acc.transfer + group.totals.transfer, 
-        card: acc.card + group.totals.card, 
+        cash: acc.cash + group.totals.cash,
+        transfer: acc.transfer + group.totals.transfer,
+        card: acc.card + group.totals.card,
         debt: acc.debt + group.totals.debt,
         founderPoints: acc.founderPoints + group.totals.founderPoints,
+
         foodRevenue: acc.foodRevenue + group.totals.foodRevenue,
         drinkRevenue: acc.drinkRevenue + group.totals.drinkRevenue,
         otherRevenue: acc.otherRevenue + group.totals.otherRevenue,
-        preTax: acc.preTax + group.totals.preTax, 
-        totalGross: acc.totalGross + group.totals.totalGross, 
-        guest: acc.guest + group.totals.guestCount, 
+
+        foodRevenueDisplay: acc.foodRevenueDisplay + group.totals.foodRevenueDisplay,
+        drinkRevenueDisplay: acc.drinkRevenueDisplay + group.totals.drinkRevenueDisplay,
+        otherRevenueDisplay: acc.otherRevenueDisplay + group.totals.otherRevenueDisplay,
+
+        preTax: acc.preTax + group.totals.preTax,
+        totalGross: acc.totalGross + group.totals.totalGross,
+        guest: acc.guest + group.totals.guestCount,
         bill: acc.bill + group.totals.billCount,
       };
-    }, { 
-      cash: 0, transfer: 0, card: 0, debt: 0, founderPoints: 0, 
+    }, {
+      cash: 0, transfer: 0, card: 0, debt: 0, founderPoints: 0,
       foodRevenue: 0, drinkRevenue: 0, otherRevenue: 0,
+      foodRevenueDisplay: 0, drinkRevenueDisplay: 0, otherRevenueDisplay: 0,
       preTax: 0, totalGross: 0, guest: 0, bill: 0,
     });
     return { totals: t, totalDays: days };
@@ -805,9 +825,9 @@ const DailyReport = () => {
   const avgPerGuest = totals.guest > 0 ? totals.totalGross / totals.guest : 0;
 
   const totalExpense = useMemo(() => {
-    return (monthlyExpenses.rent || 0) + (monthlyExpenses.electricity || 0) + 
-           (monthlyExpenses.water || 0) + (monthlyExpenses.internet || 0) + 
-           (monthlyExpenses.telephone || 0) + (monthlyExpenses.garbage || 0) + 
+    return (monthlyExpenses.rent || 0) + (monthlyExpenses.electricity || 0) +
+           (monthlyExpenses.water || 0) + (monthlyExpenses.internet || 0) +
+           (monthlyExpenses.telephone || 0) + (monthlyExpenses.garbage || 0) +
            (monthlyExpenses.employeeSalary || 0) + (monthlyExpenses.otherExpense || 0);
   }, [monthlyExpenses]);
 
@@ -836,9 +856,10 @@ const DailyReport = () => {
         "Cà thẻ": row.card || 0,
         "Công nợ": row.debt || 0,
         "Điểm Founder": row.founderPoints || 0,
-        "Doanh thu món ăn": hasNewCols ? (row.foodRevenue || 0) : "",
-        "Doanh thu đồ uống": hasNewCols ? (row.drinkRevenue || 0) : "",
-        "Doanh thu khác": hasNewCols ? (row.otherRevenue || 0) : "",
+        // 👇 3 cột này xuất số đã ×1.05 cho khớp giao diện
+        "Doanh thu món ăn": hasNewCols ? Math.round((row.foodRevenue || 0) * VAT_MULTIPLIER) : "",
+        "Doanh thu đồ uống": hasNewCols ? Math.round((row.drinkRevenue || 0) * VAT_MULTIPLIER) : "",
+        "Doanh thu khác": hasNewCols ? Math.round((row.otherRevenue || 0) * VAT_MULTIPLIER) : "",
         "DT trước thuế & PPV": row.preTaxRevenue || 0,
         "Tổng DT (VAT)": calculateTotalGross(row),
         "Số khách": row.guestCount || 0,
@@ -862,9 +883,10 @@ const DailyReport = () => {
       "Cà thẻ": totals.card,
       "Công nợ": totals.debt,
       "Điểm Founder": totals.founderPoints,
-      "Doanh thu món ăn": totals.foodRevenue || 0,
-      "Doanh thu đồ uống": totals.drinkRevenue || 0,
-      "Doanh thu khác": totals.otherRevenue || 0,
+      // 👇 Tổng 3 cột cũng ×1.05
+      "Doanh thu món ăn": totals.foodRevenueDisplay,
+      "Doanh thu đồ uống": totals.drinkRevenueDisplay,
+      "Doanh thu khác": totals.otherRevenueDisplay,
       "DT trước thuế & PPV": totals.preTax,
       "Tổng DT (VAT)": totals.totalGross,
       "Số khách": totals.guest,
@@ -964,12 +986,10 @@ const DailyReport = () => {
         throw new Error("Không tìm thấy bảng báo cáo");
       }
 
-      // ===== FIX QUAN TRỌNG: BỎ TABLE-LAYOUT FIXED, ĐỂ BẢNG TỰ GIÃN =====
       freshTable.style.tableLayout = "auto";
       freshTable.style.width = "max-content";
       freshTable.style.minWidth = "max-content";
 
-      // Bỏ mọi giới hạn width của colgroup
       const cols = freshTable.querySelectorAll("colgroup col");
       cols.forEach((col) => {
         (col as HTMLElement).style.width = "auto";
@@ -977,7 +997,6 @@ const DailyReport = () => {
         (col as HTMLElement).style.maxWidth = "none";
       });
 
-      // Mở toàn bộ wrapper
       if (freshWrapper) {
         freshWrapper.style.overflow = "visible";
         freshWrapper.style.overflowX = "visible";
@@ -994,10 +1013,8 @@ const DailyReport = () => {
       freshElement.style.position = "relative";
       freshElement.style.padding = "0";
 
-      // Đợi layout ổn định sau khi bỏ giới hạn
       await new Promise((resolve) => setTimeout(resolve, 400));
 
-      // ===== ĐO LẠI CHIỀU RỘNG THỰC TẾ SAU KHI GIÃN CỘT =====
       const tableWidth = Math.ceil(freshTable.scrollWidth);
 
       const computedStyle = window.getComputedStyle(element);
@@ -1063,105 +1080,35 @@ const DailyReport = () => {
               const computed = window.getComputedStyle(original);
 
               const properties = [
-                "display",
-                "position",
-                "top",
-                "right",
-                "bottom",
-                "left",
-
-                "width",
-                "min-width",
-                "max-width",
-                "height",
-                "min-height",
-                "max-height",
-
-                "margin",
-                "margin-top",
-                "margin-right",
-                "margin-bottom",
-                "margin-left",
-
-                "padding",
-                "padding-top",
-                "padding-right",
-                "padding-bottom",
-                "padding-left",
-
+                "display", "position", "top", "right", "bottom", "left",
+                "width", "min-width", "max-width", "height", "min-height", "max-height",
+                "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
+                "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
                 "box-sizing",
-
-                "font-family",
-                "font-size",
-                "font-weight",
-                "font-style",
-                "line-height",
-                "letter-spacing",
-                "text-align",
-                "text-transform",
-                "text-decoration",
-                "font-variant-numeric",
-                "white-space",
-
-                "color",
-                "background",
-                "background-color",
-                "background-image",
-
-                "border",
-                "border-width",
-                "border-style",
-                "border-color",
-                "border-top",
-                "border-right",
-                "border-bottom",
-                "border-left",
-                "border-radius",
-
+                "font-family", "font-size", "font-weight", "font-style", "line-height",
+                "letter-spacing", "text-align", "text-transform", "text-decoration",
+                "font-variant-numeric", "white-space",
+                "color", "background", "background-color", "background-image",
+                "border", "border-width", "border-style", "border-color",
+                "border-top", "border-right", "border-bottom", "border-left", "border-radius",
                 "box-shadow",
-
-                "overflow",
-                "overflow-x",
-                "overflow-y",
-
+                "overflow", "overflow-x", "overflow-y",
                 "vertical-align",
-
                 "opacity",
-
-                "flex",
-                "flex-direction",
-                "flex-wrap",
-                "flex-grow",
-                "flex-shrink",
-                "align-items",
-                "align-content",
-                "align-self",
-                "justify-content",
-                "justify-items",
-                "gap",
-                "row-gap",
-                "column-gap",
-
-                "grid",
-                "grid-template-columns",
-                "grid-template-rows",
-
-                "visibility",
-                "z-index",
-
-                "transform",
-                "white-space",
+                "flex", "flex-direction", "flex-wrap", "flex-grow", "flex-shrink",
+                "align-items", "align-content", "align-self",
+                "justify-content", "justify-items",
+                "gap", "row-gap", "column-gap",
+                "grid", "grid-template-columns", "grid-template-rows",
+                "visibility", "z-index",
+                "transform", "white-space",
               ];
 
               properties.forEach((property) => {
                 const value = computed.getPropertyValue(property);
 
                 if (value) {
-                  cloned.style.setProperty(
-                    property,
-                    value,
-                    "important"
-                  );
+                  cloned.style.setProperty(property, value, "important");
                 }
               });
 
@@ -1181,16 +1128,8 @@ const DailyReport = () => {
           const screenshotStyle = clonedDoc.createElement("style");
 
           screenshotStyle.textContent = `
-            * {
-              box-sizing: border-box !important;
-            }
-
-            html,
-            body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #ffffff !important;
-            }
+            * { box-sizing: border-box !important; }
+            html, body { margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
 
             #report-container {
               width: ${contentWidth}px !important;
@@ -1241,7 +1180,6 @@ const DailyReport = () => {
               white-space: nowrap !important;
             }
 
-            /* Cột ghi chú khi chụp: xuống dòng, hiển thị đầy đủ nội dung */
             #report-container td.note-cell,
             #report-container td.note-cell > textarea,
             #report-container td.note-cell > div {
@@ -1252,19 +1190,9 @@ const DailyReport = () => {
               width: 220px !important;
             }
 
-            #report-container tfoot {
-              position: static !important;
-            }
-
-            textarea {
-              resize: none !important;
-            }
-
-            input,
-            textarea,
-            button {
-              caret-color: transparent !important;
-            }
+            #report-container tfoot { position: static !important; }
+            textarea { resize: none !important; }
+            input, textarea, button { caret-color: transparent !important; }
           `;
 
           clonedDoc.head.appendChild(screenshotStyle);
@@ -1325,7 +1253,6 @@ const DailyReport = () => {
           finalFooter.className = savedStyles.footerClass;
         }
 
-        // Reset lại table layout về mặc định
         const finalTable = finalElement.querySelector("table") as HTMLElement | null;
         if (finalTable) {
           finalTable.style.tableLayout = "";
@@ -1336,38 +1263,42 @@ const DailyReport = () => {
     }
   };
 
-  const renderCompact = isScreenshotMode && screenshotSnapshot 
-    ? screenshotSnapshot.compact 
+  const renderCompact = isScreenshotMode && screenshotSnapshot
+    ? screenshotSnapshot.compact
     : isCompactMode;
 
-  const renderFounder = isScreenshotMode && screenshotSnapshot 
-    ? screenshotSnapshot.founder 
+  const renderFounder = isScreenshotMode && screenshotSnapshot
+    ? screenshotSnapshot.founder
     : showFounderPoints;
 
-  // Trong chế độ chụp, luôn hiển thị ghi chú
-  const renderNote = isScreenshotMode 
-    ? true 
+  const renderNote = isScreenshotMode
+    ? true
     : showNote;
 
-  const renderActions = isScreenshotMode 
-    ? false 
+  const renderActions = isScreenshotMode
+    ? false
     : showActions;
 
-  const renderWeek = isScreenshotMode && screenshotSnapshot 
-    ? screenshotSnapshot.week 
+  const renderWeek = isScreenshotMode && screenshotSnapshot
+    ? screenshotSnapshot.week
     : weekFilter;
 
   const hideCashColumns = isScreenshotMode;
 
-  // ===== RENDER Ô 3 CỘT DT TRƯỚC THUẾ (click-to-edit, căn phải chuẩn) =====
-  // BỎ width/minWidth CỨNG KHI Ở SCREENSHOT MODE
   const renderRevenueCell = (
     row: DailyRevenue,
     field: "foodRevenue" | "drinkRevenue" | "otherRevenue",
     hasNewCols: boolean
   ) => {
-    const isEditingThisCell = editingCell?.rowId === row._id && editingCell?.field === field;
-    const displayValue = hasNewCols ? (formatCurrencyNoUnit(row[field]) || "") : "";
+    const isEditingThisCell =
+      editingCell?.rowId === row._id && editingCell?.field === field;
+
+    const rawValue = Number(row[field]) || 0;
+
+    const displayValue =
+      hasNewCols && rawValue > 0
+        ? formatCurrencyNoUnit(Math.round(rawValue * VAT_MULTIPLIER))
+        : "";
 
     if (isScreenshotMode) {
       return (
@@ -1417,7 +1348,7 @@ const DailyReport = () => {
               if (!row._id) return;
               setEditingId(row._id);
               setEditingCell({ rowId: row._id, field });
-              setEditingCellValue(formatCurrencyNoUnit(row[field]) || "");
+              setEditingCellValue(formatCurrencyNoUnit(rawValue) || "");
             }}
             className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums cursor-text hover:bg-slate-100 rounded whitespace-nowrap"
           >
@@ -1515,17 +1446,17 @@ const DailyReport = () => {
           </Button>
 
           <Button variant="outline" onClick={() => setShowFounderPoints(!showFounderPoints)} className="gap-1 sm:gap-2 bg-slate-50 text-slate-700 border-slate-300 text-xs sm:text-sm px-2 sm:px-4">
-            {showFounderPoints ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />} 
+            {showFounderPoints ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />}
             <span className="hidden xs:inline">Điểm Founder</span>
           </Button>
 
           <Button variant="outline" onClick={() => setShowNote(!showNote)} className="gap-1 sm:gap-2 bg-slate-50 text-slate-700 border-slate-300 text-xs sm:text-sm px-2 sm:px-4">
-            {showNote ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />} 
+            {showNote ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />}
             <span className="hidden xs:inline">Ghi chú</span>
           </Button>
 
           <Button variant="outline" onClick={() => setShowActions(!showActions)} className="gap-1 sm:gap-2 bg-slate-50 text-slate-700 border-slate-300 text-xs sm:text-sm px-2 sm:px-4">
-            {showActions ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />} 
+            {showActions ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />}
             <span className="hidden xs:inline">Lưu/Xoá</span>
           </Button>
 
@@ -1562,10 +1493,10 @@ const DailyReport = () => {
           </Button>
 
           <Button variant="outline" className="gap-1 sm:gap-2 border-sky-300 text-sky-700 hover:bg-sky-50 text-xs sm:text-sm px-2 sm:px-4" onClick={handleScreenshot}>
-            <Camera className="w-3 h-3 sm:w-4 sm:h-4" /> 
+            <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline">Chụp ảnh</span>
           </Button>
-          
+
           <Button className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4" onClick={handleAddRow}>
             <Plus className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Thêm</span>
           </Button>
@@ -1576,22 +1507,22 @@ const DailyReport = () => {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
         <div className="relative w-full sm:w-72 lg:w-80">
           <Search className="absolute left-3 top-2.5 w-3 h-3 sm:w-4 sm:h-4 text-slate-400"/>
-          <Input 
-            placeholder="Tìm kiếm..." 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
+          <Input
+            placeholder="Tìm kiếm..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-8 sm:pl-10 border-slate-300 text-sm h-9 sm:h-10"
           />
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={() => setSortDirection(sortDirection === "asc" ? "desc" : "asc")} className="gap-1 sm:gap-2 border-slate-300 text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10">
-            {sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4" /> : <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4" />} 
+            {sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4" /> : <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4" />}
             <span className="hidden xs:inline">{sortDirection === 'asc' ? 'Từ Ngày 1' : 'Từ Ngày 31'}</span>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="border-primary text-primary text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10">
-                <CalendarDays className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2"/> 
+                <CalendarDays className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2"/>
                 <span className="truncate max-w-[80px] sm:max-w-none">
                   {weekFilter === "all" ? "Tất cả các tuần" : `Tuần ${weekFilter.split('-W')[1]}`}
                 </span>
@@ -1614,8 +1545,8 @@ const DailyReport = () => {
         <div className="rounded-md overflow-x-auto">
           <Table
             className="border-collapse text-xs sm:text-sm tabular-nums"
-            style={{ 
-              width: "max-content", 
+            style={{
+              width: "max-content",
               minWidth: "100%",
               tableLayout: isScreenshotMode ? "auto" : "auto"
             }}
@@ -1664,7 +1595,7 @@ const DailyReport = () => {
                 )}
               </TableRow>
             </TableHeader>
-            
+
             <TableBody>
               {groupedData.length > 0 ? groupedData.map((group) => {
                 const isSelectedWeek = renderWeek === "all" || group.key === renderWeek;
@@ -1688,15 +1619,15 @@ const DailyReport = () => {
                           {renderFounder && (
                             <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.founderPoints) || "0"}</TableCell>
                           )}
-                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.foodRevenue) || "0"}</TableCell>
-                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.drinkRevenue) || "0"}</TableCell>
-                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.otherRevenue) || "0"}</TableCell>
+                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.foodRevenueDisplay) || "0"}</TableCell>
+                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.drinkRevenueDisplay) || "0"}</TableCell>
+                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.otherRevenueDisplay) || "0"}</TableCell>
                         </>
                       ) : (
                         <>
-                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.foodRevenue) || "0"}</TableCell>
-                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.drinkRevenue) || "0"}</TableCell>
-                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.otherRevenue) || "0"}</TableCell>
+                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.foodRevenueDisplay) || "0"}</TableCell>
+                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.drinkRevenueDisplay) || "0"}</TableCell>
+                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{formatCurrency(group.totals.otherRevenueDisplay) || "0"}</TableCell>
                         </>
                       )}
                       <TableCell className="border border-emerald-300 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-orange-600 tabular-nums">{formatCurrency(group.totals.preTax) || "0"}</TableCell>
@@ -1722,10 +1653,10 @@ const DailyReport = () => {
                       const isSaving = savingRowId === row._id;
                       const preTaxDisplay = calculatePreTaxRevenue(row);
                       const hasNewCols = hasNewColumns(row);
-                      
+
                       return (
-                        <TableRow 
-                          key={row._id} 
+                        <TableRow
+                          key={row._id}
                           ref={isEditing ? editRowRef : null}
                           className={isEditing ? "bg-emerald-50/60 outline-2 outline-emerald-400 -outline-offset-2 relative z-10" : "hover:bg-slate-50 transition-colors"}
                         >
@@ -1741,7 +1672,7 @@ const DailyReport = () => {
                                 className="w-full min-w-[100px] h-6 sm:h-7 text-[10px] sm:text-[13px] border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 p-0.5 sm:p-1 tabular-nums" />
                             )}
                           </TableCell>
-                          
+
                           <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap bg-slate-50">
                             <div className="w-full min-w-[80px] h-6 sm:h-7 text-[10px] sm:text-[13px] font-bold text-slate-700 text-center flex items-center justify-center">
                               {row.dayOfWeek}
@@ -1758,11 +1689,11 @@ const DailyReport = () => {
                                         {formatCurrencyNoUnit(row.cash) || "0"}
                                       </div>
                                     ) : (
-                                      <Input type="text" 
+                                      <Input type="text"
                                         defaultValue={formatCurrencyNoUnit(row.cash)}
                                         onFocus={() => row._id && setEditingId(row._id)}
                                         onBlur={(e) => handleNumberFieldInput(row._id!, "cash", e.target.value)}
-                                        className="w-full min-w-[110px] text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums" 
+                                        className="w-full min-w-[110px] text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
                                       />
                                     )}
                                   </TableCell>
@@ -1772,7 +1703,7 @@ const DailyReport = () => {
                                         {formatCurrencyNoUnit(row.transfer) || "0"}
                                       </div>
                                     ) : (
-                                      <Input type="text" 
+                                      <Input type="text"
                                         defaultValue={formatCurrencyNoUnit(row.transfer)}
                                         onFocus={() => row._id && setEditingId(row._id)}
                                         onBlur={(e) => handleNumberFieldInput(row._id!, "transfer", e.target.value)}
@@ -1786,7 +1717,7 @@ const DailyReport = () => {
                                         {formatCurrencyNoUnit(row.card) || "0"}
                                       </div>
                                     ) : (
-                                      <Input type="text" 
+                                      <Input type="text"
                                         defaultValue={formatCurrencyNoUnit(row.card)}
                                         onFocus={() => row._id && setEditingId(row._id)}
                                         onBlur={(e) => handleNumberFieldInput(row._id!, "card", e.target.value)}
@@ -1800,7 +1731,7 @@ const DailyReport = () => {
                                         {formatCurrencyNoUnit(row.debt) || "0"}
                                       </div>
                                     ) : (
-                                      <Input type="text" 
+                                      <Input type="text"
                                         defaultValue={formatCurrencyNoUnit(row.debt)}
                                         onFocus={() => row._id && setEditingId(row._id)}
                                         onBlur={(e) => handleNumberFieldInput(row._id!, "debt", e.target.value)}
@@ -1817,7 +1748,7 @@ const DailyReport = () => {
                                       {formatCurrencyNoUnit(row.founderPoints) || "0"}
                                     </div>
                                   ) : (
-                                    <Input type="text" 
+                                    <Input type="text"
                                       defaultValue={formatCurrencyNoUnit(row.founderPoints)}
                                       onFocus={() => row._id && setEditingId(row._id)}
                                       onBlur={(e) => handleNumberFieldInput(row._id!, "founderPoints", e.target.value)}
@@ -1854,7 +1785,7 @@ const DailyReport = () => {
                                 {row.guestCount || "0"}
                               </div>
                             ) : (
-                              <Input type="text" 
+                              <Input type="text"
                                 defaultValue={row.guestCount || ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleNumberFieldInput(row._id!, "guestCount", e.target.value)}
@@ -1873,7 +1804,7 @@ const DailyReport = () => {
                                 {row.billCount || "0"}
                               </div>
                             ) : (
-                              <Input type="text" 
+                              <Input type="text"
                                 defaultValue={row.billCount || ""}
                                 onFocus={() => row._id && setEditingId(row._id)}
                                 onBlur={(e) => handleNumberFieldInput(row._id!, "billCount", e.target.value)}
@@ -1911,10 +1842,10 @@ const DailyReport = () => {
                             <>
                               <TableCell className="border border-slate-400 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
                                 <div className="flex items-center justify-center">
-                                  <Button 
-                                    size="icon" 
-                                    variant="ghost" 
-                                    onClick={() => handleSaveRow(row)} 
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSaveRow(row)}
                                     disabled={isSaving}
                                     className="text-emerald-600 hover:bg-emerald-100 h-5 w-5 sm:h-7 sm:w-7"
                                   >
@@ -1943,7 +1874,7 @@ const DailyReport = () => {
                 );
               }) : (<TableRow><TableCell colSpan={14 + (showFounderPoints ? 1 : 0) + (showNote ? 1 : 0) + (showActions ? 2 : 0) - (isCompactMode ? 5 : 0)} className="border border-slate-400 h-24 sm:h-32 text-center text-muted-foreground font-medium text-[10px] sm:text-[13px]">Chưa có dữ liệu. Hãy thêm doanh thu ngày.</TableCell></TableRow>)}
             </TableBody>
-            
+
             <TableFooter className="bg-slate-800 text-white sticky bottom-0 z-10 border-t-4 border-slate-900">
               <TableRow className="hover:bg-slate-800">
                 <TableCell colSpan={2} className="border border-slate-600 text-center font-black text-white whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-sm bg-slate-900">TỔNG ({totalDays} Ngày)</TableCell>
@@ -1960,15 +1891,15 @@ const DailyReport = () => {
                     {renderFounder && (
                       <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.founderPoints) || "0"}</TableCell>
                     )}
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.foodRevenue) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.drinkRevenue) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.otherRevenue) || "0"}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.foodRevenueDisplay) || "0"}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.drinkRevenueDisplay) || "0"}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.otherRevenueDisplay) || "0"}</TableCell>
                   </>
                 ) : (
                   <>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.foodRevenue) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.drinkRevenue) || "0"}</TableCell>
-                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.otherRevenue) || "0"}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.foodRevenueDisplay) || "0"}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.drinkRevenueDisplay) || "0"}</TableCell>
+                    <TableCell className="border border-slate-600 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.otherRevenueDisplay) || "0"}</TableCell>
                   </>
                 )}
                 <TableCell className="border border-slate-600 text-right font-bold text-orange-300 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.preTax) || "0"}</TableCell>
@@ -1989,7 +1920,7 @@ const DailyReport = () => {
             </TableFooter>
           </Table>
         </div>
-      </Card> 
+      </Card>
 
       {/* ===== CHI PHÍ THÁNG (EDITABLE) ===== */}
       <div className="space-y-2">
