@@ -1,9 +1,16 @@
 import { Header } from "@/components/layout/header";
 import { fetchData } from "@/lib/fetch-util";
 import type { Workspace } from "@/types";
-import { useState } from "react";
+import { ArrowRight, BarChart3, Building2, Users } from "lucide-react";
 import { Link } from "react-router";
 
+/*
+ * Header hiện tại sử dụng useLoaderData()
+ * để lấy danh sách workspaces.
+ *
+ * Vì Portal không nằm trong dashboard-layout,
+ * nên Portal cần cung cấp loader riêng cho Header.
+ */
 export const clientLoader = async () => {
   try {
     const [workspaces] = await Promise.all([
@@ -26,154 +33,110 @@ const modules = [
   {
     title: "Hệ thống quản lý",
     description:
-      "Quản lý công nợ, doanh thu, tips, hoa hồng rượu, quỹ, hủy món và các nghiệp vụ quản lý hiện tại.",
-    icon: "📊",
+      "Quản lý công nợ, doanh thu, tips, hoa hồng rượu, quỹ và các nghiệp vụ vận hành.",
+    icon: BarChart3,
     path: "/dashboard",
-    available: true,
   },
   {
-    title: "Nhân sự",
+    title: "Hệ thống Nhân sự",
     description:
-      "Quản lý nhân viên, phòng ban, chấm công, nghỉ phép, tiền lương và các nghiệp vụ nhân sự.",
-    icon: "👥",
+      "Quản lý phòng ban, hồ sơ nhân sự, hợp đồng và các nghiệp vụ quản lý nhân sự.",
+    icon: Users,
     path: "/hr",
-    available: false,
   },
 ];
 
 export default function Portal() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   const handleWorkspaceSelected = (workspace: Workspace) => {
     console.log("Workspace selected:", workspace);
   };
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header dùng lại Header hiện tại */}
+      {/* ================= HEADER DÙNG CHUNG ================= */}
       <Header
         selectedWorkspace={null}
         onWorkspaceSelected={handleWorkspaceSelected}
         onCreateWorkspace={() => {}}
-        onMobileMenuToggle={() =>
-          setIsMobileMenuOpen(!isMobileMenuOpen)
-        }
       />
 
-      <main className="min-h-[calc(100vh-64px)]">
-        <div className="mx-auto max-w-7xl px-6 py-12">
-          {/* Welcome */}
-          <section className="mb-10">
-            <p className="mb-2 text-sm font-medium text-slate-500">
-              TRUNG TÂM HỆ THỐNG
+      {/* ================= MAIN ================= */}
+      <main className="mx-auto max-w-7xl px-6 py-12">
+        {/* Welcome */}
+        <section className="mb-10">
+          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-500">
+            <Building2 className="h-4 w-4" />
+            <span>TRUNG TÂM HỆ THỐNG</span>
+          </div>
+
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Chào mừng bạn trở lại
+            <span className="ml-2">👋</span>
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-500">
+            Chọn hệ thống bạn muốn làm việc để tiếp tục.
+          </p>
+        </section>
+
+        {/* ================= MODULES ================= */}
+        <section>
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-slate-900">
+              Hệ thống
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Các hệ thống quản lý của MaximSaigon.
             </p>
+          </div>
 
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Chào mừng bạn trở lại 👋
-            </h1>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {modules.map((module) => {
+              const Icon = module.icon;
 
-            <p className="mt-3 max-w-2xl text-base text-slate-500">
-              Chọn hệ thống bạn muốn làm việc để tiếp tục.
-            </p>
-          </section>
-
-          {/* Modules */}
-          <section>
-            <div className="mb-5">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Các hệ thống
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Truy cập nhanh vào các hệ thống quản lý của doanh nghiệp.
-              </p>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              {modules.map((module) => (
+              return (
                 <div
                   key={module.title}
-                  className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
+                  className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-7 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
                 >
-                  {/* Icon */}
-                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-4xl transition-transform duration-200 group-hover:scale-105">
-                    {module.icon}
-                  </div>
+                  {/* Decoration */}
+                  <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-slate-50 transition-transform duration-500 group-hover:scale-125" />
 
-                  {/* Title */}
-                  <h3 className="text-2xl font-bold text-slate-900">
-                    {module.title}
-                  </h3>
+                  <div className="relative">
+                    {/* Icon */}
+                    <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition-colors duration-200 group-hover:bg-slate-900 group-hover:text-white">
+                      <Icon className="h-7 w-7" />
+                    </div>
 
-                  {/* Description */}
-                  <p className="mt-3 max-w-lg text-sm leading-6 text-slate-500">
-                    {module.description}
-                  </p>
+                    {/* Title */}
+                    <h3 className="text-xl font-bold text-slate-900">
+                      {module.title}
+                    </h3>
 
-                  {/* Button */}
-                  <div className="mt-8">
-                    {module.available ? (
+                    {/* Description */}
+                    <p className="mt-3 min-h-[56px] max-w-xl text-sm leading-6 text-slate-500">
+                      {module.description}
+                    </p>
+
+                    {/* Button */}
+                    <div className="mt-7">
                       <Link
                         to={module.path}
-                        className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                       >
-                        Truy cập
+                        Truy cập hệ thống
 
-                        <span className="transition-transform duration-200 group-hover:translate-x-1">
-                          →
-                        </span>
+                        <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                       </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-slate-100 px-6 py-3 text-sm font-semibold text-slate-400"
-                      >
-                        Sắp ra mắt
-                      </button>
-                    )}
+                    </div>
                   </div>
-
-                  {/* Decoration */}
-                  <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-slate-50 transition-transform duration-300 group-hover:scale-125" />
                 </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Quick Access */}
-          <section className="mt-10">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="font-semibold text-slate-900">
-                Truy cập nhanh
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Các hệ thống bạn thường xuyên sử dụng sẽ xuất hiện tại đây.
-              </p>
-
-              <div className="mt-5">
-                <Link
-                  to="/dashboard"
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Mở hệ thống quản lý
-                  <span>→</span>
-                </Link>
-              </div>
-            </div>
-          </section>
-        </div>
+              );
+            })}
+          </div>
+        </section>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 text-xs text-slate-400">
-          <span>Company ERP</span>
-
-          <span>Hệ thống quản lý doanh nghiệp</span>
-        </div>
-      </footer>
     </div>
   );
 }

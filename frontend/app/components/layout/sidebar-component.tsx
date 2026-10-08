@@ -3,7 +3,6 @@ import { useAuth } from "@/provider/auth-context";
 import { useChatUnreadCount } from "@/hooks/use-chat";
 import type { Workspace } from "@/types";
 import {
-  CheckCircle2,
   ChevronsLeft,
   ChevronsRight,
   LayoutDashboard,
@@ -11,16 +10,15 @@ import {
   LogOut,
   Settings,
   Users,
-  Wrench,
   FolderTree,
   MessageCircle,
   GlassWater,
   FileWarning,
   Wine,
-  Wallet, // <-- IMPORT THÊM ICON WALLET CHO QUẢN LÝ QUỸ
+  Wallet,
 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router"; // Đảm bảo react-router-dom nếu bản cũ, hoặc react-router như bạn dùng
+import { Link } from "react-router";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
 import { SidebarNav } from "./sidebar-nav";
@@ -42,19 +40,43 @@ export const SidebarComponent = ({
     { title: "Báo cáo doanh thu", href: "/my-tasks", icon: ListCheck },
     { title: "Đã post & Chưa post", href: "/backlog", icon: FolderTree },
     { title: "Chia Tips", href: "/members", icon: Users },
-    { title: "Hoa Hồng Rượu", href: "/wine-commission", icon: GlassWater },
-    
-    // <-- THÊM DÒNG QUẢN LÝ HỦY MÓN VÀO MENU -->
-    { title: "Hệ Thống Hủy Món", href: "/cancel-report", icon: FileWarning },
-    
-    // <-- THÊM DÒNG GUI RƯỢU CHO BAR ROLE -->
-    { title: "GUI Rượu", href: "/gui-ruou", icon: Wine, roles: ["bar", "admin"] },
+    {
+      title: "Hoa Hồng Rượu",
+      href: "/wine-commission",
+      icon: GlassWater,
+    },
 
-    // <-- THÊM DÒNG QUẢN LÝ QUỸ Ở ĐÂY -->
-    { title: "Quản lý Quỹ", href: "/fund-management", icon: Wallet, roles: ["manager", "admin"] },
-    
-    { title: "Messenger", href: "/achieved", icon: MessageCircle },
-    { title: "Settings", href: "/settings", icon: Settings },
+    {
+      title: "Hệ Thống Hủy Món",
+      href: "/cancel-report",
+      icon: FileWarning,
+    },
+
+    {
+      title: "GUI Rượu",
+      href: "/gui-ruou",
+      icon: Wine,
+      roles: ["bar", "admin"],
+    },
+
+    {
+      title: "Quản lý Quỹ",
+      href: "/fund-management",
+      icon: Wallet,
+      roles: ["manager", "admin"],
+    },
+
+    {
+      title: "Messenger",
+      href: "/achieved",
+      icon: MessageCircle,
+    },
+
+    {
+      title: "Settings",
+      href: "/settings",
+      icon: Settings,
+    },
   ];
 
   // Logic filter navItems theo quyền nếu bạn có áp dụng hasRole
@@ -67,6 +89,7 @@ export const SidebarComponent = ({
         isCollapsed ? "w-32" : "w-64",
       )}
     >
+      {/* ================= HEADER / LOGO ================= */}
       <div className="group relative flex items-center px-3 py-4 border-b border-border">
         <Link
           to="/dashboard"
@@ -74,23 +97,28 @@ export const SidebarComponent = ({
         >
           {!isCollapsed ? (
             <>
-              {/* Logo */}
-              <div
-                className="shrink-0 w-9 h-9 rounded-xl 
-                bg-linear-to-tr from-indigo-500 to-purple-600 
-                flex items-center justify-center shadow-md"
-              >
-                <Wrench className="size-5 text-white" />
+              {/* Logo MaximSaigon */}
+              <div className="shrink-0 w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-white">
+                <img
+                  src="/logo/logotab2.jpg"
+                  alt="MaximSaigon"
+                  className="w-full h-full object-contain"
+                />
               </div>
 
-              <span className="text-lg font-bold bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent tracking-wide">
-                botdev789
+              {/* Tên hệ thống */}
+              <span className="text-lg font-bold text-black tracking-wide truncate">
+                MaximSaigon
               </span>
             </>
           ) : (
             <div className="flex justify-center w-full">
-              <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Wrench className="size-5 text-primary" />
+              <div className="size-9 rounded-lg overflow-hidden flex items-center justify-center bg-white">
+                <img
+                  src="/logo/logotab2.jpg"
+                  alt="MaximSaigon"
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
           )}
@@ -117,6 +145,7 @@ export const SidebarComponent = ({
         </Button>
       </div>
 
+      {/* ================= MENU ================= */}
       <ScrollArea className="flex-1 overflow-y-auto">
         <div className="px-2 py-3">
           <SidebarNav
@@ -130,7 +159,7 @@ export const SidebarComponent = ({
         </div>
       </ScrollArea>
 
-      {/* Footer */}
+      {/* ================= FOOTER ================= */}
       <div className="p-3 border-t border-border space-y-3">
         {/* User Info */}
         {!isCollapsed && user && (
@@ -138,6 +167,7 @@ export const SidebarComponent = ({
             <p className="text-xs font-medium text-foreground truncate">
               {user.name}
             </p>
+
             <p className="text-xs text-muted-foreground truncate">
               {user.email}
             </p>
@@ -155,6 +185,7 @@ export const SidebarComponent = ({
           )}
         >
           <LogOut className="w-4 h-4 shrink-0" />
+
           {!isCollapsed && <span className="text-sm">Logout</span>}
         </Button>
       </div>

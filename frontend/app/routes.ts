@@ -24,6 +24,19 @@ export default [
   route("portal", "routes/portal/index.tsx"),
 
   // =========================
+  // HR - NHÂN SỰ
+  // =========================
+  layout("routes/hr/hr-layout.tsx", [
+    route("hr", "routes/hr/index.tsx"),
+
+    // Hồ sơ nhân sự
+    route(
+      "hr/employee",
+      "routes/hr/employee/index.tsx",
+    ),
+  ]),
+
+  // =========================
   // DASHBOARD CŨ
   // =========================
   layout("routes/dashboard/dashboard-layout.tsx", [

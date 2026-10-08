@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router";
 import { useLoginMutation } from "@/hooks/use-Auth";
 import { toast } from "sonner";
-import { Loader2, Wrench } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/provider/auth-context";
 
 type SignInFormData = z.infer<typeof signInSchema>;
@@ -69,17 +69,26 @@ const SignIn = () => {
       <Card className="relative w-full max-w-md shadow-2xl border border-border/50 backdrop-blur-sm">
         {/* Logo + Brand */}
         <div className="flex items-center justify-center gap-3 mt-6">
-          <div className="size-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-            <Wrench className="w-6 h-6 text-white" />
+          {/* Logo MaximSaigon */}
+          <div className="size-10 rounded-xl overflow-hidden bg-white flex items-center justify-center">
+            <img
+              src="/logo/logotab2.jpg"
+              alt="MaximSaigon"
+              className="w-full h-full object-contain"
+            />
           </div>
 
-          <span className="text-2xl font-bold tracking-wide bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            botdev789
+          {/* Brand */}
+          <span className="text-2xl font-bold tracking-wide text-black">
+            MaximSaigon
           </span>
         </div>
 
         <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Welcome back
+          </CardTitle>
+
           <CardDescription>
             Sign in to continue to your workspace
           </CardDescription>
@@ -97,6 +106,7 @@ const SignIn = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
+
                     <FormControl>
                       <Input
                         type="email"
@@ -105,6 +115,7 @@ const SignIn = () => {
                         {...field}
                       />
                     </FormControl>
+
                     <FormMessage />
                   </FormItem>
                 )}
@@ -117,6 +128,7 @@ const SignIn = () => {
                   <FormItem>
                     <div className="flex items-center justify-between">
                       <FormLabel>Password</FormLabel>
+
                       <Link
                         to="/forgot-password"
                         className="text-sm text-primary hover:underline"
@@ -124,6 +136,7 @@ const SignIn = () => {
                         Forgot password?
                       </Link>
                     </div>
+
                     <FormControl>
                       <Input
                         type="password"
@@ -132,6 +145,7 @@ const SignIn = () => {
                         {...field}
                       />
                     </FormControl>
+
                     <FormMessage />
                   </FormItem>
                 )}

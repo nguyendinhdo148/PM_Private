@@ -5,7 +5,7 @@ import { Wrench, CheckCircle2, Users, ListCheck } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Botdev789 - Manage your work smarter" },
+    { title: "MaximSaigon - Manage your work smarter" },
     { name: "description", content: "Task management platform" },
   ];
 }
@@ -20,7 +20,7 @@ const HomePage = () => {
             <Wrench className="w-5 h-5 text-white" />
           </div>
           <span className="text-2xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent tracking-wide">
-            botdev789
+            MaximSaigon
           </span>
         </div>
 

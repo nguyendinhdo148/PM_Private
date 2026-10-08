@@ -6,26 +6,20 @@ import taskRoutes from "./task.js";
 import userRoutes from "./user.js";
 import epicRoutes from "./epic.js";
 import storyRoutes from "./story.js";
-import chatRoutes from "./chat.js"; 
+import chatRoutes from "./chat.js";
 import notificationRoutes from "./notification.js";
-import monthlyReportRoutes from "./monthlyReport.js"; 
-import dailyRevenueRoutes from "./dailyRevenue.js"; 
+import monthlyReportRoutes from "./monthlyReport.js";
+import dailyRevenueRoutes from "./dailyRevenue.js";
 import invoiceMonthRoutes from "./invoiceMonth.js";
-import invoiceRoutes from "./invoice.js"; 
+import invoiceRoutes from "./invoice.js";
 import staffRoutes from "./staff.js";
-import tipRoutes from "./tip.js"; 
+import tipRoutes from "./tip.js";
 import fundRoutes from "./fund.js";
-// <-- IMPORT ROUTE HOA HỒNG RƯỢU -->
 import wineCommissionRoutes from "./wineCommission.js";
-
-// <-- IMPORT ROUTE QUẢN LÝ HỦY MÓN -->
 import cancelReportRoutes from "./cancelReport.js";
-
-// <-- IMPORT ROUTE GỬI RƯỢU (BOTTLE KEEP) -->
 import bottleKeepRoutes from "./bottleKeep.js";
-
-// <-- IMPORT ROUTE AI -->
 import aiRoutes from "./ai-routes.js";
+import employeeRoutes from "./employee.js";
 
 const router = express.Router();
 
@@ -36,24 +30,31 @@ router.use("/tasks", taskRoutes);
 router.use("/users", userRoutes);
 router.use("/epics", epicRoutes);
 router.use("/stories", storyRoutes);
-router.use("/chat", chatRoutes); 
+router.use("/chat", chatRoutes);
 router.use("/notifications", notificationRoutes);
-router.use("/monthly-reports", monthlyReportRoutes); 
-router.use("/daily-revenues", dailyRevenueRoutes); 
+router.use("/monthly-reports", monthlyReportRoutes);
+router.use("/daily-revenues", dailyRevenueRoutes);
 router.use("/invoice-months", invoiceMonthRoutes);
-router.use("/invoices", invoiceRoutes); 
+router.use("/invoices", invoiceRoutes);
 router.use("/tips", tipRoutes);
 router.use("/staff", staffRoutes);
 router.use("/funds", fundRoutes);
 
-// <-- GẮN VÀO API -->
+// Hoa hồng rượu
 router.use("/wine-commission", wineCommissionRoutes);
+
+// Quản lý hủy món
 router.use("/cancel-reports", cancelReportRoutes);
 
-// <-- GẮN API GỬI RƯỢU VÀO ĐÂY -->
+// Gửi rượu / Bottle Keep
 router.use("/bottle-keep", bottleKeepRoutes);
 
-// <-- GẮN API AI VÀO ĐÂY -->
+// AI
 router.use("/ai", aiRoutes);
+
+// =========================================================
+// HR - EMPLOYEE
+// =========================================================
+router.use("/employees", employeeRoutes);
 
 export default router;
