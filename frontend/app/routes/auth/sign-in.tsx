@@ -45,10 +45,10 @@ const SignIn = () => {
 
   const handleOnSubmit = (values: SignInFormData) => {
     mutate(values, {
-      onSuccess: (data) => {
-        login(data);
+      onSuccess: async (data) => {
+        await login(data);
         toast.success("Login successful");
-        navigate("/dashboard");
+        navigate("/portal", { replace: true });
       },
       onError: (error: any) => {
         const errorMessage =
