@@ -177,6 +177,7 @@ async function tryInsertLogo(
 
 /* ============================================================
  *  COMMON HEADER (dùng cho mọi form) — logo + tiêu đề + ảnh 3x4
+ *  Ảnh 3x4 kéo dài từ row 1 -> row 6 (đủ không gian)
  * ============================================================ */
 
 function writeCommonHeader(
@@ -186,20 +187,20 @@ function writeCommonHeader(
 ): void {
   const hasPhotoBox = options?.hasPhotoBox ?? true;
 
-  // Logo A1:C4
-  sheet.mergeCells("A1:C4");
+  // Logo A1:C6 (cao hơn để cân với ảnh)
+  sheet.mergeCells("A1:C6");
   sheet.getCell("A1").alignment = CENTER;
 
-  // Tiêu đề D1:I4
-  sheet.mergeCells("D1:I4");
+  // Tiêu đề D1:I6
+  sheet.mergeCells("D1:I6");
   const titleCell = sheet.getCell("D1");
   titleCell.value = docTitle;
   titleCell.font = { name: FONT_NAME, size: 16, bold: true };
   titleCell.alignment = CENTER;
 
-  // Ô ảnh J1:K4
+  // Ô ảnh J1:K6 (kéo dài 6 dòng, đúng tỷ lệ 3x4)
   if (hasPhotoBox) {
-    sheet.mergeCells("J1:K4");
+    sheet.mergeCells("J1:K6");
     const photoCell = sheet.getCell("J1");
     photoCell.value = "Ảnh 3x4";
     photoCell.font = { name: FONT_NAME, size: 10 };
@@ -207,14 +208,18 @@ function writeCommonHeader(
     photoCell.border = BORDER_THIN;
   }
 
+  // Chiều cao các dòng header
   sheet.getRow(1).height = 22;
   sheet.getRow(2).height = 22;
   sheet.getRow(3).height = 22;
   sheet.getRow(4).height = 22;
+  sheet.getRow(5).height = 22;
+  sheet.getRow(6).height = 22;
 }
 
 /* ============================================================
  *  COMMON HEADER BLOCK — Ngày nhận việc / Chức danh / ĐT / Email
+ *  Tách label và ô nhập liệu ra 2 dòng riêng biệt (giống bên dưới)
  * ============================================================ */
 
 function writeCommonHeaderBlock(
@@ -223,56 +228,56 @@ function writeCommonHeaderBlock(
 ): void {
   const wi = employee.workInfo;
 
-  sheet.getCell("A5").value = "Ngày nhận việc";
-  sheet.getCell("A5").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A5").alignment = LEFT;
+  // --- Row 7: Labels ---
+  sheet.getCell("A7").value = "Ngày nhận việc";
+  sheet.getCell("A7").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A7").alignment = LEFT;
 
-  sheet.mergeCells("B5:D6");
-  const startDateCell = sheet.getCell("B5");
+  sheet.getCell("D7").value = "Chức danh công việc";
+  sheet.getCell("D7").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D7").alignment = LEFT;
+
+  sheet.getCell("G7").value = "Điện thoại di động";
+  sheet.getCell("G7").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G7").alignment = LEFT;
+
+  sheet.getCell("J7").value = "Email";
+  sheet.getCell("J7").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("J7").alignment = LEFT;
+
+  sheet.getRow(7).height = 18;
+
+  // --- Row 8: Value boxes ---
+  sheet.mergeCells("A8:C8");
+  const startDateCell = sheet.getCell("A8");
   startDateCell.value = formatDate(wi?.startDate);
   startDateCell.font = { name: FONT_NAME, size: 10 };
   startDateCell.alignment = LEFT;
   startDateCell.border = BORDER_THIN;
 
-  sheet.getRow(5).height = 24;
-  sheet.getRow(6).height = 24;
-
-  sheet.getCell("A7").value = "Chức danh công việc";
-  sheet.getCell("A7").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A7").alignment = LEFT;
-
-  sheet.mergeCells("B7:C8");
-  const positionCell = sheet.getCell("B7");
+  sheet.mergeCells("D8:F8");
+  const positionCell = sheet.getCell("D8");
   positionCell.value = safeString(wi?.position);
   positionCell.font = { name: FONT_NAME, size: 10 };
   positionCell.alignment = LEFT_WRAP;
   positionCell.border = BORDER_THIN;
 
-  sheet.getCell("D7").value = "Điện thoại di động";
-  sheet.getCell("D7").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("D7").alignment = LEFT;
-
-  sheet.mergeCells("E7:F8");
-  const phoneCell = sheet.getCell("E7");
+  sheet.mergeCells("G8:I8");
+  const phoneCell = sheet.getCell("G8");
   phoneCell.value = safeString(employee.phone);
   phoneCell.font = { name: FONT_NAME, size: 10 };
   phoneCell.alignment = LEFT;
   phoneCell.border = BORDER_THIN;
 
-  sheet.getCell("G7").value = "Email";
-  sheet.getCell("G7").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("G7").alignment = LEFT;
-
-  sheet.mergeCells("H7:K8");
-  const emailCell = sheet.getCell("H7");
+  sheet.mergeCells("J8:K8");
+  const emailCell = sheet.getCell("J8");
   emailCell.value = safeString(employee.email);
   emailCell.font = { name: FONT_NAME, size: 10 };
   emailCell.alignment = LEFT_WRAP;
   emailCell.border = BORDER_THIN;
 
-  sheet.getRow(7).height = 26;
-  sheet.getRow(8).height = 26;
-  sheet.getRow(9).height = 8;
+  sheet.getRow(8).height = 28;
+  sheet.getRow(9).height = 8; // khoảng trống
 }
 
 /* ============================================================
@@ -295,6 +300,7 @@ function writeSectionTitle(
 
 /* ============================================================
  *  BUILDER 1: PHIẾU THÔNG TIN NHÂN SỰ (sheet "02")
+ *  Bắt đầu section I từ row 10
  * ============================================================ */
 
 async function buildPersonalInfoFormSheet(
@@ -319,233 +325,247 @@ async function buildPersonalInfoFormSheet(
   /* I. THÔNG TIN CÁ NHÂN */
   writeSectionTitle(sheet, 10, "I. THÔNG TIN CÁ NHÂN");
 
-  // Hàng 1
+  // --- Hàng 1: Họ tên (A-C) | Ngày sinh (D-F) | Nơi sinh (G-I) | Nguyên quán (J-K) ---
   sheet.getCell("A11").value = "1. Họ và tên";
   sheet.getCell("A11").font = { name: FONT_NAME, size: 10 };
   sheet.getCell("A11").alignment = LEFT;
-
-  sheet.mergeCells("B11:C11");
-  const nameCell = sheet.getCell("B11");
-  nameCell.value = safeString(employee.name);
-  nameCell.font = { name: FONT_NAME, size: 10 };
-  nameCell.alignment = LEFT_WRAP;
-  nameCell.border = BORDER_THIN;
 
   sheet.getCell("D11").value = "2. Ngày sinh";
   sheet.getCell("D11").font = { name: FONT_NAME, size: 10 };
   sheet.getCell("D11").alignment = LEFT;
 
-  sheet.mergeCells("E11:F11");
-  const dobCell = sheet.getCell("E11");
-  dobCell.value = formatDate(pi?.dateOfBirth);
-  dobCell.font = { name: FONT_NAME, size: 10 };
-  dobCell.alignment = LEFT;
-  dobCell.border = BORDER_THIN;
-
   sheet.getCell("G11").value = "3. Nơi sinh";
   sheet.getCell("G11").font = { name: FONT_NAME, size: 10 };
   sheet.getCell("G11").alignment = LEFT;
-
-  sheet.mergeCells("H11:I11");
-  const pobCell = sheet.getCell("H11");
-  pobCell.value = safeString(pi?.placeOfBirth);
-  pobCell.font = { name: FONT_NAME, size: 10 };
-  pobCell.alignment = LEFT_WRAP;
-  pobCell.border = BORDER_THIN;
 
   sheet.getCell("J11").value = "4. Nguyên quán";
   sheet.getCell("J11").font = { name: FONT_NAME, size: 10 };
   sheet.getCell("J11").alignment = LEFT;
 
-  const homeCell = sheet.getCell("K11");
+  sheet.mergeCells("A12:C12");
+  const nameCell = sheet.getCell("A12");
+  nameCell.value = safeString(employee.name);
+  nameCell.font = { name: FONT_NAME, size: 10 };
+  nameCell.alignment = LEFT_WRAP;
+  nameCell.border = BORDER_THIN;
+
+  sheet.mergeCells("D12:F12");
+  const dobCell = sheet.getCell("D12");
+  dobCell.value = formatDate(pi?.dateOfBirth);
+  dobCell.font = { name: FONT_NAME, size: 10 };
+  dobCell.alignment = LEFT;
+  dobCell.border = BORDER_THIN;
+
+  sheet.mergeCells("G12:I12");
+  const pobCell = sheet.getCell("G12");
+  pobCell.value = safeString(pi?.placeOfBirth);
+  pobCell.font = { name: FONT_NAME, size: 10 };
+  pobCell.alignment = LEFT_WRAP;
+  pobCell.border = BORDER_THIN;
+
+  sheet.mergeCells("J12:K12");
+  const homeCell = sheet.getCell("J12");
   homeCell.value = safeString(pi?.hometown);
   homeCell.font = { name: FONT_NAME, size: 10 };
   homeCell.alignment = LEFT_WRAP;
   homeCell.border = BORDER_THIN;
 
-  sheet.getRow(11).height = 30;
-  sheet.getRow(12).height = 8;
+  sheet.getRow(11).height = 18;
+  sheet.getRow(12).height = 30;
+  sheet.getRow(13).height = 6;
 
-  // Hàng 2
-  sheet.getCell("A13").value = "5. Số CMND/CCCD";
-  sheet.getCell("A13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A13").alignment = LEFT;
+  // --- Hàng 2: CCCD (A-C) | Ngày cấp (D-F) | Nơi cấp (G-I) | Quốc tịch (J-K) ---
+  sheet.getCell("A14").value = "5. Số CMND/CCCD";
+  sheet.getCell("A14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A14").alignment = LEFT;
 
-  sheet.mergeCells("B13:C13");
-  const idCell = sheet.getCell("B13");
+  sheet.getCell("D14").value = "6. Ngày cấp";
+  sheet.getCell("D14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D14").alignment = LEFT;
+
+  sheet.getCell("G14").value = "7. Nơi cấp";
+  sheet.getCell("G14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G14").alignment = LEFT;
+
+  sheet.getCell("J14").value = "8. Quốc tịch";
+  sheet.getCell("J14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("J14").alignment = LEFT;
+
+  sheet.mergeCells("A15:C15");
+  const idCell = sheet.getCell("A15");
   idCell.value = safeString(pi?.idCardNumber);
   idCell.font = { name: FONT_NAME, size: 10 };
   idCell.alignment = LEFT;
   idCell.border = BORDER_THIN;
 
-  sheet.getCell("D13").value = "6. Ngày cấp";
-  sheet.getCell("D13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("D13").alignment = LEFT;
-
-  sheet.mergeCells("E13:F13");
-  const idDateCell = sheet.getCell("E13");
+  sheet.mergeCells("D15:F15");
+  const idDateCell = sheet.getCell("D15");
   idDateCell.value = formatDate(pi?.idCardIssueDate);
   idDateCell.font = { name: FONT_NAME, size: 10 };
   idDateCell.alignment = LEFT;
   idDateCell.border = BORDER_THIN;
 
-  sheet.getCell("G13").value = "7. Nơi cấp";
-  sheet.getCell("G13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("G13").alignment = LEFT;
-
-  sheet.mergeCells("H13:I13");
-  const idPlaceCell = sheet.getCell("H13");
+  sheet.mergeCells("G15:I15");
+  const idPlaceCell = sheet.getCell("G15");
   idPlaceCell.value = safeString(pi?.idCardIssuePlace);
   idPlaceCell.font = { name: FONT_NAME, size: 10 };
   idPlaceCell.alignment = LEFT_WRAP;
   idPlaceCell.border = BORDER_THIN;
 
-  sheet.getCell("J13").value = "8. Quốc tịch";
-  sheet.getCell("J13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("J13").alignment = LEFT;
-
-  const natCell = sheet.getCell("K13");
+  sheet.mergeCells("J15:K15");
+  const natCell = sheet.getCell("J15");
   natCell.value = safeString(pi?.nationality);
   natCell.font = { name: FONT_NAME, size: 10 };
   natCell.alignment = LEFT;
   natCell.border = BORDER_THIN;
 
-  sheet.getCell("J14").value = "9. Dân tộc";
-  sheet.getCell("J14").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("J14").alignment = LEFT;
+  sheet.getRow(14).height = 18;
+  sheet.getRow(15).height = 28;
+  sheet.getRow(16).height = 6;
 
-  const ethCell = sheet.getCell("K14");
+  // --- Hàng 3: Dân tộc (A-C) | Giới tính (D-F) | Hôn nhân (G-I) | BHXH (J-K) ---
+  sheet.getCell("A17").value = "9. Dân tộc";
+  sheet.getCell("A17").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A17").alignment = LEFT;
+
+  sheet.getCell("D17").value = "10. Giới tính";
+  sheet.getCell("D17").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D17").alignment = LEFT;
+
+  sheet.getCell("G17").value = "11. Tình trạng hôn nhân";
+  sheet.getCell("G17").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G17").alignment = LEFT;
+
+  sheet.getCell("J17").value = "12. Số sổ BHXH";
+  sheet.getCell("J17").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("J17").alignment = LEFT;
+
+  sheet.mergeCells("A18:C18");
+  const ethCell = sheet.getCell("A18");
   ethCell.value = safeString(pi?.ethnicity);
   ethCell.font = { name: FONT_NAME, size: 10 };
   ethCell.alignment = LEFT;
   ethCell.border = BORDER_THIN;
 
-  sheet.getRow(13).height = 26;
-  sheet.getRow(14).height = 26;
-  sheet.getRow(15).height = 8;
-
-  // Hàng 3
-  sheet.getCell("A16").value = "10. Giới tính (Nam/Nữ)";
-  sheet.getCell("A16").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A16").alignment = LEFT;
-
-  sheet.mergeCells("B16:C16");
-  const genCell = sheet.getCell("B16");
+  sheet.mergeCells("D18:F18");
+  const genCell = sheet.getCell("D18");
   genCell.value = getGenderLabel(pi?.gender);
   genCell.font = { name: FONT_NAME, size: 10 };
   genCell.alignment = LEFT;
   genCell.border = BORDER_THIN;
 
-  sheet.getCell("D16").value = "11. Tình trạng hôn nhân";
-  sheet.getCell("D16").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("D16").alignment = LEFT;
-
-  sheet.mergeCells("E16:F16");
-  const marCell = sheet.getCell("E16");
+  sheet.mergeCells("G18:I18");
+  const marCell = sheet.getCell("G18");
   marCell.value = getMaritalLabel(pi?.maritalStatus);
   marCell.font = { name: FONT_NAME, size: 10 };
   marCell.alignment = LEFT;
   marCell.border = BORDER_THIN;
 
-  sheet.getCell("G16").value = "12. Số sổ BHXH";
-  sheet.getCell("G16").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("G16").alignment = LEFT;
-
-  sheet.mergeCells("H16:I16");
-  const bhxhCell = sheet.getCell("H16");
+  sheet.mergeCells("J18:K18");
+  const bhxhCell = sheet.getCell("J18");
   bhxhCell.value = safeString(sb?.socialInsuranceNumber);
   bhxhCell.font = { name: FONT_NAME, size: 10 };
   bhxhCell.alignment = LEFT;
   bhxhCell.border = BORDER_THIN;
 
-  sheet.getCell("J16").value = "13. Mã số thuế";
-  sheet.getCell("J16").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("J16").alignment = LEFT;
+  sheet.getRow(17).height = 18;
+  sheet.getRow(18).height = 28;
+  sheet.getRow(19).height = 6;
 
-  const taxCell = sheet.getCell("K16");
+  // --- Hàng 4: Mã số thuế (A-K full) ---
+  sheet.mergeCells("A20:K20");
+  const taxLabel = sheet.getCell("A20");
+  taxLabel.value = "13. Mã số thuế";
+  taxLabel.font = { name: FONT_NAME, size: 10 };
+  taxLabel.alignment = LEFT;
+
+  sheet.mergeCells("A21:K21");
+  const taxCell = sheet.getCell("A21");
   taxCell.value = safeString(sb?.taxCode);
   taxCell.font = { name: FONT_NAME, size: 10 };
   taxCell.alignment = LEFT;
   taxCell.border = BORDER_THIN;
 
-  sheet.getRow(16).height = 30;
-  sheet.getRow(17).height = 8;
-  sheet.getRow(18).height = 8;
+  sheet.getRow(20).height = 18;
+  sheet.getRow(21).height = 26;
+  sheet.getRow(22).height = 6;
 
-  // Địa chỉ thường trú
-  sheet.mergeCells("A19:K19");
-  const addr1Label = sheet.getCell("A19");
+  // --- Địa chỉ thường trú ---
+  sheet.mergeCells("A23:K23");
+  const addr1Label = sheet.getCell("A23");
   addr1Label.value = "14. Địa chỉ thường trú (Sau sát nhập)";
   addr1Label.font = { name: FONT_NAME, size: 10 };
   addr1Label.alignment = LEFT;
-  sheet.getRow(19).height = 22;
+  sheet.getRow(23).height = 18;
 
-  sheet.mergeCells("A20:K21");
-  const addr1Cell = sheet.getCell("A20");
+  sheet.mergeCells("A24:K25");
+  const addr1Cell = sheet.getCell("A24");
   addr1Cell.value = safeString(pi?.permanentAddress);
   addr1Cell.font = { name: FONT_NAME, size: 10 };
   addr1Cell.alignment = LEFT_TOP;
   addr1Cell.border = BORDER_THIN;
-  sheet.getRow(20).height = 22;
-  sheet.getRow(21).height = 22;
+  sheet.getRow(24).height = 22;
+  sheet.getRow(25).height = 22;
+  sheet.getRow(26).height = 6;
 
-  // Địa chỉ hiện tại
-  sheet.mergeCells("A22:K22");
-  const addr2Label = sheet.getCell("A22");
+  // --- Địa chỉ hiện tại ---
+  sheet.mergeCells("A27:K27");
+  const addr2Label = sheet.getCell("A27");
   addr2Label.value = "15. Địa chỉ hiện tại (nếu khác địa chỉ trên)";
   addr2Label.font = { name: FONT_NAME, size: 10 };
   addr2Label.alignment = LEFT;
-  sheet.getRow(22).height = 22;
+  sheet.getRow(27).height = 18;
 
-  sheet.mergeCells("A23:K24");
-  const addr2Cell = sheet.getCell("A23");
+  sheet.mergeCells("A28:K29");
+  const addr2Cell = sheet.getCell("A28");
   addr2Cell.value = safeString(pi?.currentAddress);
   addr2Cell.font = { name: FONT_NAME, size: 10 };
   addr2Cell.alignment = LEFT_TOP;
   addr2Cell.border = BORDER_THIN;
-  sheet.getRow(23).height = 22;
-  sheet.getRow(24).height = 22;
+  sheet.getRow(28).height = 22;
+  sheet.getRow(29).height = 22;
+  sheet.getRow(30).height = 6;
 
-  // 16. Gia đình
-  sheet.mergeCells("A25:K25");
-  const famTitle = sheet.getCell("A25");
+  // --- 16. Gia đình ---
+  sheet.mergeCells("A31:K31");
+  const famTitle = sheet.getCell("A31");
   famTitle.value = "16. Thành phần gia đình (cha/mẹ/chồng/vợ/con/anh chị em ruột)";
-  famTitle.font = { name: FONT_NAME, size: 10 };
+  famTitle.font = { name: FONT_NAME, size: 10, bold: true };
   famTitle.alignment = LEFT;
-  sheet.getRow(25).height = 22;
+  sheet.getRow(31).height = 22;
 
-  sheet.mergeCells("A26:B26");
-  const famH1 = sheet.getCell("A26");
+  sheet.mergeCells("A32:B32");
+  const famH1 = sheet.getCell("A32");
   famH1.value = "Họ và tên";
   famH1.font = { name: FONT_NAME, size: 10, bold: true };
   famH1.alignment = CENTER;
   famH1.border = BORDER_THIN;
 
-  sheet.mergeCells("C26:D26");
-  const famH2 = sheet.getCell("C26");
+  sheet.mergeCells("C32:D32");
+  const famH2 = sheet.getCell("C32");
   famH2.value = "Mối quan hệ";
   famH2.font = { name: FONT_NAME, size: 10, bold: true };
   famH2.alignment = CENTER;
   famH2.border = BORDER_THIN;
 
-  sheet.mergeCells("E26:F26");
-  const famH3 = sheet.getCell("E26");
+  sheet.mergeCells("E32:F32");
+  const famH3 = sheet.getCell("E32");
   famH3.value = "Năm sinh";
   famH3.font = { name: FONT_NAME, size: 10, bold: true };
   famH3.alignment = CENTER;
   famH3.border = BORDER_THIN;
 
-  sheet.mergeCells("G26:K26");
-  const famH4 = sheet.getCell("G26");
+  sheet.mergeCells("G32:K32");
+  const famH4 = sheet.getCell("G32");
   famH4.value = "Nghề nghiệp";
   famH4.font = { name: FONT_NAME, size: 10, bold: true };
   famH4.alignment = CENTER;
   famH4.border = BORDER_THIN;
-  sheet.getRow(26).height = 24;
+  sheet.getRow(32).height = 24;
 
   const familyMembers = pi?.familyMembers || [];
   for (let i = 0; i < 5; i += 1) {
-    const r = 27 + i;
+    const r = 33 + i;
     const member = familyMembers[i];
 
     sheet.mergeCells(`A${r}:B${r}`);
@@ -578,102 +598,102 @@ async function buildPersonalInfoFormSheet(
 
     sheet.getRow(r).height = 22;
   }
-  sheet.getRow(32).height = 8;
+  sheet.getRow(38).height = 8;
 
-  // Khẩn cấp
-  sheet.mergeCells("A33:K33");
-  const emTitle = sheet.getCell("A33");
+  // --- Khẩn cấp ---
+  sheet.mergeCells("A39:K39");
+  const emTitle = sheet.getCell("A39");
   emTitle.value = "*** Trường hợp khẩn cấp liên hệ (Thông tin bổ sung hoặc anh/chị/em ruột)";
   emTitle.font = { name: FONT_NAME, size: 10, bold: true, italic: true };
   emTitle.alignment = LEFT;
-  sheet.getRow(33).height = 22;
+  sheet.getRow(39).height = 22;
 
-  sheet.getCell("A34").value = "Tên";
-  sheet.getCell("A34").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A34").alignment = LEFT;
+  sheet.getCell("A40").value = "Tên";
+  sheet.getCell("A40").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A40").alignment = LEFT;
 
-  sheet.mergeCells("B34:C34");
-  const emName = sheet.getCell("B34");
+  sheet.mergeCells("B40:C40");
+  const emName = sheet.getCell("B40");
   emName.value = safeString(pi?.emergencyContact?.name);
   emName.font = { name: FONT_NAME, size: 10 };
   emName.alignment = LEFT_WRAP;
   emName.border = BORDER_THIN;
 
-  sheet.getCell("D34").value = "Mối quan hệ";
-  sheet.getCell("D34").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("D34").alignment = LEFT;
+  sheet.getCell("D40").value = "Mối quan hệ";
+  sheet.getCell("D40").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D40").alignment = LEFT;
 
-  sheet.mergeCells("E34:F34");
-  const emRel = sheet.getCell("E34");
+  sheet.mergeCells("E40:F40");
+  const emRel = sheet.getCell("E40");
   emRel.value = safeString(pi?.emergencyContact?.relationship);
   emRel.font = { name: FONT_NAME, size: 10 };
   emRel.alignment = LEFT;
   emRel.border = BORDER_THIN;
 
-  sheet.getCell("G34").value = "Địa chỉ";
-  sheet.getCell("G34").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("G34").alignment = LEFT;
+  sheet.getCell("G40").value = "Địa chỉ";
+  sheet.getCell("G40").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G40").alignment = LEFT;
 
-  sheet.mergeCells("H34:K34");
-  const emAddr = sheet.getCell("H34");
+  sheet.mergeCells("H40:K40");
+  const emAddr = sheet.getCell("H40");
   emAddr.value = safeString(pi?.emergencyContact?.address);
   emAddr.font = { name: FONT_NAME, size: 10 };
   emAddr.alignment = LEFT_WRAP;
   emAddr.border = BORDER_THIN;
 
-  sheet.getCell("G35").value = "Số điện thoại";
-  sheet.getCell("G35").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("G35").alignment = LEFT;
+  sheet.getCell("G41").value = "Số điện thoại";
+  sheet.getCell("G41").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G41").alignment = LEFT;
 
-  sheet.mergeCells("H35:K35");
-  const emPhone = sheet.getCell("H35");
+  sheet.mergeCells("H41:K41");
+  const emPhone = sheet.getCell("H41");
   emPhone.value = safeString(pi?.emergencyContact?.phone);
   emPhone.font = { name: FONT_NAME, size: 10 };
   emPhone.alignment = LEFT;
   emPhone.border = BORDER_THIN;
 
-  sheet.getRow(34).height = 24;
-  sheet.getRow(35).height = 24;
-  sheet.getRow(36).height = 8;
+  sheet.getRow(40).height = 24;
+  sheet.getRow(41).height = 24;
+  sheet.getRow(42).height = 8;
 
   // II. Học tập
-  writeSectionTitle(sheet, 37, "II. QUÁ TRÌNH HỌC TẬP & ĐÀO TẠO");
-  sheet.getRow(38).height = 6;
+  writeSectionTitle(sheet, 43, "II. QUÁ TRÌNH HỌC TẬP & ĐÀO TẠO");
+  sheet.getRow(44).height = 6;
 
-  sheet.mergeCells("A39:B40");
-  const edH1 = sheet.getCell("A39");
+  sheet.mergeCells("A45:B46");
+  const edH1 = sheet.getCell("A45");
   edH1.value = "Thời gian\n(từ ... đến ...)";
   edH1.font = { name: FONT_NAME, size: 10, bold: true };
   edH1.alignment = CENTER;
   edH1.border = BORDER_THIN;
 
-  sheet.mergeCells("C39:F40");
-  const edH2 = sheet.getCell("C39");
+  sheet.mergeCells("C45:F46");
+  const edH2 = sheet.getCell("C45");
   edH2.value = "Chuyên ngành / chứng chỉ";
   edH2.font = { name: FONT_NAME, size: 10, bold: true };
   edH2.alignment = CENTER;
   edH2.border = BORDER_THIN;
 
-  sheet.mergeCells("G39:I40");
-  const edH3 = sheet.getCell("G39");
+  sheet.mergeCells("G45:I46");
+  const edH3 = sheet.getCell("G45");
   edH3.value = "Tên trường";
   edH3.font = { name: FONT_NAME, size: 10, bold: true };
   edH3.alignment = CENTER;
   edH3.border = BORDER_THIN;
 
-  sheet.mergeCells("J39:K40");
-  const edH4 = sheet.getCell("J39");
+  sheet.mergeCells("J45:K46");
+  const edH4 = sheet.getCell("J45");
   edH4.value = "Bằng cấp/Chứng chỉ";
   edH4.font = { name: FONT_NAME, size: 10, bold: true };
   edH4.alignment = CENTER;
   edH4.border = BORDER_THIN;
 
-  sheet.getRow(39).height = 22;
-  sheet.getRow(40).height = 22;
+  sheet.getRow(45).height = 22;
+  sheet.getRow(46).height = 22;
 
   const education = employee.education || [];
   for (let i = 0; i < 3; i += 1) {
-    const r = 41 + i;
+    const r = 47 + i;
     const item = education[i];
 
     sheet.mergeCells(`A${r}:B${r}`);
@@ -706,40 +726,40 @@ async function buildPersonalInfoFormSheet(
 
     sheet.getRow(r).height = 28;
   }
-  sheet.getRow(44).height = 8;
-  sheet.getRow(45).height = 8;
+  sheet.getRow(50).height = 8;
+  sheet.getRow(51).height = 8;
 
   // III. Kinh nghiệm
-  writeSectionTitle(sheet, 46, "III. KINH NGHIỆM LÀM VIỆC (Ghi công việc gần nhất)");
-  sheet.getRow(47).height = 6;
+  writeSectionTitle(sheet, 52, "III. KINH NGHIỆM LÀM VIỆC (Ghi công việc gần nhất)");
+  sheet.getRow(53).height = 6;
 
-  sheet.mergeCells("A48:B49");
-  const exH1 = sheet.getCell("A48");
+  sheet.mergeCells("A54:B55");
+  const exH1 = sheet.getCell("A54");
   exH1.value = "Thời gian\n(từ ... đến ...)";
   exH1.font = { name: FONT_NAME, size: 10, bold: true };
   exH1.alignment = CENTER;
   exH1.border = BORDER_THIN;
 
-  sheet.mergeCells("C48:H49");
-  const exH2 = sheet.getCell("C48");
+  sheet.mergeCells("C54:H55");
+  const exH2 = sheet.getCell("C54");
   exH2.value = "Công ty / Chức danh\nNhiệm vụ chính";
   exH2.font = { name: FONT_NAME, size: 10, bold: true };
   exH2.alignment = CENTER;
   exH2.border = BORDER_THIN;
 
-  sheet.mergeCells("I48:K49");
-  const exH3 = sheet.getCell("I48");
+  sheet.mergeCells("I54:K55");
+  const exH3 = sheet.getCell("I54");
   exH3.value = "Loại hình làm việc";
   exH3.font = { name: FONT_NAME, size: 10, bold: true };
   exH3.alignment = CENTER;
   exH3.border = BORDER_THIN;
 
-  sheet.getRow(48).height = 22;
-  sheet.getRow(49).height = 22;
+  sheet.getRow(54).height = 22;
+  sheet.getRow(55).height = 22;
 
   const experiences = employee.workExperience || [];
   for (let i = 0; i < 3; i += 1) {
-    const r = 50 + i;
+    const r = 56 + i;
     const item = experiences[i];
 
     sheet.mergeCells(`A${r}:B${r}`);
@@ -770,91 +790,90 @@ async function buildPersonalInfoFormSheet(
 
     sheet.getRow(r).height = 34;
   }
-  sheet.getRow(53).height = 8;
-  sheet.getRow(54).height = 8;
-  sheet.getRow(55).height = 8;
+  sheet.getRow(59).height = 8;
+  sheet.getRow(60).height = 8;
+  sheet.getRow(61).height = 8;
 
   // Ngân hàng
-  sheet.getCell("A56").value = "Tên ngân hàng:";
-  sheet.getCell("A56").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A56").alignment = LEFT;
+  sheet.getCell("A62").value = "Tên ngân hàng:";
+  sheet.getCell("A62").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A62").alignment = LEFT;
 
-  sheet.mergeCells("B56:F56");
-  const bankName = sheet.getCell("B56");
+  sheet.mergeCells("B62:F62");
+  const bankName = sheet.getCell("B62");
   bankName.value = safeString(sb?.bankName);
   bankName.font = { name: FONT_NAME, size: 10 };
   bankName.alignment = LEFT_WRAP;
   bankName.border = BORDER_THIN;
 
-  sheet.getCell("G56").value = "Số tài khoản:";
-  sheet.getCell("G56").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("G56").alignment = LEFT;
+  sheet.getCell("G62").value = "Số tài khoản:";
+  sheet.getCell("G62").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G62").alignment = LEFT;
 
-  sheet.mergeCells("H56:K56");
-  const bankAcc = sheet.getCell("H56");
+  sheet.mergeCells("H62:K62");
+  const bankAcc = sheet.getCell("H62");
   bankAcc.value = safeString(sb?.bankAccountNumber);
   bankAcc.font = { name: FONT_NAME, size: 10 };
   bankAcc.alignment = LEFT;
   bankAcc.border = BORDER_THIN;
 
-  sheet.getCell("G57").value = "Chi nhánh:";
-  sheet.getCell("G57").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("G57").alignment = LEFT;
+  sheet.getCell("G63").value = "Chi nhánh:";
+  sheet.getCell("G63").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G63").alignment = LEFT;
 
-  sheet.mergeCells("H57:K57");
-  const bankBranch = sheet.getCell("H57");
+  sheet.mergeCells("H63:K63");
+  const bankBranch = sheet.getCell("H63");
   bankBranch.value = safeString(sb?.bankBranch);
   bankBranch.font = { name: FONT_NAME, size: 10 };
   bankBranch.alignment = LEFT_WRAP;
   bankBranch.border = BORDER_THIN;
 
-  sheet.getRow(56).height = 22;
-  sheet.getRow(57).height = 22;
-  sheet.getRow(58).height = 8;
+  sheet.getRow(62).height = 22;
+  sheet.getRow(63).height = 22;
+  sheet.getRow(64).height = 8;
 
   // IV. Cam kết
-  writeSectionTitle(sheet, 59, "IV. CAM KẾT");
+  writeSectionTitle(sheet, 65, "IV. CAM KẾT");
 
-  sheet.mergeCells("A60:K60");
-  const cam1 = sheet.getCell("A60");
+  sheet.mergeCells("A66:K66");
+  const cam1 = sheet.getCell("A66");
   cam1.value = "Tôi xin cam đoan những thông tin cung cấp trên đây là hoàn toàn chính xác và đầy đủ.";
   cam1.font = { name: FONT_NAME, size: 10 };
   cam1.alignment = LEFT;
-  sheet.getRow(60).height = 20;
+  sheet.getRow(66).height = 20;
 
-  sheet.mergeCells("A61:K61");
-  const cam2 = sheet.getCell("A61");
+  sheet.mergeCells("A67:K67");
+  const cam2 = sheet.getCell("A67");
   cam2.value = "Tôi xin chịu trách nhiệm và chấp nhận việc điều tra các thông tin đã cung cấp.";
   cam2.font = { name: FONT_NAME, size: 10 };
   cam2.alignment = LEFT;
-  sheet.getRow(61).height = 20;
-  sheet.getRow(62).height = 10;
+  sheet.getRow(67).height = 20;
+  sheet.getRow(68).height = 10;
 
-  // Ngày + chữ ký
   const today = new Date();
   const dateLine = `Ngày ${String(today.getDate()).padStart(2, "0")} / ${String(
     today.getMonth() + 1
   ).padStart(2, "0")} / ${today.getFullYear()}`;
 
-  sheet.mergeCells("G63:K63");
-  const dateCell = sheet.getCell("G63");
+  sheet.mergeCells("G69:K69");
+  const dateCell = sheet.getCell("G69");
   dateCell.value = dateLine;
   dateCell.font = { name: FONT_NAME, size: 10, italic: true };
   dateCell.alignment = CENTER;
 
-  sheet.mergeCells("G64:K64");
-  const sigLabel = sheet.getCell("G64");
+  sheet.mergeCells("G70:K70");
+  const sigLabel = sheet.getCell("G70");
   sigLabel.value = "Ký và ghi rõ họ tên";
   sigLabel.font = { name: FONT_NAME, size: 10, bold: true };
   sigLabel.alignment = CENTER;
 
-  sheet.mergeCells("G65:K68");
-  for (let r = 65; r <= 68; r += 1) {
+  sheet.mergeCells("G71:K74");
+  for (let r = 71; r <= 74; r += 1) {
     sheet.getRow(r).height = 20;
   }
 
   await tryInsertLogo(workbook, sheet, "A1");
-  sheet.pageSetup.printTitlesRow = "1:4";
+  sheet.pageSetup.printTitlesRow = "1:6";
 
   return sheet;
 }
@@ -874,453 +893,395 @@ function buildContractSheet(
   const ci = employee.contractInfo;
   const sb = employee.salaryAndBenefits;
 
-  // ⚠️ Đổi bố cục cột: A-B (label) | C-D (value) | E-F (label) | G-H (value) | I-J (label) | K (value)
-  // Cột A rộng 18, B rộng 12 → label 1 = 30 ký tự
-  // Cột C rộng 14, D rộng 10 → value 1 = 24 ký tự
-  // Cột E rộng 14, F rộng 10 → label 2 = 24 ký tự
-  // Cột G rộng 12, H rộng 10 → value 2 = 22 ký tự
-  // Cột I rộng 10, J rộng 10 → label 3 = 20 ký tự
-  // Cột K rộng 14 → value 3
   sheet.columns = [
     { width: 18 }, { width: 12 }, { width: 14 }, { width: 10 },
     { width: 14 }, { width: 10 }, { width: 12 }, { width: 10 },
     { width: 10 }, { width: 10 }, { width: 14 },
   ];
 
-  // Tiêu đề "HỢP ĐỒNG LAO ĐỘNG"
   writeCommonHeader(sheet, "HỢP ĐỒNG LAO ĐỘNG");
+  writeCommonHeaderBlock(sheet, employee);
 
-  // Khối header: Ngày nhận việc / Chức danh / ĐT / Email
-  // — vẫn dùng layout cũ vì đã đủ rộng
-  sheet.getCell("A5").value = "Ngày nhận việc";
-  sheet.getCell("A5").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A5").alignment = LEFT;
-
-  sheet.mergeCells("B5:D6");
-  const startDateCell = sheet.getCell("B5");
-  startDateCell.value = formatDate(wi?.startDate);
-  startDateCell.font = { name: FONT_NAME, size: 10 };
-  startDateCell.alignment = LEFT;
-  startDateCell.border = BORDER_THIN;
-
-  sheet.getRow(5).height = 24;
-  sheet.getRow(6).height = 24;
-
-  sheet.getCell("A7").value = "Chức danh công việc";
-  sheet.getCell("A7").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A7").alignment = LEFT;
-
-  sheet.mergeCells("B7:C8");
-  const positionCell = sheet.getCell("B7");
-  positionCell.value = safeString(wi?.position);
-  positionCell.font = { name: FONT_NAME, size: 10 };
-  positionCell.alignment = LEFT_WRAP;
-  positionCell.border = BORDER_THIN;
-
-  sheet.getCell("D7").value = "Điện thoại di động";
-  sheet.getCell("D7").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("D7").alignment = LEFT;
-
-  // Đổi merge: ĐT từ E:F → E:G để rộng hơn
-  sheet.mergeCells("E7:G8");
-  const phoneCell = sheet.getCell("E7");
-  phoneCell.value = safeString(employee.phone);
-  phoneCell.font = { name: FONT_NAME, size: 10 };
-  phoneCell.alignment = LEFT;
-  phoneCell.border = BORDER_THIN;
-
-  sheet.getCell("H7").value = "Email";
-  sheet.getCell("H7").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H7").alignment = LEFT;
-
-  sheet.mergeCells("I7:K8");
-  const emailCell = sheet.getCell("I7");
-  emailCell.value = safeString(employee.email);
-  emailCell.font = { name: FONT_NAME, size: 10 };
-  emailCell.alignment = LEFT_WRAP;
-  emailCell.border = BORDER_THIN;
-
-  sheet.getRow(7).height = 26;
-  sheet.getRow(8).height = 26;
-  sheet.getRow(9).height = 8;
-
-  /* ============================================================
-   *  I. THÔNG TIN NHÂN VIÊN
-   * ============================================================ */
+  /* I. THÔNG TIN NHÂN VIÊN */
   writeSectionTitle(sheet, 10, "I. THÔNG TIN NHÂN VIÊN");
 
-  // Hàng 1: Họ và tên (A label, B-C value) | Mã NV (D-E label, F-G value) | Ngày sinh (H label, I-J value) | Giới tính (K label...)
-  // ⚠️ Rút gọn: dùng 3 mục/hàng thay vì 4 mục/hàng
-
-  // Hàng 1
+  // Hàng 1: Họ tên (A-C) | Mã NV (D-F) | Ngày sinh (G-I) | Giới tính (J-K)
   sheet.getCell("A11").value = "1. Họ và tên";
   sheet.getCell("A11").font = { name: FONT_NAME, size: 10 };
   sheet.getCell("A11").alignment = LEFT;
 
-  sheet.mergeCells("B11:D11");
-  const nameCell = sheet.getCell("B11");
+  sheet.getCell("D11").value = "2. Mã NV";
+  sheet.getCell("D11").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D11").alignment = LEFT;
+
+  sheet.getCell("G11").value = "3. Ngày sinh";
+  sheet.getCell("G11").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G11").alignment = LEFT;
+
+  sheet.getCell("J11").value = "4. Giới tính";
+  sheet.getCell("J11").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("J11").alignment = LEFT;
+
+  sheet.mergeCells("A12:C12");
+  const nameCell = sheet.getCell("A12");
   nameCell.value = safeString(employee.name);
   nameCell.font = { name: FONT_NAME, size: 10 };
   nameCell.alignment = LEFT_WRAP;
   nameCell.border = BORDER_THIN;
 
-  sheet.getCell("E11").value = "2. Mã NV";
-  sheet.getCell("E11").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E11").alignment = LEFT;
-
-  sheet.mergeCells("F11:G11");
-  const codeCell = sheet.getCell("F11");
+  sheet.mergeCells("D12:F12");
+  const codeCell = sheet.getCell("D12");
   codeCell.value = safeString(wi?.employeeCode);
   codeCell.font = { name: FONT_NAME, size: 10 };
   codeCell.alignment = LEFT;
   codeCell.border = BORDER_THIN;
 
-  sheet.getCell("H11").value = "3. Ngày sinh";
-  sheet.getCell("H11").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H11").alignment = LEFT;
-
-  sheet.mergeCells("I11:K11");
-  const dobCell = sheet.getCell("I11");
+  sheet.mergeCells("G12:I12");
+  const dobCell = sheet.getCell("G12");
   dobCell.value = formatDate(pi?.dateOfBirth);
   dobCell.font = { name: FONT_NAME, size: 10 };
   dobCell.alignment = LEFT;
   dobCell.border = BORDER_THIN;
 
-  sheet.getRow(11).height = 28;
-  sheet.getRow(12).height = 6;
-
-  // Hàng 2: Giới tính | CCCD | Ngày cấp
-  sheet.getCell("A13").value = "4. Giới tính";
-  sheet.getCell("A13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A13").alignment = LEFT;
-
-  sheet.mergeCells("B13:D13");
-  const genderCell = sheet.getCell("B13");
+  sheet.mergeCells("J12:K12");
+  const genderCell = sheet.getCell("J12");
   genderCell.value = getGenderLabel(pi?.gender);
   genderCell.font = { name: FONT_NAME, size: 10 };
   genderCell.alignment = LEFT;
   genderCell.border = BORDER_THIN;
 
-  sheet.getCell("E13").value = "5. Số CMND/CCCD";
-  sheet.getCell("E13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E13").alignment = LEFT;
+  sheet.getRow(11).height = 18;
+  sheet.getRow(12).height = 28;
+  sheet.getRow(13).height = 6;
 
-  sheet.mergeCells("F13:G13");
-  const idCell = sheet.getCell("F13");
+  // Hàng 2: CCCD (A-C) | Ngày cấp (D-F) | Nơi cấp (G-I) | Phòng ban (J-K)
+  sheet.getCell("A14").value = "5. Số CMND/CCCD";
+  sheet.getCell("A14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A14").alignment = LEFT;
+
+  sheet.getCell("D14").value = "6. Ngày cấp";
+  sheet.getCell("D14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D14").alignment = LEFT;
+
+  sheet.getCell("G14").value = "7. Nơi cấp";
+  sheet.getCell("G14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G14").alignment = LEFT;
+
+  sheet.getCell("J14").value = "8. Phòng ban";
+  sheet.getCell("J14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("J14").alignment = LEFT;
+
+  sheet.mergeCells("A15:C15");
+  const idCell = sheet.getCell("A15");
   idCell.value = safeString(pi?.idCardNumber);
   idCell.font = { name: FONT_NAME, size: 10 };
   idCell.alignment = LEFT;
   idCell.border = BORDER_THIN;
 
-  sheet.getCell("H13").value = "6. Ngày cấp";
-  sheet.getCell("H13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H13").alignment = LEFT;
-
-  sheet.mergeCells("I13:K13");
-  const idDateCell = sheet.getCell("I13");
+  sheet.mergeCells("D15:F15");
+  const idDateCell = sheet.getCell("D15");
   idDateCell.value = formatDate(pi?.idCardIssueDate);
   idDateCell.font = { name: FONT_NAME, size: 10 };
   idDateCell.alignment = LEFT;
   idDateCell.border = BORDER_THIN;
 
-  sheet.getRow(13).height = 28;
-  sheet.getRow(14).height = 6;
-
-  // Hàng 3: Nơi cấp | Phòng ban | Chức vụ
-  sheet.getCell("A15").value = "7. Nơi cấp";
-  sheet.getCell("A15").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A15").alignment = LEFT;
-
-  sheet.mergeCells("B15:D15");
-  const idPlaceCell = sheet.getCell("B15");
+  sheet.mergeCells("G15:I15");
+  const idPlaceCell = sheet.getCell("G15");
   idPlaceCell.value = safeString(pi?.idCardIssuePlace);
   idPlaceCell.font = { name: FONT_NAME, size: 10 };
   idPlaceCell.alignment = LEFT_WRAP;
   idPlaceCell.border = BORDER_THIN;
 
-  sheet.getCell("E15").value = "8. Phòng ban";
-  sheet.getCell("E15").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E15").alignment = LEFT;
-
-  sheet.mergeCells("F15:G15");
-  const deptCell = sheet.getCell("F15");
+  sheet.mergeCells("J15:K15");
+  const deptCell = sheet.getCell("J15");
   deptCell.value = safeString(wi?.department);
   deptCell.font = { name: FONT_NAME, size: 10 };
   deptCell.alignment = LEFT_WRAP;
   deptCell.border = BORDER_THIN;
 
-  sheet.getCell("H15").value = "9. Chức vụ";
-  sheet.getCell("H15").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H15").alignment = LEFT;
+  sheet.getRow(14).height = 18;
+  sheet.getRow(15).height = 28;
+  sheet.getRow(16).height = 6;
 
-  sheet.mergeCells("I15:K15");
-  const posCell = sheet.getCell("I15");
+  // Hàng 3: Chức vụ (A-K full)
+  sheet.mergeCells("A17:K17");
+  const posLabel = sheet.getCell("A17");
+  posLabel.value = "9. Chức vụ";
+  posLabel.font = { name: FONT_NAME, size: 10 };
+  posLabel.alignment = LEFT;
+
+  sheet.mergeCells("A18:K18");
+  const posCell = sheet.getCell("A18");
   posCell.value = safeString(wi?.position);
   posCell.font = { name: FONT_NAME, size: 10 };
   posCell.alignment = LEFT_WRAP;
   posCell.border = BORDER_THIN;
 
-  sheet.getRow(15).height = 28;
-  sheet.getRow(16).height = 6;
+  sheet.getRow(17).height = 18;
+  sheet.getRow(18).height = 26;
+  sheet.getRow(19).height = 6;
 
-  // Hàng 4: Địa chỉ thường trú (full)
-  sheet.mergeCells("A17:K17");
-  const addrLabel = sheet.getCell("A17");
+  // Hàng 4: Địa chỉ thường trú (A-K full)
+  sheet.mergeCells("A20:K20");
+  const addrLabel = sheet.getCell("A20");
   addrLabel.value = "10. Địa chỉ thường trú";
   addrLabel.font = { name: FONT_NAME, size: 10 };
   addrLabel.alignment = LEFT;
-  sheet.getRow(17).height = 18;
+  sheet.getRow(20).height = 18;
 
-  sheet.mergeCells("A18:K19");
-  const addrCell = sheet.getCell("A18");
+  sheet.mergeCells("A21:K22");
+  const addrCell = sheet.getCell("A21");
   addrCell.value = safeString(pi?.permanentAddress);
   addrCell.font = { name: FONT_NAME, size: 10 };
   addrCell.alignment = LEFT_TOP;
   addrCell.border = BORDER_THIN;
-  sheet.getRow(18).height = 20;
-  sheet.getRow(19).height = 20;
+  sheet.getRow(21).height = 20;
+  sheet.getRow(22).height = 20;
+  sheet.getRow(23).height = 6;
 
-  /* ============================================================
-   *  II. THÔNG TIN HỢP ĐỒNG
-   * ============================================================ */
-  writeSectionTitle(sheet, 21, "II. THÔNG TIN HỢP ĐỒNG");
+  /* II. THÔNG TIN HỢP ĐỒNG */
+  writeSectionTitle(sheet, 24, "II. THÔNG TIN HỢP ĐỒNG");
 
-  // Hàng 1: Số HĐ | Loại HĐ
-  sheet.getCell("A22").value = "11. Số hợp đồng";
-  sheet.getCell("A22").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A22").alignment = LEFT;
+  // Hàng 1: Số HĐ (A-C) | Loại HĐ (D-K)
+  sheet.getCell("A25").value = "11. Số hợp đồng";
+  sheet.getCell("A25").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A25").alignment = LEFT;
 
-  sheet.mergeCells("B22:D22");
-  const numCell = sheet.getCell("B22");
+  sheet.getCell("D25").value = "12. Loại hợp đồng";
+  sheet.getCell("D25").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D25").alignment = LEFT;
+
+  sheet.mergeCells("A26:C26");
+  const numCell = sheet.getCell("A26");
   numCell.value = safeString(ci?.contractNumber);
   numCell.font = { name: FONT_NAME, size: 10 };
   numCell.alignment = LEFT;
   numCell.border = BORDER_THIN;
 
-  sheet.getCell("E22").value = "12. Loại hợp đồng";
-  sheet.getCell("E22").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E22").alignment = LEFT;
-
-  sheet.mergeCells("F22:K22");
-  const typeCell = sheet.getCell("F22");
+  sheet.mergeCells("D26:K26");
+  const typeCell = sheet.getCell("D26");
   typeCell.value = safeString(ci?.contractType);
   typeCell.font = { name: FONT_NAME, size: 10 };
   typeCell.alignment = LEFT_WRAP;
   typeCell.border = BORDER_THIN;
 
-  sheet.getRow(22).height = 28;
-  sheet.getRow(23).height = 6;
+  sheet.getRow(25).height = 18;
+  sheet.getRow(26).height = 28;
+  sheet.getRow(27).height = 6;
 
-  // Hàng 2: Ngày bắt đầu | Ngày kết thúc | Ngày nhận việc
-  sheet.getCell("A24").value = "13. Ngày bắt đầu";
-  sheet.getCell("A24").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A24").alignment = LEFT;
+  // Hàng 2: Ngày bắt đầu (A-C) | Ngày kết thúc (D-F) | Ngày nhận việc (G-I) | Thử việc từ (J-K)
+  sheet.getCell("A28").value = "13. Ngày bắt đầu";
+  sheet.getCell("A28").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A28").alignment = LEFT;
 
-  sheet.mergeCells("B24:D24");
-  const startCell = sheet.getCell("B24");
+  sheet.getCell("D28").value = "14. Ngày kết thúc";
+  sheet.getCell("D28").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D28").alignment = LEFT;
+
+  sheet.getCell("G28").value = "15. Ngày nhận việc";
+  sheet.getCell("G28").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G28").alignment = LEFT;
+
+  sheet.getCell("J28").value = "16. Bắt đầu thử việc";
+  sheet.getCell("J28").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("J28").alignment = LEFT;
+
+  sheet.mergeCells("A29:C29");
+  const startCell = sheet.getCell("A29");
   startCell.value = formatDate(ci?.contractStartDate);
   startCell.font = { name: FONT_NAME, size: 10 };
   startCell.alignment = LEFT;
   startCell.border = BORDER_THIN;
 
-  sheet.getCell("E24").value = "14. Ngày kết thúc";
-  sheet.getCell("E24").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E24").alignment = LEFT;
-
-  sheet.mergeCells("F24:G24");
-  const endCell = sheet.getCell("F24");
+  sheet.mergeCells("D29:F29");
+  const endCell = sheet.getCell("D29");
   endCell.value = formatDate(ci?.contractEndDate);
   endCell.font = { name: FONT_NAME, size: 10 };
   endCell.alignment = LEFT;
   endCell.border = BORDER_THIN;
 
-  sheet.getCell("H24").value = "15. Ngày nhận việc";
-  sheet.getCell("H24").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H24").alignment = LEFT;
-
-  sheet.mergeCells("I24:K24");
-  const hireCell = sheet.getCell("I24");
+  sheet.mergeCells("G29:I29");
+  const hireCell = sheet.getCell("G29");
   hireCell.value = formatDate(wi?.startDate);
   hireCell.font = { name: FONT_NAME, size: 10 };
   hireCell.alignment = LEFT;
   hireCell.border = BORDER_THIN;
 
-  sheet.getRow(24).height = 28;
-  sheet.getRow(25).height = 6;
-
-  // Hàng 3: Thử việc từ | Thử việc đến
-  sheet.getCell("A26").value = "16. Bắt đầu thử việc";
-  sheet.getCell("A26").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A26").alignment = LEFT;
-
-  sheet.mergeCells("B26:D26");
-  const probStartCell = sheet.getCell("B26");
+  sheet.mergeCells("J29:K29");
+  const probStartCell = sheet.getCell("J29");
   probStartCell.value = formatDate(ci?.probationStartDate);
   probStartCell.font = { name: FONT_NAME, size: 10 };
   probStartCell.alignment = LEFT;
   probStartCell.border = BORDER_THIN;
 
-  sheet.getCell("E26").value = "17. Kết thúc thử việc";
-  sheet.getCell("E26").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E26").alignment = LEFT;
+  sheet.getRow(28).height = 18;
+  sheet.getRow(29).height = 28;
+  sheet.getRow(30).height = 6;
 
-  sheet.mergeCells("F26:K26");
-  const probEndCell = sheet.getCell("F26");
+  // Hàng 3: Kết thúc thử việc (A-K full)
+  sheet.mergeCells("A31:K31");
+  const probEndLabel = sheet.getCell("A31");
+  probEndLabel.value = "17. Kết thúc thử việc";
+  probEndLabel.font = { name: FONT_NAME, size: 10 };
+  probEndLabel.alignment = LEFT;
+
+  sheet.mergeCells("A32:K32");
+  const probEndCell = sheet.getCell("A32");
   probEndCell.value = formatDate(ci?.probationEndDate);
   probEndCell.font = { name: FONT_NAME, size: 10 };
   probEndCell.alignment = LEFT;
   probEndCell.border = BORDER_THIN;
 
-  sheet.getRow(26).height = 28;
-  sheet.getRow(27).height = 6;
+  sheet.getRow(31).height = 18;
+  sheet.getRow(32).height = 26;
+  sheet.getRow(33).height = 6;
 
-  /* ============================================================
-   *  III. LƯƠNG & BẢO HIỂM
-   * ============================================================ */
-  writeSectionTitle(sheet, 28, "III. LƯƠNG & BẢO HIỂM");
+  /* III. LƯƠNG & BẢO HIỂM */
+  writeSectionTitle(sheet, 34, "III. LƯƠNG & BẢO HIỂM");
 
-  // Hàng 1: Lương CB | Lương BH | Tiền ăn
-  sheet.getCell("A29").value = "18. Lương cơ bản";
-  sheet.getCell("A29").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A29").alignment = LEFT;
+  // Hàng 1: Lương CB (A-C) | Lương BH (D-F) | Tiền ăn (G-I) | BHXH (J-K)
+  sheet.getCell("A35").value = "18. Lương cơ bản";
+  sheet.getCell("A35").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A35").alignment = LEFT;
 
-  sheet.mergeCells("B29:D29");
-  const baseSal = sheet.getCell("B29");
+  sheet.getCell("D35").value = "19. Lương đóng BH";
+  sheet.getCell("D35").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D35").alignment = LEFT;
+
+  sheet.getCell("G35").value = "20. Tiền ăn";
+  sheet.getCell("G35").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G35").alignment = LEFT;
+
+  sheet.getCell("J35").value = "21. Số sổ BHXH";
+  sheet.getCell("J35").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("J35").alignment = LEFT;
+
+  sheet.mergeCells("A36:C36");
+  const baseSal = sheet.getCell("A36");
   baseSal.value = formatMoney(sb?.baseSalary) + " VNĐ";
   baseSal.font = { name: FONT_NAME, size: 10 };
   baseSal.alignment = RIGHT;
   baseSal.border = BORDER_THIN;
 
-  sheet.getCell("E29").value = "19. Lương đóng BH";
-  sheet.getCell("E29").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E29").alignment = LEFT;
-
-  sheet.mergeCells("F29:G29");
-  const insSal = sheet.getCell("F29");
+  sheet.mergeCells("D36:F36");
+  const insSal = sheet.getCell("D36");
   insSal.value = formatMoney(sb?.insuranceSalary) + " VNĐ";
   insSal.font = { name: FONT_NAME, size: 10 };
   insSal.alignment = RIGHT;
   insSal.border = BORDER_THIN;
 
-  sheet.getCell("H29").value = "20. Tiền ăn";
-  sheet.getCell("H29").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H29").alignment = LEFT;
-
-  sheet.mergeCells("I29:K29");
-  const meal = sheet.getCell("I29");
+  sheet.mergeCells("G36:I36");
+  const meal = sheet.getCell("G36");
   meal.value = formatMoney(sb?.mealRate) + " VNĐ";
   meal.font = { name: FONT_NAME, size: 10 };
   meal.alignment = RIGHT;
   meal.border = BORDER_THIN;
 
-  sheet.getRow(29).height = 28;
-  sheet.getRow(30).height = 6;
-
-  // Hàng 2: BHXH | MST
-  sheet.getCell("A31").value = "21. Số sổ BHXH";
-  sheet.getCell("A31").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A31").alignment = LEFT;
-
-  sheet.mergeCells("B31:D31");
-  const bhxh = sheet.getCell("B31");
+  sheet.mergeCells("J36:K36");
+  const bhxh = sheet.getCell("J36");
   bhxh.value = safeString(sb?.socialInsuranceNumber);
   bhxh.font = { name: FONT_NAME, size: 10 };
   bhxh.alignment = LEFT;
   bhxh.border = BORDER_THIN;
 
-  sheet.getCell("E31").value = "22. Mã số thuế";
-  sheet.getCell("E31").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E31").alignment = LEFT;
+  sheet.getRow(35).height = 18;
+  sheet.getRow(36).height = 28;
+  sheet.getRow(37).height = 6;
 
-  sheet.mergeCells("F31:K31");
-  const tax = sheet.getCell("F31");
+  // Hàng 2: Mã số thuế (A-K full)
+  sheet.mergeCells("A38:K38");
+  const taxLabel = sheet.getCell("A38");
+  taxLabel.value = "22. Mã số thuế";
+  taxLabel.font = { name: FONT_NAME, size: 10 };
+  taxLabel.alignment = LEFT;
+
+  sheet.mergeCells("A39:K39");
+  const tax = sheet.getCell("A39");
   tax.value = safeString(sb?.taxCode);
   tax.font = { name: FONT_NAME, size: 10 };
   tax.alignment = LEFT;
   tax.border = BORDER_THIN;
 
-  sheet.getRow(31).height = 28;
-  sheet.getRow(32).height = 6;
+  sheet.getRow(38).height = 18;
+  sheet.getRow(39).height = 26;
+  sheet.getRow(40).height = 6;
 
-  /* ============================================================
-   *  IV. GHI CHÚ
-   * ============================================================ */
-  writeSectionTitle(sheet, 33, "IV. GHI CHÚ");
+  /* IV. GHI CHÚ */
+  writeSectionTitle(sheet, 41, "IV. GHI CHÚ");
 
-  sheet.mergeCells("A34:K35");
-  const notesCell = sheet.getCell("A34");
+  sheet.mergeCells("A42:K43");
+  const notesCell = sheet.getCell("A42");
   notesCell.value = safeString(ci?.notes);
   notesCell.font = { name: FONT_NAME, size: 10 };
   notesCell.alignment = LEFT_TOP;
   notesCell.border = BORDER_THIN;
-  sheet.getRow(34).height = 20;
-  sheet.getRow(35).height = 20;
+  sheet.getRow(42).height = 20;
+  sheet.getRow(43).height = 20;
 
-  sheet.getRow(36).height = 8;
+  sheet.getRow(44).height = 8;
 
-  /* ============================================================
-   *  V. XÁC NHẬN
-   * ============================================================ */
-  writeSectionTitle(sheet, 37, "V. XÁC NHẬN CỦA HAI BÊN");
+  /* V. XÁC NHẬN */
+  writeSectionTitle(sheet, 45, "V. XÁC NHẬN CỦA HAI BÊN");
 
-  sheet.mergeCells("A38:K38");
-  const dateCell = sheet.getCell("A38");
+  sheet.mergeCells("A46:K46");
+  const dateCell = sheet.getCell("A46");
   const today = new Date();
   dateCell.value = `Ngày ${String(today.getDate()).padStart(2, "0")} tháng ${String(
     today.getMonth() + 1
   ).padStart(2, "0")} năm ${today.getFullYear()}`;
   dateCell.font = { name: FONT_NAME, size: 10, italic: true };
   dateCell.alignment = RIGHT;
-  sheet.getRow(38).height = 20;
+  sheet.getRow(46).height = 20;
 
-  sheet.mergeCells("A39:E39");
-  const leftLabel = sheet.getCell("A39");
+  sheet.mergeCells("A47:E47");
+  const leftLabel = sheet.getCell("A47");
   leftLabel.value = "NGƯỜI LAO ĐỘNG";
   leftLabel.font = { name: FONT_NAME, size: 11, bold: true };
   leftLabel.alignment = CENTER;
 
-  sheet.mergeCells("G39:K39");
-  const rightLabel = sheet.getCell("G39");
+  sheet.mergeCells("G47:K47");
+  const rightLabel = sheet.getCell("G47");
   rightLabel.value = "ĐẠI DIỆN CÔNG TY";
   rightLabel.font = { name: FONT_NAME, size: 11, bold: true };
   rightLabel.alignment = CENTER;
 
-  sheet.mergeCells("A40:E40");
-  const leftHint = sheet.getCell("A40");
+  sheet.mergeCells("A48:E48");
+  const leftHint = sheet.getCell("A48");
   leftHint.value = "(Ký, ghi rõ họ tên)";
   leftHint.font = { name: FONT_NAME, size: 10, italic: true };
   leftHint.alignment = CENTER;
 
-  sheet.mergeCells("G40:K40");
-  const rightHint = sheet.getCell("G40");
+  sheet.mergeCells("G48:K48");
+  const rightHint = sheet.getCell("G48");
   rightHint.value = "(Ký, ghi rõ họ tên)";
   rightHint.font = { name: FONT_NAME, size: 10, italic: true };
   rightHint.alignment = CENTER;
 
-  sheet.mergeCells("A41:E44");
-  sheet.mergeCells("G41:K44");
-  for (let r = 41; r <= 44; r += 1) {
+  sheet.mergeCells("A49:E52");
+  sheet.mergeCells("G49:K52");
+  for (let r = 49; r <= 52; r += 1) {
     sheet.getRow(r).height = 20;
   }
 
-  sheet.mergeCells("A45:E45");
-  const leftName = sheet.getCell("A45");
+  sheet.mergeCells("A53:E53");
+  const leftName = sheet.getCell("A53");
   leftName.value = safeString(employee.name);
   leftName.font = { name: FONT_NAME, size: 10, bold: true };
   leftName.alignment = CENTER;
 
-  sheet.mergeCells("G45:K45");
-  const rightName = sheet.getCell("G45");
+  sheet.mergeCells("G53:K53");
+  const rightName = sheet.getCell("G53");
   rightName.value = "";
   rightName.font = { name: FONT_NAME, size: 10, bold: true };
   rightName.alignment = CENTER;
 
-  sheet.getRow(45).height = 20;
+  sheet.getRow(53).height = 20;
 
-  sheet.pageSetup.printTitlesRow = "1:4";
+  sheet.pageSetup.printTitlesRow = "1:6";
 
   return sheet;
 }
+
 /* ============================================================
  *  BUILDER 3: LƯƠNG & BẢO HIỂM (sheet "LuongBaoHiem")
  * ============================================================ */
@@ -1334,7 +1295,6 @@ function buildSalaryInsuranceSheet(
   const wi = employee.workInfo;
   const sb = employee.salaryAndBenefits;
 
-  // Cột mới: label rộng hơn
   sheet.columns = [
     { width: 18 }, { width: 12 }, { width: 14 }, { width: 10 },
     { width: 14 }, { width: 10 }, { width: 12 }, { width: 10 },
@@ -1347,294 +1307,302 @@ function buildSalaryInsuranceSheet(
   /* I. THÔNG TIN NHÂN VIÊN */
   writeSectionTitle(sheet, 10, "I. THÔNG TIN NHÂN VIÊN");
 
-  // Hàng 1
+  // Hàng 1: Họ tên (A-C) | Mã NV (D-F) | Phòng ban (G-K)
   sheet.getCell("A11").value = "1. Họ và tên";
   sheet.getCell("A11").font = { name: FONT_NAME, size: 10 };
   sheet.getCell("A11").alignment = LEFT;
 
-  sheet.mergeCells("B11:D11");
-  const nameCell = sheet.getCell("B11");
+  sheet.getCell("D11").value = "2. Mã NV";
+  sheet.getCell("D11").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D11").alignment = LEFT;
+
+  sheet.getCell("G11").value = "3. Phòng ban";
+  sheet.getCell("G11").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G11").alignment = LEFT;
+
+  sheet.mergeCells("A12:C12");
+  const nameCell = sheet.getCell("A12");
   nameCell.value = safeString(employee.name);
   nameCell.font = { name: FONT_NAME, size: 10 };
   nameCell.alignment = LEFT_WRAP;
   nameCell.border = BORDER_THIN;
 
-  sheet.getCell("E11").value = "2. Mã NV";
-  sheet.getCell("E11").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E11").alignment = LEFT;
-
-  sheet.mergeCells("F11:G11");
-  const codeCell = sheet.getCell("F11");
+  sheet.mergeCells("D12:F12");
+  const codeCell = sheet.getCell("D12");
   codeCell.value = safeString(wi?.employeeCode);
   codeCell.font = { name: FONT_NAME, size: 10 };
   codeCell.alignment = LEFT;
   codeCell.border = BORDER_THIN;
 
-  sheet.getCell("H11").value = "3. Phòng ban";
-  sheet.getCell("H11").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H11").alignment = LEFT;
-
-  sheet.mergeCells("I11:K11");
-  const deptCell = sheet.getCell("I11");
+  sheet.mergeCells("G12:K12");
+  const deptCell = sheet.getCell("G12");
   deptCell.value = safeString(wi?.department);
   deptCell.font = { name: FONT_NAME, size: 10 };
   deptCell.alignment = LEFT_WRAP;
   deptCell.border = BORDER_THIN;
 
-  sheet.getRow(11).height = 28;
-  sheet.getRow(12).height = 6;
+  sheet.getRow(11).height = 18;
+  sheet.getRow(12).height = 28;
+  sheet.getRow(13).height = 6;
 
-  // Hàng 2: Chức vụ | Ngày nhận việc | Trạng thái
-  sheet.getCell("A13").value = "4. Chức vụ";
-  sheet.getCell("A13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A13").alignment = LEFT;
+  // Hàng 2: Chức vụ (A-C) | Ngày nhận việc (D-F) | Trạng thái (G-K)
+  sheet.getCell("A14").value = "4. Chức vụ";
+  sheet.getCell("A14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A14").alignment = LEFT;
 
-  sheet.mergeCells("B13:D13");
-  const posCell = sheet.getCell("B13");
+  sheet.getCell("D14").value = "5. Ngày nhận việc";
+  sheet.getCell("D14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D14").alignment = LEFT;
+
+  sheet.getCell("G14").value = "6. Trạng thái";
+  sheet.getCell("G14").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G14").alignment = LEFT;
+
+  sheet.mergeCells("A15:C15");
+  const posCell = sheet.getCell("A15");
   posCell.value = safeString(wi?.position);
   posCell.font = { name: FONT_NAME, size: 10 };
   posCell.alignment = LEFT_WRAP;
   posCell.border = BORDER_THIN;
 
-  sheet.getCell("E13").value = "5. Ngày nhận việc";
-  sheet.getCell("E13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E13").alignment = LEFT;
-
-  sheet.mergeCells("F13:G13");
-  const hireCell = sheet.getCell("F13");
+  sheet.mergeCells("D15:F15");
+  const hireCell = sheet.getCell("D15");
   hireCell.value = formatDate(wi?.startDate);
   hireCell.font = { name: FONT_NAME, size: 10 };
   hireCell.alignment = LEFT;
   hireCell.border = BORDER_THIN;
 
-  sheet.getCell("H13").value = "6. Trạng thái";
-  sheet.getCell("H13").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H13").alignment = LEFT;
-
-  sheet.mergeCells("I13:K13");
-  const statusCell = sheet.getCell("I13");
+  sheet.mergeCells("G15:K15");
+  const statusCell = sheet.getCell("G15");
   statusCell.value = getStatusLabel(employee.status);
   statusCell.font = { name: FONT_NAME, size: 10 };
   statusCell.alignment = LEFT;
   statusCell.border = BORDER_THIN;
 
-  sheet.getRow(13).height = 28;
-  sheet.getRow(14).height = 6;
-  sheet.getRow(15).height = 6;
+  sheet.getRow(14).height = 18;
+  sheet.getRow(15).height = 28;
+  sheet.getRow(16).height = 6;
 
   /* II. LƯƠNG */
-  writeSectionTitle(sheet, 16, "II. LƯƠNG");
+  writeSectionTitle(sheet, 17, "II. LƯƠNG");
 
-  // Hàng 1: Lương CB | Lương BH | Tiền ăn
-  sheet.getCell("A17").value = "7. Lương cơ bản";
-  sheet.getCell("A17").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A17").alignment = LEFT;
+  // Hàng 1: Lương CB (A-C) | Lương BH (D-F) | Tiền ăn (G-K)
+  sheet.getCell("A18").value = "7. Lương cơ bản";
+  sheet.getCell("A18").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A18").alignment = LEFT;
 
-  sheet.mergeCells("B17:D17");
-  const baseCell = sheet.getCell("B17");
+  sheet.getCell("D18").value = "8. Lương đóng BH";
+  sheet.getCell("D18").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D18").alignment = LEFT;
+
+  sheet.getCell("G18").value = "9. Tiền ăn";
+  sheet.getCell("G18").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G18").alignment = LEFT;
+
+  sheet.mergeCells("A19:C19");
+  const baseCell = sheet.getCell("A19");
   baseCell.value = formatMoney(sb?.baseSalary) + " VNĐ";
   baseCell.font = { name: FONT_NAME, size: 10 };
   baseCell.alignment = RIGHT;
   baseCell.border = BORDER_THIN;
 
-  sheet.getCell("E17").value = "8. Lương đóng BH";
-  sheet.getCell("E17").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E17").alignment = LEFT;
-
-  sheet.mergeCells("F17:G17");
-  const insCell = sheet.getCell("F17");
+  sheet.mergeCells("D19:F19");
+  const insCell = sheet.getCell("D19");
   insCell.value = formatMoney(sb?.insuranceSalary) + " VNĐ";
   insCell.font = { name: FONT_NAME, size: 10 };
   insCell.alignment = RIGHT;
   insCell.border = BORDER_THIN;
 
-  sheet.getCell("H17").value = "9. Tiền ăn";
-  sheet.getCell("H17").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H17").alignment = LEFT;
-
-  sheet.mergeCells("I17:K17");
-  const mealCell = sheet.getCell("I17");
+  sheet.mergeCells("G19:K19");
+  const mealCell = sheet.getCell("G19");
   mealCell.value = formatMoney(sb?.mealRate) + " VNĐ";
   mealCell.font = { name: FONT_NAME, size: 10 };
   mealCell.alignment = RIGHT;
   mealCell.border = BORDER_THIN;
 
-  sheet.getRow(17).height = 28;
-  sheet.getRow(18).height = 6;
+  sheet.getRow(18).height = 18;
+  sheet.getRow(19).height = 28;
+  sheet.getRow(20).height = 6;
 
-  // Hàng 2: Người phụ thuộc | Kỳ trả lương
-  sheet.getCell("A19").value = "10. Người phụ thuộc";
-  sheet.getCell("A19").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A19").alignment = LEFT;
+  // Hàng 2: Người phụ thuộc (A-C) | Kỳ trả lương (D-K)
+  sheet.getCell("A21").value = "10. Người phụ thuộc";
+  sheet.getCell("A21").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A21").alignment = LEFT;
 
-  sheet.mergeCells("B19:D19");
-  const depCell = sheet.getCell("B19");
+  sheet.getCell("D21").value = "11. Kỳ trả lương";
+  sheet.getCell("D21").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D21").alignment = LEFT;
+
+  sheet.mergeCells("A22:C22");
+  const depCell = sheet.getCell("A22");
   depCell.value = safeString(sb?.dependents);
   depCell.font = { name: FONT_NAME, size: 10 };
   depCell.alignment = LEFT;
   depCell.border = BORDER_THIN;
 
-  sheet.getCell("E19").value = "11. Kỳ trả lương";
-  sheet.getCell("E19").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E19").alignment = LEFT;
-
-  sheet.mergeCells("F19:K19");
-  const periodCell = sheet.getCell("F19");
+  sheet.mergeCells("D22:K22");
+  const periodCell = sheet.getCell("D22");
   periodCell.value = safeString(sb?.paymentPeriod);
   periodCell.font = { name: FONT_NAME, size: 10 };
   periodCell.alignment = LEFT_WRAP;
   periodCell.border = BORDER_THIN;
 
-  sheet.getRow(19).height = 28;
-  sheet.getRow(20).height = 6;
-  sheet.getRow(21).height = 6;
+  sheet.getRow(21).height = 18;
+  sheet.getRow(22).height = 28;
+  sheet.getRow(23).height = 6;
 
   /* III. THƯỞNG */
-  writeSectionTitle(sheet, 22, "III. THƯỞNG");
+  writeSectionTitle(sheet, 24, "III. THƯỞNG");
 
-  sheet.getCell("A23").value = "12. Thưởng chung";
-  sheet.getCell("A23").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A23").alignment = LEFT;
+  // Hàng 1: Thưởng chung (A-C) | Thưởng hiệu suất (D-F) | Thưởng trách nhiệm (G-K)
+  sheet.getCell("A25").value = "12. Thưởng chung";
+  sheet.getCell("A25").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A25").alignment = LEFT;
 
-  sheet.mergeCells("B23:D23");
-  const bonus1 = sheet.getCell("B23");
+  sheet.getCell("D25").value = "13. Thưởng hiệu suất";
+  sheet.getCell("D25").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D25").alignment = LEFT;
+
+  sheet.getCell("G25").value = "14. Thưởng trách nhiệm";
+  sheet.getCell("G25").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("G25").alignment = LEFT;
+
+  sheet.mergeCells("A26:C26");
+  const bonus1 = sheet.getCell("A26");
   bonus1.value = formatMoney(sb?.bonuses?.general) + " VNĐ";
   bonus1.font = { name: FONT_NAME, size: 10 };
   bonus1.alignment = RIGHT;
   bonus1.border = BORDER_THIN;
 
-  sheet.getCell("E23").value = "13. Thưởng hiệu suất";
-  sheet.getCell("E23").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E23").alignment = LEFT;
-
-  sheet.mergeCells("F23:G23");
-  const bonus2 = sheet.getCell("F23");
+  sheet.mergeCells("D26:F26");
+  const bonus2 = sheet.getCell("D26");
   bonus2.value = formatMoney(sb?.bonuses?.performance) + " VNĐ";
   bonus2.font = { name: FONT_NAME, size: 10 };
   bonus2.alignment = RIGHT;
   bonus2.border = BORDER_THIN;
 
-  sheet.getCell("H23").value = "14. Thưởng trách nhiệm";
-  sheet.getCell("H23").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("H23").alignment = LEFT;
-
-  sheet.mergeCells("I23:K23");
-  const bonus3 = sheet.getCell("I23");
+  sheet.mergeCells("G26:K26");
+  const bonus3 = sheet.getCell("G26");
   bonus3.value = formatMoney(sb?.bonuses?.responsibility) + " VNĐ";
   bonus3.font = { name: FONT_NAME, size: 10 };
   bonus3.alignment = RIGHT;
   bonus3.border = BORDER_THIN;
 
-  sheet.getRow(23).height = 28;
-  sheet.getRow(24).height = 6;
-  sheet.getRow(25).height = 6;
+  sheet.getRow(25).height = 18;
+  sheet.getRow(26).height = 28;
+  sheet.getRow(27).height = 6;
 
   /* IV. BẢO HIỂM & THUẾ */
-  writeSectionTitle(sheet, 26, "IV. BẢO HIỂM & THUẾ");
+  writeSectionTitle(sheet, 28, "IV. BẢO HIỂM & THUẾ");
 
-  sheet.getCell("A27").value = "15. Số sổ BHXH";
-  sheet.getCell("A27").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A27").alignment = LEFT;
+  // Hàng 1: BHXH (A-C) | Mã số thuế (D-K)
+  sheet.getCell("A29").value = "15. Số sổ BHXH";
+  sheet.getCell("A29").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A29").alignment = LEFT;
 
-  sheet.mergeCells("B27:D27");
-  const bhxhCell = sheet.getCell("B27");
+  sheet.getCell("D29").value = "16. Mã số thuế";
+  sheet.getCell("D29").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D29").alignment = LEFT;
+
+  sheet.mergeCells("A30:C30");
+  const bhxhCell = sheet.getCell("A30");
   bhxhCell.value = safeString(sb?.socialInsuranceNumber);
   bhxhCell.font = { name: FONT_NAME, size: 10 };
   bhxhCell.alignment = LEFT;
   bhxhCell.border = BORDER_THIN;
 
-  sheet.getCell("E27").value = "16. Mã số thuế";
-  sheet.getCell("E27").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E27").alignment = LEFT;
-
-  sheet.mergeCells("F27:K27");
-  const taxCell = sheet.getCell("F27");
+  sheet.mergeCells("D30:K30");
+  const taxCell = sheet.getCell("D30");
   taxCell.value = safeString(sb?.taxCode);
   taxCell.font = { name: FONT_NAME, size: 10 };
   taxCell.alignment = LEFT;
   taxCell.border = BORDER_THIN;
 
-  sheet.getRow(27).height = 28;
-  sheet.getRow(28).height = 6;
-  sheet.getRow(29).height = 6;
+  sheet.getRow(29).height = 18;
+  sheet.getRow(30).height = 28;
+  sheet.getRow(31).height = 6;
 
   /* V. NGÂN HÀNG */
-  writeSectionTitle(sheet, 30, "V. THÔNG TIN NGÂN HÀNG");
+  writeSectionTitle(sheet, 32, "V. THÔNG TIN NGÂN HÀNG");
 
-  sheet.getCell("A31").value = "17. Ngân hàng";
-  sheet.getCell("A31").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A31").alignment = LEFT;
+  // Hàng 1: Ngân hàng (A-C) | Chi nhánh (D-K)
+  sheet.getCell("A33").value = "17. Ngân hàng";
+  sheet.getCell("A33").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A33").alignment = LEFT;
 
-  sheet.mergeCells("B31:D31");
-  const bankNameCell = sheet.getCell("B31");
+  sheet.getCell("D33").value = "18. Chi nhánh";
+  sheet.getCell("D33").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D33").alignment = LEFT;
+
+  sheet.mergeCells("A34:C34");
+  const bankNameCell = sheet.getCell("A34");
   bankNameCell.value = safeString(sb?.bankName);
   bankNameCell.font = { name: FONT_NAME, size: 10 };
   bankNameCell.alignment = LEFT_WRAP;
   bankNameCell.border = BORDER_THIN;
 
-  sheet.getCell("E31").value = "18. Chi nhánh";
-  sheet.getCell("E31").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E31").alignment = LEFT;
-
-  sheet.mergeCells("F31:K31");
-  const branchCell = sheet.getCell("F31");
+  sheet.mergeCells("D34:K34");
+  const branchCell = sheet.getCell("D34");
   branchCell.value = safeString(sb?.bankBranch);
   branchCell.font = { name: FONT_NAME, size: 10 };
   branchCell.alignment = LEFT_WRAP;
   branchCell.border = BORDER_THIN;
 
-  sheet.getRow(31).height = 28;
-  sheet.getRow(32).height = 6;
+  sheet.getRow(33).height = 18;
+  sheet.getRow(34).height = 28;
+  sheet.getRow(35).height = 6;
 
-  sheet.getCell("A33").value = "19. Số tài khoản";
-  sheet.getCell("A33").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("A33").alignment = LEFT;
+  // Hàng 2: Số tài khoản (A-C) | Phương thức TT (D-K)
+  sheet.getCell("A36").value = "19. Số tài khoản";
+  sheet.getCell("A36").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("A36").alignment = LEFT;
 
-  sheet.mergeCells("B33:D33");
-  const accCell = sheet.getCell("B33");
+  sheet.getCell("D36").value = "20. Phương thức TT";
+  sheet.getCell("D36").font = { name: FONT_NAME, size: 10 };
+  sheet.getCell("D36").alignment = LEFT;
+
+  sheet.mergeCells("A37:C37");
+  const accCell = sheet.getCell("A37");
   accCell.value = safeString(sb?.bankAccountNumber);
   accCell.font = { name: FONT_NAME, size: 10 };
   accCell.alignment = LEFT;
   accCell.border = BORDER_THIN;
 
-  sheet.getCell("E33").value = "20. Phương thức TT";
-  sheet.getCell("E33").font = { name: FONT_NAME, size: 10 };
-  sheet.getCell("E33").alignment = LEFT;
-
-  sheet.mergeCells("F33:K33");
-  const methodCell = sheet.getCell("F33");
+  sheet.mergeCells("D37:K37");
+  const methodCell = sheet.getCell("D37");
   methodCell.value = safeString(sb?.paymentMethod);
   methodCell.font = { name: FONT_NAME, size: 10 };
   methodCell.alignment = LEFT_WRAP;
   methodCell.border = BORDER_THIN;
 
-  sheet.getRow(33).height = 28;
-  sheet.getRow(34).height = 6;
-  sheet.getRow(35).height = 6;
+  sheet.getRow(36).height = 18;
+  sheet.getRow(37).height = 28;
+  sheet.getRow(38).height = 6;
+  sheet.getRow(39).height = 6;
 
   /* NGÀY + CHỮ KÝ */
-  sheet.mergeCells("G36:K36");
-  const dateCell = sheet.getCell("G36");
+  sheet.mergeCells("G40:K40");
+  const dateCell = sheet.getCell("G40");
   const today = new Date();
   dateCell.value = `Ngày ${String(today.getDate()).padStart(2, "0")} tháng ${String(
     today.getMonth() + 1
   ).padStart(2, "0")} năm ${today.getFullYear()}`;
   dateCell.font = { name: FONT_NAME, size: 10, italic: true };
   dateCell.alignment = CENTER;
-  sheet.getRow(36).height = 20;
+  sheet.getRow(40).height = 20;
 
-  sheet.mergeCells("G37:K37");
-  const sigLabel = sheet.getCell("G37");
+  sheet.mergeCells("G41:K41");
+  const sigLabel = sheet.getCell("G41");
   sigLabel.value = "Người lập biểu";
   sigLabel.font = { name: FONT_NAME, size: 10, bold: true };
   sigLabel.alignment = CENTER;
 
-  sheet.mergeCells("G38:K41");
-  for (let r = 38; r <= 41; r += 1) {
+  sheet.mergeCells("G42:K45");
+  for (let r = 42; r <= 45; r += 1) {
     sheet.getRow(r).height = 20;
   }
 
-  sheet.pageSetup.printTitlesRow = "1:4";
+  sheet.pageSetup.printTitlesRow = "1:6";
 
   return sheet;
 }
@@ -1873,17 +1841,15 @@ export async function createEmployeeTemplateWorkbook(
       break;
     }
 
-case "RESUME": {
-  // Tạo form 02 với tiêu đề tùy chỉnh
-  const sheet = await buildPersonalInfoFormSheet(workbook, employee);
-  // Đổi tiêu đề
-  sheet.getCell("D1").value = "SƠ YẾU LÝ LỊCH";
-  await tryInsertLogo(workbook, sheet, "A1");
-  buildFamilySheet(workbook, employee);
-  buildEducationSheet(workbook, employee);
-  buildExperienceSheet(workbook, employee);
-  break;
-}
+    case "RESUME": {
+      const sheet = await buildPersonalInfoFormSheet(workbook, employee);
+      sheet.getCell("D1").value = "SƠ YẾU LÝ LỊCH";
+      await tryInsertLogo(workbook, sheet, "A1");
+      buildFamilySheet(workbook, employee);
+      buildEducationSheet(workbook, employee);
+      buildExperienceSheet(workbook, employee);
+      break;
+    }
 
     case "EMPLOYEE_FULL": {
       const sheet02 = await buildPersonalInfoFormSheet(workbook, employee);
