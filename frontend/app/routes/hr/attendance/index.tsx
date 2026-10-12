@@ -17,30 +17,16 @@ import {
   Eye,
   BarChart3,
 } from "lucide-react";
-// Backend HR API dùng prefix /api-v1 (không phải /api).
-const normalizeApiBase = (value: string) => {
-  const base = value.replace(/\/+$/, "");
+import {
+  fetchData,
+  postData,
+  updateData,
+  patchData,
+  deleteData,
+} from "@/lib/fetch-util";
 
-  if (base.endsWith("/api-v1")) return base;
-  if (base.endsWith("/api")) {
-    return `${base.slice(0, -4)}/api-v1`;
-  }
-
-  return `${base}/api-v1`;
-};
-
-const API_BASE_URL = normalizeApiBase(
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api-v1",
-);
-const getAuthHeaders = (): Record<string, string> => {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("accessToken");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+// Dùng chung BASE_URL và xác thực đã cấu hình trong lib/fetch-util.ts.
+const API = "/attendance";
 type DayStatus = "WORK" | "P" | "ABSENT" | "HOLIDAY" | "OFF";
 type SheetStatus = "DRAFT" | "CONFIRMED" | "LOCKED";
 type ShiftType = "SHIFT_1" | "SHIFT_2" | "SHIFT_3" | "SHIFT_4" | "CUSTOM";
@@ -112,7 +98,7 @@ type Attendance = {
     totalOTHours?: number;
   };
 };
-const API = `${API_BASE_URL}/attendance`;
+const API = "/attendance";
 const WEEKDAYS = [
   "CN",
   "T2",
@@ -351,30 +337,52 @@ export default function AttendancePage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const request = useCallback(
     async (url: string, options: RequestInit = {}) => {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...getAuthHeaders(),
-          ...(options.headers || {}),
-          ...(options.body
-            ? { "Content-Type": "application/json" }
-            : {}),
-        },
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload?.success === false) {
-        throw new Error(
-          payload?.message ||
-            payload?.error ||
-            `Yêu cầu thất bại (${response.status})`,
-        );
+      const method = (options.method || "GET").toUpperCase();
+      let body: unknown = undefined;
+
+      if (options.body) {
+        try {
+          body = JSON.parse(String(options.body));
+        } catch {
+          body = options.body;
+        }
       }
-      return payload;
+
+      try {
+        let payload: any;
+
+        if (method === "GET") {
+          payload = await fetchData(url);
+        } else if (method === "POST") {
+          payload = await postData(url, body ?? {});
+        } else if (method === "PUT") {
+          payload = await updateData(url, body ?? {});
+        } else if (method === "PATCH") {
+          payload = await patchData(url, body ?? {});
+        } else if (method === "DELETE") {
+          payload = await deleteData(url);
+        } else {
+          throw new Error(`Phương thức API không được hỗ trợ: ${method}`);
+        }
+
+        if (payload?.success === false) {
+          throw new Error(payload.message || payload.error || "Yêu cầu thất bại");
+        }
+
+        return payload;
+      } catch (error: any) {
+        const message =
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "Không thể kết nối API.";
+        throw new Error(message);
+      }
     },
     [],
   );
   const loadEmployees = useCallback(async () => {
-    const payload = await request(`${API_BASE_URL}/employees`);
+    const payload = await request("/employees");
     const list = getList(payload) as Employee[];
     setEmployees(list);
     setSelectedEmployeeIds((previous) =>
