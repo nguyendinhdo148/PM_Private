@@ -1,3 +1,4 @@
+
 import {
   type RouteConfig,
   index,
@@ -29,10 +30,15 @@ export default [
   layout("routes/hr/hr-layout.tsx", [
     route("hr", "routes/hr/index.tsx"),
 
-    // Hồ sơ nhân sự
     route(
       "hr/employee",
       "routes/hr/employee/index.tsx",
+    ),
+
+    // Quản lý chấm công
+    route(
+      "hr/attendance",
+      "routes/hr/attendance/index.tsx",
     ),
   ]),
 
@@ -75,25 +81,21 @@ export default [
       "routes/dashboard/members.tsx",
     ),
 
-    // Hoa hồng rượu
     route(
       "wine-commission",
       "routes/dashboard/WineCommission.tsx",
     ),
 
-    // Quản lý hủy món
     route(
       "cancel-report",
       "routes/dashboard/cancel-report.tsx",
     ),
 
-    // GUI rượu
     route(
       "gui-ruou",
       "routes/dashboard/bar/guiruou.tsx",
     ),
 
-    // Quản lý quỹ
     route(
       "fund-management",
       "routes/dashboard/fund-management.tsx",

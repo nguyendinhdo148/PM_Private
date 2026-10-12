@@ -20,7 +20,7 @@ import cancelReportRoutes from "./cancelReport.js";
 import bottleKeepRoutes from "./bottleKeep.js";
 import aiRoutes from "./ai-routes.js";
 import employeeRoutes from "./employee.js";
-
+import attendanceRoutes from "./attendance.js";
 const router = express.Router();
 
 router.use("/auth", authRoutes);
@@ -39,7 +39,7 @@ router.use("/invoices", invoiceRoutes);
 router.use("/tips", tipRoutes);
 router.use("/staff", staffRoutes);
 router.use("/funds", fundRoutes);
-
+router.use("/attendance", attendanceRoutes);
 // Hoa hồng rượu
 router.use("/wine-commission", wineCommissionRoutes);
 
