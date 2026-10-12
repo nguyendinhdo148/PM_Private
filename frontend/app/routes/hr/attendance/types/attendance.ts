@@ -126,7 +126,7 @@ export const getDefaultShift = (employee?: Employee) => {
   const department = getDepartment(employee || ({} as Employee))
     .trim()
     .toLowerCase();
-
+ 
   // Customize theo phòng ban
   if (department === "bếp") {
     return { shiftType: "SHIFT_3" as ShiftType, shiftTime: "14:30" };

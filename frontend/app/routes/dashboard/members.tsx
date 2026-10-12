@@ -31,7 +31,6 @@ type TipBoard = {
   month: string;
   periodName: string;
   totalTip: number;
-  carryOver?: number;
   topPerformerName: string;
   applyBonus?: boolean;
   details: TipDetail[];
@@ -46,7 +45,6 @@ export default function TipManagement() {
   const [month, setMonth] = useState("");
   const [periodName, setPeriodName] = useState("");
   const [totalTipStr, setTotalTipStr] = useState<string>("");
-  const [carryOverStr, setCarryOverStr] = useState<string>("");
   const [topPerformerId, setTopPerformerId] = useState<string>("");
   const [activeStaffList, setActiveStaffList] = useState<StaffMember[]>([]);
   const [applyBonus, setApplyBonus] = useState(true);
@@ -84,7 +82,6 @@ export default function TipManagement() {
     setMonth("");
     setPeriodName("");
     setTotalTipStr("");
-    setCarryOverStr("");
     setTopPerformerId("");
     setApplyBonus(true);
     const activeStaff = staffBase.filter((s) => !s.isDeleted);
@@ -126,7 +123,6 @@ export default function TipManagement() {
         setMonth(board.month);
         setPeriodName(board.periodName);
         setTotalTipStr(board.totalTip ? board.totalTip.toString() : "");
-        setCarryOverStr(board.carryOver ? board.carryOver.toString() : "");
         setApplyBonus(board.applyBonus !== false);
 
         const topDetail = board.details.find((d: any) => d.isTopPerformer);
@@ -143,8 +139,7 @@ export default function TipManagement() {
 
   const calculations = useMemo(() => {
     const tipValue = Number(totalTipStr) || 0;
-    const carryOverValue = Number(carryOverStr) || 0;
-    const grandTotal = tipValue + carryOverValue;
+    const grandTotal = tipValue;
     const bonus = applyBonus ? BONUS_AMOUNT : 0;
     const remainingTip = Math.max(0, grandTotal - bonus);
 
@@ -160,7 +155,7 @@ export default function TipManagement() {
     const tipPerDay = totalDays > 0 ? remainingTip / totalDays : 0;
 
     let totalPenalty = 0;
-    let totalServiceFund = 0;
+    let totalFohFund = 0;
 
     const details = activeMembers.map((staff) => {
       const isTop = applyBonus && staff._id === topPerformerId;
@@ -176,10 +171,13 @@ export default function TipManagement() {
       if (isTop) finalTip += BONUS_AMOUNT;
 
       totalPenalty += penaltyAmount;
-      totalServiceFund += fundDeduction;
+      totalFohFund += fundDeduction;
 
       return { ...staff, isTop, baseTip, penaltyAmount, fundDeduction, finalTip };
     });
+
+    // ✅ Quỹ PV = 5% FOH + Toàn bộ tiền phạt
+    const totalServiceFund = totalFohFund + totalPenalty;
 
     return {
       grandTotal,
@@ -187,11 +185,12 @@ export default function TipManagement() {
       totalDays,
       tipPerDay,
       totalPenalty,
+      totalFohFund,
       totalServiceFund,
       details,
       applyBonus,
     };
-  }, [totalTipStr, carryOverStr, activeStaffList, topPerformerId, applyBonus]);
+  }, [totalTipStr, activeStaffList, topPerformerId, applyBonus]);
 
   const formatVND = (amount: number) =>
     Math.round(amount).toLocaleString("vi-VN") + "đ";
@@ -226,7 +225,6 @@ export default function TipManagement() {
       month,
       periodName,
       totalTip: Number(totalTipStr),
-      carryOver: Number(carryOverStr) || 0,
       topPerformerName,
       applyBonus,
       staffList: calculations.details.map((d) => ({
@@ -423,7 +421,7 @@ export default function TipManagement() {
                     </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-3 gap-2.5">
                   <div>
                     <span className="text-[10px] text-slate-500 font-bold block mb-1 uppercase tracking-wide">
                       Tháng
@@ -461,21 +459,6 @@ export default function TipManagement() {
                       className="h-9 text-xs font-bold border-blue-300 focus-visible:ring-blue-500 rounded-lg bg-blue-50/30 tabular-nums text-right"
                     />
                   </div>
-                  <div>
-                    <span className="text-[10px] text-purple-600 font-bold block mb-1 uppercase tracking-wide">
-                      Tồn kì trước
-                    </span>
-                    <Input
-                      type="text"
-                      placeholder="0"
-                      value={carryOverStr ? Number(carryOverStr).toLocaleString("vi-VN") : ""}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\./g, "");
-                        if (/^\d*$/.test(raw)) setCarryOverStr(raw);
-                      }}
-                      className="h-9 text-xs font-bold border-purple-300 focus-visible:ring-purple-500 rounded-lg bg-purple-50/30 tabular-nums text-right"
-                    />
-                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-slate-100">
@@ -504,10 +487,10 @@ export default function TipManagement() {
 
               {/* KHỐI THỐNG KÊ */}
               <div className="lg:col-span-7 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 h-full items-center text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 h-full items-center text-center">
                   <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-2.5 rounded-lg border border-purple-200 flex flex-col justify-center">
                     <p className="text-[10px] text-purple-600 font-bold whitespace-nowrap uppercase tracking-wide">
-                      Tổng (+Tồn)
+                      Tổng Tip
                     </p>
                     <p className="text-sm font-bold text-purple-700 tabular-nums">
                       {formatVND(calculations.grandTotal)}
@@ -537,22 +520,16 @@ export default function TipManagement() {
                       {formatVND(calculations.tipPerDay)}
                     </p>
                   </div>
-                  {/* Ô RIÊNG: TỔNG TIỀN PHẠT */}
-                  <div className="bg-gradient-to-br from-red-50 to-rose-50 p-2.5 rounded-lg border border-red-300 flex flex-col justify-center">
-                    <p className="text-[10px] text-red-600 font-bold uppercase tracking-wide">
-                      Tổng tiền phạt
-                    </p>
-                    <p className="text-sm font-bold text-red-700 tabular-nums">
-                      {formatVND(calculations.totalPenalty)}
-                    </p>
-                  </div>
-                  {/* Ô RIÊNG: QUỸ PHỤC VỤ 5% FOH */}
                   <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-2.5 rounded-lg border border-orange-200 flex flex-col justify-center">
                     <p className="text-[10px] text-orange-600 font-bold uppercase tracking-wide">
-                      Quỹ PV (5% FOH)
+                      Quỹ PV
                     </p>
                     <p className="text-sm font-bold text-orange-700 tabular-nums">
                       {formatVND(calculations.totalServiceFund)}
+                    </p>
+                    <p className="text-[9px] text-orange-500 leading-tight mt-0.5">
+                      5% FOH ({formatVND(calculations.totalFohFund)})
+                      <br />+ Phạt ({formatVND(calculations.totalPenalty)})
                     </p>
                   </div>
                 </div>
