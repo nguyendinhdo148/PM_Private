@@ -98,7 +98,6 @@ type Attendance = {
     totalOTHours?: number;
   };
 };
-const API = "/attendance";
 const WEEKDAYS = [
   "CN",
   "T2",
