@@ -123,10 +123,26 @@ export const getPosition = (employee: Employee) =>
   employee.workInfo?.position || employee.position || "";
 
 export const getDefaultShift = (employee?: Employee) => {
-  const department = getDepartment(employee || ({} as Employee)).trim().toLowerCase();
-  return department === "bếp"
-    ? { shiftType: "SHIFT_3" as ShiftType, shiftTime: "14:30" }
-    : { shiftType: "SHIFT_2" as ShiftType, shiftTime: "15:30" };
+  const department = getDepartment(employee || ({} as Employee))
+    .trim()
+    .toLowerCase();
+
+  // Customize theo phòng ban
+  if (department === "bếp") {
+    return { shiftType: "SHIFT_3" as ShiftType, shiftTime: "14:30" };
+  }
+  if (["cashier", "thu ngân", "thu ngan"].includes(department)) {
+    return { shiftType: "SHIFT_1" as ShiftType, shiftTime: "09:00" };
+  }
+  if (department === "bar") {
+    return { shiftType: "SHIFT_2" as ShiftType, shiftTime: "15:30" };
+  }
+  if (department === "phục vụ") {
+    return { shiftType: "SHIFT_2" as ShiftType, shiftTime: "15:30" };
+  }
+
+  // Fallback
+  return { shiftType: "SHIFT_2" as ShiftType, shiftTime: "15:30" };
 };
 
 export const emptySchedule = (

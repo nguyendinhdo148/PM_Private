@@ -1,16 +1,34 @@
 import {
-  CalendarDays, CheckCircle2, Clock3, LoaderCircle, LockKeyhole,
-  Plus, Settings2, Trash2, X,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  LoaderCircle,
+  LockKeyhole,
+  Plus,
+  Settings2,
+  Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
-  CARD_CLASS, SHIFTS, STATUS_OPTIONS, WEEKDAYS,
-  dateDay, dateWeekday, getDepartment, getEmployeeId,
-  getEmployeeName, getStatusInfo,
+  CARD_CLASS,
+  STATUS_OPTIONS,
+  WEEKDAYS,
+  dateDay,
+  dateWeekday,
+  getDepartment,
+  getEmployeeId,
+  getEmployeeName,
+  getStatusInfo,
 } from "../types/attendance";
 import type {
-  Attendance, AttendanceDay, DayStatus, Employee, SheetStatus, ShiftType,
+  Attendance,
+  AttendanceDay,
+  DayStatus,
+  Employee,
+  SheetStatus,
+  ShiftType,
 } from "../types/attendance";
+import ShiftPickerPortal from "./ShiftPickerPortal";
 
 type Props = {
   month: number;
@@ -40,7 +58,6 @@ type Props = {
   onGenerate: () => void;
 };
 
-/** Popup chọn ca khi user đổi sang WORK */
 type ShiftPickerState = {
   attendanceId: string;
   date: string;
@@ -56,26 +73,6 @@ export default function AttendanceTableTab({
   onOpenOvertime, onUpdateDay, onChangeStatus, onDelete, onGenerate,
 }: Props) {
   const [shiftPicker, setShiftPicker] = useState<ShiftPickerState | null>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
-
-  /* Đóng popup khi click ngoài */
-  useEffect(() => {
-    if (!shiftPicker) return;
-    const handleClick = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setShiftPicker(null);
-      }
-    };
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShiftPicker(null);
-    };
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleEsc);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleEsc);
-    };
-  }, [shiftPicker]);
 
   const visibleRows = attendances.filter((attendance) => {
     const employeeId = getEmployeeId(attendance.employee);
@@ -92,17 +89,14 @@ export default function AttendanceTableTab({
     return matchesDepartment && matchesSearch;
   });
 
-  /** Xử lý khi user chọn status trong select */
   const handleStatusChange = (
     attendance: Attendance,
     record: AttendanceDay,
     newStatus: DayStatus,
     event: React.ChangeEvent<HTMLSelectElement>,
   ) => {
-    // Nếu đổi sang WORK → mở popup chọn ca
     if (newStatus === "WORK") {
-      const selectEl = event.target;
-      const rect = selectEl.getBoundingClientRect();
+      const rect = event.target.getBoundingClientRect();
       setShiftPicker({
         attendanceId: attendance._id,
         date: record.date,
@@ -112,23 +106,25 @@ export default function AttendanceTableTab({
       });
       return;
     }
-    // Các status khác → gọi API luôn
     onUpdateDay(attendance, record, newStatus);
   };
 
-  /** Xác nhận chọn ca → gọi API */
   const confirmShift = (
     attendance: Attendance,
     record: AttendanceDay,
     shiftType: ShiftType,
     shiftTime: string,
   ) => {
-    onUpdateDay(attendance, record, "WORK", {
-      shiftType,
-      shiftTime,
-    });
+    onUpdateDay(attendance, record, "WORK", { shiftType, shiftTime });
     setShiftPicker(null);
   };
+
+  const pickerAttendance = shiftPicker
+    ? attendances.find((a) => a._id === shiftPicker.attendanceId)
+    : null;
+  const pickerRecord = pickerAttendance?.dailyRecords.find(
+    (r) => r.date === shiftPicker?.date,
+  );
 
   return (
     <section className={CARD_CLASS}>
@@ -257,9 +253,6 @@ export default function AttendanceTableTab({
                       if (!record) return <td key={date} className="border-b border-r border-slate-100 px-1.5 py-3 text-center text-slate-300">—</td>;
                       const info = getStatusInfo(record.status);
                       const isSaving = savingDay === `${attendance._id}-${record.date}`;
-                      const isPickerOpen =
-                        shiftPicker?.attendanceId === attendance._id &&
-                        shiftPicker?.date === record.date;
                       return (
                         <td key={date} className="border-b border-r border-slate-100 px-1 py-2 text-center">
                           <div className="group relative flex flex-col items-center gap-1">
@@ -283,20 +276,6 @@ export default function AttendanceTableTab({
                               <span className="text-xs text-slate-500">{record.shiftTime}</span>
                             )}
                             {isSaving && <LoaderCircle className="absolute -right-1 -top-1 h-4 w-4 animate-spin text-blue-600" />}
-
-                            {/* Popup chọn ca — absolute trong group */}
-                            {isPickerOpen && shiftPicker && (
-                              <ShiftPickerPopup
-                                ref={pickerRef}
-                                record={record}
-                                initialShiftType={shiftPicker.currentShiftType || "SHIFT_2"}
-                                initialShiftTime={shiftPicker.currentShiftTime || "15:30"}
-                                onConfirm={(shiftType, shiftTime) =>
-                                  confirmShift(attendance, record, shiftType, shiftTime)
-                                }
-                                onCancel={() => setShiftPicker(null)}
-                              />
-                            )}
                           </div>
                         </td>
                       );
@@ -379,110 +358,19 @@ export default function AttendanceTableTab({
           </div>
         ))}
       </div>
+
+      {/* Portal — render ngoài table, không bị cắt bởi overflow */}
+      {shiftPicker && pickerAttendance && pickerRecord && (
+        <ShiftPickerPortal
+          anchorRect={shiftPicker.anchorRect}
+          initialShiftType={shiftPicker.currentShiftType || "SHIFT_2"}
+          initialShiftTime={shiftPicker.currentShiftTime || "15:30"}
+          onConfirm={(st, stime) =>
+            confirmShift(pickerAttendance, pickerRecord, st, stime)
+          }
+          onCancel={() => setShiftPicker(null)}
+        />
+      )}
     </section>
   );
 }
-
-/* ============================================================
- * Popup chọn ca làm việc
- * ============================================================ */
-import { forwardRef } from "react";
-import { X as XIcon } from "lucide-react";
-
-type ShiftPickerProps = {
-  record: AttendanceDay;
-  initialShiftType: ShiftType;
-  initialShiftTime: string;
-  onConfirm: (shiftType: ShiftType, shiftTime: string) => void;
-  onCancel: () => void;
-};
-
-const ShiftPickerPopup = forwardRef<HTMLDivElement, ShiftPickerProps>(
-  ({ initialShiftType, initialShiftTime, onConfirm, onCancel }, ref) => {
-    const [shiftType, setShiftType] = useState<ShiftType>(initialShiftType);
-    const [shiftTime, setShiftTime] = useState<string>(initialShiftTime);
-
-    const handleShiftSelect = (value: string) => {
-      const found = SHIFTS.find((s) => s.value === value);
-      if (!found) return;
-      setShiftType(found.value as ShiftType);
-      if (found.value !== "CUSTOM") setShiftTime(found.time);
-    };
-
-    return (
-      <div
-        ref={ref}
-        className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl"
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-bold text-slate-800">Chọn ca làm việc</span>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            <XIcon className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="space-y-1.5">
-          {SHIFTS.map((s) => (
-            <label
-              key={s.value}
-              className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
-                shiftType === s.value
-                  ? "border-blue-300 bg-blue-50"
-                  : "border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  checked={shiftType === s.value}
-                  onChange={() => handleShiftSelect(s.value)}
-                  className="h-4 w-4 accent-blue-600"
-                />
-                <span className="font-medium text-slate-700">{s.label}</span>
-              </div>
-              {s.value !== "CUSTOM" && (
-                <span className="text-xs text-slate-500">{s.time}</span>
-              )}
-            </label>
-          ))}
-        </div>
-
-        {shiftType === "CUSTOM" && (
-          <div className="mt-2">
-            <label className="mb-1 block text-xs font-semibold text-slate-500">
-              Giờ bắt đầu
-            </label>
-            <input
-              type="time"
-              value={shiftTime}
-              onChange={(e) => setShiftTime(e.target.value)}
-              className="h-9 w-full rounded-md border border-slate-200 px-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-        )}
-
-        <div className="mt-3 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="h-9 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Hủy
-          </button>
-          <button
-            type="button"
-            onClick={() => onConfirm(shiftType, shiftTime)}
-            className="h-9 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            Xác nhận
-          </button>
-        </div>
-      </div>
-    );
-  },
-);
-ShiftPickerPopup.displayName = "ShiftPickerPopup";

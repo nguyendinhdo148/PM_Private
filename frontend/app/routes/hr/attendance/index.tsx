@@ -20,6 +20,7 @@ import OvertimeModal from "./components/OvertimeModal";
 import {
   dateWeekday,
   emptySchedule,
+  getDefaultShift,
   getDepartment,
   getEmployeeCode,
   getEmployeeId,
@@ -128,7 +129,9 @@ export default function AttendancePage() {
     setScheduleByEmployee((prev) => {
       const next = { ...prev };
       for (const e of list) {
-        if (!next[e._id]) next[e._id] = emptySchedule(1);
+        if (!next[e._id]) {
+          next[e._id] = emptySchedule(1, getDefaultShift(e));
+        }
       }
       return next;
     });
@@ -299,7 +302,9 @@ export default function AttendancePage() {
     try {
       const schedules: Record<string, EmployeeSchedule> = {};
       for (const id of selectedEmployeeIds) {
-        schedules[id] = scheduleByEmployee[id] || emptySchedule(1);
+        const emp = employees.find((e) => e._id === id);
+        schedules[id] =
+          scheduleByEmployee[id] || emptySchedule(1, getDefaultShift(emp));
       }
       const payload = await request(`${API}/generate`, {
         method: "POST",
@@ -712,7 +717,6 @@ export default function AttendancePage() {
         />
       )}
 
-      {/* === SummaryCards đẩy xuống dưới, chỉ hiện ở tab Tổng hợp === */}
       {activeTab === "summary" && (
         <SummaryCards attendanceCount={attendances.length} summary={summary} />
       )}

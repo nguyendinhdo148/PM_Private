@@ -1,6 +1,4 @@
-import { Camera, Eye, LoaderCircle } from "lucide-react";
-import { useRef, useState } from "react";
-import html2canvas from "html2canvas-pro";
+import { Eye } from "lucide-react";
 import {
   CARD_CLASS, INPUT_CLASS, MONTHS, SHIFTS,
   dateWeekday, formatDate, getPosition,
@@ -26,44 +24,6 @@ export default function WeeklyScheduleTab({
   selectedWeekDays, rows,
   onChangeMonth, onChangeYear, onChangeWeek,
 }: Props) {
-  const printAreaRef = useRef<HTMLDivElement>(null);
-  const [capturing, setCapturing] = useState(false);
-  const [captureMessage, setCaptureMessage] = useState("");
-
-  const handleCapture = async () => {
-    if (!printAreaRef.current) return;
-    setCapturing(true);
-    setCaptureMessage("");
-    try {
-      // Chờ 1 frame để đảm bảo DOM đã render xong
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
-
-      const canvas = await html2canvas(printAreaRef.current, {
-        scale: 2, // 2x cho ảnh nét
-        useCORS: true, // cho phép ảnh cross-origin (logo)
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
-
-      const fileName = `Lich-lam-viec-tuan-${weeklyIndex + 1}-${month}-${year}.png`;
-
-      // Tải về dưới dạng file
-      const link = document.createElement("a");
-      link.download = fileName;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-
-      setCaptureMessage(`Đã lưu ảnh: ${fileName}`);
-      setTimeout(() => setCaptureMessage(""), 3000);
-    } catch (error) {
-      console.error("Capture error:", error);
-      setCaptureMessage("Không thể chụp màn hình. Vui lòng thử lại.");
-      setTimeout(() => setCaptureMessage(""), 3000);
-    } finally {
-      setCapturing(false);
-    }
-  };
-
   return (
     <section className={`${CARD_CLASS} weekly-print-area overflow-hidden`}>
       <div className="weekly-no-print flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-end lg:justify-between">
@@ -93,23 +53,6 @@ export default function WeeklyScheduleTab({
               ))}
             </select>
           </label>
-
-          {/* === NÚT CHỤP MÀN HÌNH === */}
-          <button
-            type="button"
-            onClick={() => void handleCapture()}
-            disabled={capturing || loading || rows.length === 0}
-            className="inline-flex h-11 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-5 text-base font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-            title="Chụp ảnh lịch tuần và tải về"
-          >
-            {capturing ? (
-              <LoaderCircle className="h-5 w-5 animate-spin" />
-            ) : (
-              <Camera className="h-5 w-5" />
-            )}
-            {capturing ? "Đang chụp..." : "Chụp màn hình"}
-          </button>
-
           <button
             type="button"
             onClick={() => window.print()}
@@ -120,15 +63,7 @@ export default function WeeklyScheduleTab({
         </div>
       </div>
 
-      {/* Feedback */}
-      {captureMessage && (
-        <div className="weekly-no-print border-b border-emerald-100 bg-emerald-50 px-5 py-2.5 text-sm font-medium text-emerald-800">
-          {captureMessage}
-        </div>
-      )}
-
-      {/* ==================== KHU VỰC ĐƯỢC CHỤP ==================== */}
-      <div className="p-5" ref={printAreaRef}>
+      <div className="p-5">
         <div className="mb-4 text-center">
           <h2 className="text-2xl font-bold uppercase tracking-wide text-slate-900">LỊCH LÀM VIỆC NHÂN SỰ</h2>
           <p className="mt-2 text-base font-semibold text-slate-700">
@@ -183,10 +118,9 @@ export default function WeeklyScheduleTab({
                         else if (record.status === "ABSENT") { label = "VẮNG"; color = "font-bold text-rose-600"; }
                         else if (record.status === "HOLIDAY") { label = "LỄ"; color = "font-bold text-violet-600"; }
                         else {
-                          if (record.shiftType === "CUSTOM" && record.shiftTime) label = record.shiftTime;
-                          else if (record.shiftTime) {
-                            const [h, m] = record.shiftTime.split(":");
-                            label = `PM${Number(h) % 12 || 12}.${Math.floor(Number(m) / 10)}`;
+                          // ✅ Hiển thị giờ 24h trực tiếp (14:30, 15:30, 18:00...)
+                          if (record.shiftTime) {
+                            label = record.shiftTime;
                           } else {
                             label = record.shiftType
                               ? (SHIFTS.find((s) => s.value === record.shiftType)?.label || "X")
@@ -209,7 +143,6 @@ export default function WeeklyScheduleTab({
           <span><b>P</b>: Nghỉ phép</span>
           <span><b>VẮNG</b>: Vắng mặt</span>
           <span><b>LỄ</b>: Ngày lễ</span>
-          <span>PM = Ca làm việc</span>
         </div>
       </div>
     </section>

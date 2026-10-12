@@ -11,9 +11,11 @@ import {
   CARD_CLASS,
   INPUT_CLASS,
   MONTHS,
+  dateWeekday,        // ← THÊM
   formatDate,
   getEmployeeId,
   getPayPeriod,
+  getPayPeriodDates,  // ← THÊM
   isInPeriod,
 } from "../types/attendance";
 import type { Attendance } from "../types/attendance";
@@ -63,6 +65,34 @@ async function callApi(
 const genTempId = () =>
   `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+/**
+ * Đếm số ngày OFF thực tế trong kỳ công.
+ * Ưu tiên: dateOverrides > weeklySchedule theo thứ.
+ */
+function countOffDays(
+  attendance: Attendance,
+  periodDates: string[],
+): number {
+  const schedule = attendance.workSchedule;
+  if (!schedule) return 0;
+
+  // Xác định các thứ OFF cố định trong tuần
+  const offWeekdays = new Set<number>();
+  Object.entries(schedule.weeklySchedule || {}).forEach(([day, config]) => {
+    if (config?.status === "OFF") offWeekdays.add(Number(day));
+  });
+
+  return periodDates.filter((date) => {
+    // 1. Override ngày cụ thể có ưu tiên cao nhất
+    const override = schedule.dateOverrides?.[date];
+    const overrideStatus = override?.status as string | undefined;
+    if (overrideStatus === "OFF") return true;
+    if (overrideStatus && overrideStatus !== "OFF") return false;
+    // 2. Không có override → theo lịch tuần
+    return offWeekdays.has(dateWeekday(date));
+  }).length;
+}
+
 export default function OvertimeTab({
   month,
   year,
@@ -75,6 +105,12 @@ export default function OvertimeTab({
   onSaved,
 }: Props) {
   const period = getPayPeriod(month, year);
+
+  // Danh sách ngày trong kỳ — dùng cho việc đếm OFF
+  const periodDates = useMemo(
+    () => getPayPeriodDates(month, year),
+    [month, year],
+  );
 
   /* ============ STATE ============ */
   const [drafts, setDrafts] = useState<DraftEntry[]>([]);
@@ -590,7 +626,7 @@ export default function OvertimeTab({
           <div className="mt-8 border-t border-slate-200 px-5 pt-5 pb-3 text-base font-bold text-slate-800">
             Thống kê ngày OFF & phép AL
           </div>
-          <table className="w-full min-w-[1050px] text-sm">
+          <table className="w-full min-w-[1200px] text-sm">
             <thead className="bg-slate-50 text-left text-sm text-slate-600">
               <tr>
                 <th className="px-4 py-3 font-bold">Nhân viên</th>
@@ -598,6 +634,7 @@ export default function OvertimeTab({
                 <th className="px-4 py-3 text-right font-bold">OFF định mức</th>
                 <th className="px-4 py-3 text-right font-bold">OFF đã dùng</th>
                 <th className="px-4 py-3 text-right font-bold">OFF còn lại</th>
+                <th className="px-4 py-3 text-right font-bold">Ngày công chuẩn</th>
                 <th className="px-4 py-3 text-right font-bold">AL tồn đầu tháng</th>
                 <th className="px-4 py-3 text-right font-bold">AL phát sinh</th>
                 <th className="px-4 py-3 text-right font-bold">AL đã dùng</th>
@@ -633,18 +670,15 @@ export default function OvertimeTab({
                   attendance.workSchedule?.monthlyPAllowance ?? 1;
                 const pUsed = periodDays.filter((d) => d.status === "P").length;
                 const alRemaining = Math.max(0, carryIn + pAllowance - pUsed);
-                const periodWeeks = Math.ceil(
-                  (period.endDate.getTime() -
-                    period.startDate.getTime() +
-                    86400000) /
-                    (7 * 86400000),
-                );
-                const offAllowance =
-                  (attendance.workSchedule?.weeklyOffAllowance ?? 0) *
-                  periodWeeks;
+
+                // ✅ Đếm OFF thực tế theo lịch phân ca + dateOverrides
+                const offAllowance = countOffDays(attendance, periodDates);
                 const offUsed = periodDays.filter(
                   (d) => d.status === "OFF",
                 ).length;
+
+                // ✅ Ngày công chuẩn = tổng ngày kỳ − OFF định mức
+                const standardWorkDays = periodDates.length - offAllowance;
 
                 return (
                   <tr
@@ -672,6 +706,9 @@ export default function OvertimeTab({
                       }`}
                     >
                       {offAllowance - offUsed}
+                    </td>
+                    <td className="px-4 py-3 text-right text-base font-semibold text-blue-700">
+                      {standardWorkDays}
                     </td>
                     <td className="px-4 py-3 text-right text-base">
                       {carryIn}
