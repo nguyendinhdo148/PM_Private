@@ -37,7 +37,6 @@ const DashboardLayout = () => {
     return <Navigate to="/sign-in" />;
   }
 
-
   const handleWorkspaceSelected = (workspace: Workspace) => {
     setCurrentWorkspace(workspace);
     navigate(`/workspaces/${workspace._id}`);
@@ -48,14 +47,14 @@ const DashboardLayout = () => {
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div
-        className={`fixed md:static inset-y-0 left-0 z-40 transition-all duration-300 ${
+        className={`fixed inset-y-0 left-0 z-40 transition-all duration-300 md:static ${
           isMobileSidebarOpen ? "w-64" : "-translate-x-full md:translate-x-0"
         }`}
       >
@@ -65,7 +64,7 @@ const DashboardLayout = () => {
         />
       </div>
 
-      <div className="flex flex-1 flex-col h-full w-full">
+      <div className="flex h-full w-full flex-1 flex-col">
         <Header
           onWorkspaceSelected={handleWorkspaceSelected}
           selectedWorkspace={currentWorkspace}
@@ -73,8 +72,9 @@ const DashboardLayout = () => {
           onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
 
-        <main className="flex-1 overflow-y-auto w-full h-full">
-          <div className="mx-auto container px-2 sm:px-6 lg:px-8 py-0 md:py-8 w-full h-full">
+        <main className="h-full w-full flex-1 overflow-y-auto">
+          {/* ✅ BỎ container + mx-auto → nội dung tràn full width */}
+          <div className="h-full w-full px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
             <Outlet />
           </div>
         </main>
