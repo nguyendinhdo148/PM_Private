@@ -10,18 +10,21 @@ export const useSocket = () => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    const newSocket = io(
-      import.meta.env.VITE_API_URL?.replace("/api-v1", "") || "http://localhost:5000",
-      {
-        auth: {
-          token,
-        },
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: 5,
-      }
-    );
+    const apiUrl =
+      import.meta.env.VITE_API_URL ||
+      "https://pm-private-1.onrender.com/api-v1";
+
+    const socketUrl = apiUrl.replace(/\/api-v1\/?$/, "");
+
+    const newSocket = io(socketUrl, {
+      auth: {
+        token,
+      },
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+    });
 
     newSocket.on("connect", () => {
       console.log("Socket connected:", newSocket.id);
@@ -34,10 +37,16 @@ export const useSocket = () => {
       setIsConnected(false);
     });
 
+    newSocket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error.message);
+      setIsConnected(false);
+    });
+
     socketRef.current = newSocket;
 
     return () => {
       newSocket.disconnect();
+      socketRef.current = null;
     };
   }, []);
 
