@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchData,
@@ -18,7 +19,6 @@ import ScheduleModal from "./components/ScheduleModal";
 import OvertimeModal from "./components/OvertimeModal";
 
 import {
-  dateWeekday,
   emptySchedule,
   getDefaultShift,
   getDepartment,
@@ -26,7 +26,6 @@ import {
   getEmployeeId,
   getEmployeeName,
   getList,
-  getPayPeriod,
   getPayPeriodDates,
   getScheduleFromAttendance,
   unwrap,
@@ -47,92 +46,119 @@ const API = "/attendance";
 
 export default function AttendancePage() {
   const now = new Date();
+
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
-  const [departmentFilter, setDepartmentFilter] = useState("all");
+
+  // Nhiều phòng ban được chọn cùng lúc
+  const [departmentFilter, setDepartmentFilter] = useState<string[]>([]);
+
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [savingDay, setSavingDay] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
   const [scheduleByEmployee, setScheduleByEmployee] = useState<
     Record<string, EmployeeSchedule>
   >({});
+
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [draftSchedule, setDraftSchedule] =
     useState<EmployeeSchedule>(emptySchedule());
   const [scheduleSaving, setScheduleSaving] = useState(false);
+
   const [overtimeAttendance, setOvertimeAttendance] =
     useState<Attendance | null>(null);
   const [overtimeDate, setOvertimeDate] = useState("");
   const [overtimeHours, setOvertimeHours] = useState("");
   const [overtimeNote, setOvertimeNote] = useState("");
   const [overtimeSaving, setOvertimeSaving] = useState(false);
+
   const [activeTab, setActiveTab] = useState<TabKey>("weekly");
-  const [weeklyIndex, setWeeklyIndex] = useState(0);
   const [summaryYear, setSummaryYear] = useState(now.getFullYear());
   const [yearAttendances, setYearAttendances] = useState<Attendance[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
   /* ---- request ---- */
-  const request = useCallback(async (url: string, options: RequestInit = {}) => {
-    const method = (options.method || "GET").toUpperCase();
-    let body: unknown;
-    if (options.body) {
-      try {
-        body = JSON.parse(String(options.body));
-      } catch {
-        body = options.body;
-      }
-    }
-    try {
-      let payload: any;
-      if (method === "GET") payload = await fetchData(url);
-      else if (method === "POST") payload = await postData(url, body ?? {});
-      else if (method === "PUT") payload = await updateData(url, body ?? {});
-      else if (method === "PATCH") payload = await patchData(url, body ?? {});
-      else if (method === "DELETE") payload = await deleteData(url);
-      else throw new Error(`Phương thức API không được hỗ trợ: ${method}`);
+  const request = useCallback(
+    async (url: string, options: RequestInit = {}) => {
+      const method = (options.method || "GET").toUpperCase();
+      let body: unknown;
 
-      if (payload?.success === false) {
-        throw new Error(payload.message || payload.error || "Yêu cầu thất bại");
+      if (options.body) {
+        try {
+          body = JSON.parse(String(options.body));
+        } catch {
+          body = options.body;
+        }
       }
-      return payload;
-    } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
-        "Không thể kết nối API.";
-      throw new Error(msg);
-    }
-  }, []);
+
+      try {
+        let payload: any;
+
+        if (method === "GET") payload = await fetchData(url);
+        else if (method === "POST") payload = await postData(url, body ?? {});
+        else if (method === "PUT") payload = await updateData(url, body ?? {});
+        else if (method === "PATCH") payload = await patchData(url, body ?? {});
+        else if (method === "DELETE") payload = await deleteData(url);
+        else throw new Error(`Phương thức API không được hỗ trợ: ${method}`);
+
+        if (payload?.success === false) {
+          throw new Error(
+            payload.message || payload.error || "Yêu cầu thất bại",
+          );
+        }
+
+        return payload;
+      } catch (error: any) {
+        const msg =
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "Không thể kết nối API.";
+
+        throw new Error(msg);
+      }
+    },
+    [],
+  );
 
   /* ---- loaders ---- */
   const loadEmployees = useCallback(async () => {
     const payload = await request("/employees");
     const list = getList(payload) as Employee[];
+
     setEmployees(list);
+
     setSelectedEmployeeIds((prev) =>
       prev.length
         ? prev.filter((id) => list.some((e) => e._id === id))
         : list
             .filter((e) =>
-              ["ACTIVE", "PROBATION", "active", "probation"].includes(e.status || ""),
+              ["ACTIVE", "PROBATION", "active", "probation"].includes(
+                e.status || "",
+              ),
             )
             .map((e) => e._id),
     );
+
     setScheduleByEmployee((prev) => {
       const next = { ...prev };
-      for (const e of list) {
-        if (!next[e._id]) {
-          next[e._id] = emptySchedule(1, getDefaultShift(e));
+
+      for (const employee of list) {
+        if (!next[employee._id]) {
+          next[employee._id] = emptySchedule(
+            1,
+            getDefaultShift(employee),
+          );
         }
       }
+
       return next;
     });
   }, [request]);
@@ -144,22 +170,30 @@ export default function AttendancePage() {
 
   const loadYearAttendances = useCallback(async () => {
     setSummaryLoading(true);
+
     try {
       const previousMonth = month === 1 ? 12 : month - 1;
       const previousYear = month === 1 ? year - 1 : year;
+
       const queries = [
-        ...Array.from({ length: 12 }, (_, i) => ({ month: i + 1, year: summaryYear })),
+        ...Array.from({ length: 12 }, (_, i) => ({
+          month: i + 1,
+          year: summaryYear,
+        })),
         { month: previousMonth, year: previousYear },
       ];
+
       const results = await Promise.all(
         queries.map(({ month: m, year: y }) =>
           request(`${API}?month=${m}&year=${y}`)
-            .then((p) => getList(p) as Attendance[])
+            .then((payload) => getList(payload) as Attendance[])
             .catch(() => [] as Attendance[]),
         ),
       );
+
       const unique = new Map<string, Attendance>();
       results.flat().forEach((item) => unique.set(item._id, item));
+
       setYearAttendances(Array.from(unique.values()));
     } finally {
       setSummaryLoading(false);
@@ -169,11 +203,14 @@ export default function AttendancePage() {
   const loadPage = useCallback(async () => {
     setLoading(true);
     setErrorMessage("");
+
     try {
       await Promise.all([loadEmployees(), loadAttendances()]);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Không thể tải dữ liệu chấm công.",
+        error instanceof Error
+          ? error.message
+          : "Không thể tải dữ liệu chấm công.",
       );
     } finally {
       setLoading(false);
@@ -183,87 +220,89 @@ export default function AttendancePage() {
   useEffect(() => {
     void loadPage();
   }, [loadPage]);
+
   useEffect(() => {
     void loadAttendances();
   }, [month, year, loadAttendances]);
+
   useEffect(() => {
-    if (activeTab === "summary" || activeTab === "overtime") void loadYearAttendances();
+    if (activeTab === "summary" || activeTab === "overtime") {
+      void loadYearAttendances();
+    }
   }, [activeTab, loadYearAttendances]);
-  useEffect(() => {
-    setWeeklyIndex(0);
-  }, [month, year]);
 
   /* ---- derived ---- */
   const departments = useMemo(
     () =>
       Array.from(
         new Set(
-          employees.map(getDepartment).filter((d) => d !== "Chưa phân phòng"),
+          employees
+            .map(getDepartment)
+            .filter((department) => department !== "Chưa phân phòng"),
         ),
       ).sort(),
     [employees],
   );
 
+  // Lọc nhân viên: khớp một trong các phòng ban được chọn.
+  // Mảng rỗng nghĩa là hiển thị tất cả phòng ban.
   const filteredEmployees = useMemo(() => {
     const keyword = search.trim().toLowerCase();
+
     return employees.filter((employee) => {
-      const depOK =
-        departmentFilter === "all" || getDepartment(employee) === departmentFilter;
+      const department = getDepartment(employee);
+
+      const departmentOK =
+        departmentFilter.length === 0 ||
+        departmentFilter.includes(department);
+
       const searchOK =
         !keyword ||
         getEmployeeName(employee).toLowerCase().includes(keyword) ||
         getEmployeeCode(employee).toLowerCase().includes(keyword);
-      return depOK && searchOK;
+
+      return departmentOK && searchOK;
     });
   }, [employees, departmentFilter, search]);
 
   const attendanceMap = useMemo(() => {
     const map = new Map<string, Attendance>();
-    for (const a of attendances) {
-      const id = getEmployeeId(a.employee);
-      if (id) map.set(id, a);
+
+    for (const attendance of attendances) {
+      const id = getEmployeeId(attendance.employee);
+      if (id) map.set(id, attendance);
     }
+
     return map;
   }, [attendances]);
 
-  const days = useMemo(() => getPayPeriodDates(month, year), [month, year]);
+  const days = useMemo(
+    () => getPayPeriodDates(month, year),
+    [month, year],
+  );
 
-  const weeklyRanges = useMemo(() => {
-    const ranges: string[][] = [];
-    let current: string[] = [];
-    const period = getPayPeriod(month, year);
-    for (const date of getPayPeriodDates(month, year)) {
-      const wd = dateWeekday(date);
-      if (current.length && wd === 1) {
-        ranges.push(current);
-        current = [];
-      }
-      current.push(date);
-      if (wd === 0 || date === period.end) {
-        ranges.push(current);
-        current = [];
-      }
-    }
-    if (current.length) ranges.push(current);
-    return ranges;
-  }, [month, year]);
-
-  const selectedWeekDays =
-    weeklyRanges[Math.min(weeklyIndex, Math.max(0, weeklyRanges.length - 1))] || [];
-
+  // Lọc dữ liệu lịch làm việc theo nhiều phòng ban và từ khóa tìm kiếm.
   const weeklyAttendanceRows = useMemo(() => {
     const keyword = search.trim().toLowerCase();
+
     return attendances
       .filter((item) => {
-        const dep =
+        const department =
           item.department ||
-          (typeof item.employee === "object" ? getDepartment(item.employee) : "");
-        const depOK = departmentFilter === "all" || dep === departmentFilter;
+          (typeof item.employee === "object"
+            ? getDepartment(item.employee)
+            : "");
+
+        const departmentOK =
+          departmentFilter.length === 0 ||
+          departmentFilter.includes(department);
+
         const searchOK =
           !keyword ||
           item.employeeName.toLowerCase().includes(keyword) ||
           (item.employeeCode || "").toLowerCase().includes(keyword);
-        return depOK && searchOK;
+
+        return departmentOK && searchOK;
       })
       .sort(
         (a, b) =>
@@ -275,17 +314,26 @@ export default function AttendancePage() {
   const summary = useMemo(
     () =>
       attendances.reduce(
-        (total, a) => {
-          const s = a.summary || {};
+        (total, attendance) => {
+          const s = attendance.summary || {};
+
           total.work += s.totalWorkDays || 0;
           total.off += s.totalOffDays || 0;
           total.leave += s.totalPDays || 0;
           total.excessLeave += s.excessPDays || 0;
           total.absent += s.totalAbsentDays || 0;
           total.ot += s.totalPositiveOTHours || 0;
+
           return total;
         },
-        { work: 0, off: 0, leave: 0, excessLeave: 0, absent: 0, ot: 0 },
+        {
+          work: 0,
+          off: 0,
+          leave: 0,
+          excessLeave: 0,
+          absent: 0,
+          ot: 0,
+        },
       ),
     [attendances],
   );
@@ -296,16 +344,22 @@ export default function AttendancePage() {
       setErrorMessage("Bạn cần chọn ít nhất một nhân viên.");
       return;
     }
+
     setGenerating(true);
     setErrorMessage("");
     setMessage("");
+
     try {
       const schedules: Record<string, EmployeeSchedule> = {};
+
       for (const id of selectedEmployeeIds) {
-        const emp = employees.find((e) => e._id === id);
+        const employee = employees.find((e) => e._id === id);
+
         schedules[id] =
-          scheduleByEmployee[id] || emptySchedule(1, getDefaultShift(emp));
+          scheduleByEmployee[id] ||
+          emptySchedule(1, getDefaultShift(employee));
       }
+
       const payload = await request(`${API}/generate`, {
         method: "POST",
         body: JSON.stringify({
@@ -315,23 +369,32 @@ export default function AttendancePage() {
           scheduleByEmployee: schedules,
         }),
       });
+
       const result = unwrap(payload);
+
       setMessage(
         `Đã tạo ${result?.createdCount ?? 0} bảng công; bỏ qua ${
           result?.skippedCount ?? 0
         } bảng đã tồn tại; lỗi ${result?.errorCount ?? 0}.`,
       );
+
       if (Array.isArray(result?.errors) && result.errors.length) {
         setErrorMessage(
           result.errors
-            .map((i: any) => `${i.employeeName || i.employeeId}: ${i.message}`)
+            .map(
+              (item: any) =>
+                `${item.employeeName || item.employeeId}: ${item.message}`,
+            )
             .join("\n"),
         );
       }
+
       await loadAttendances();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Không thể tạo bảng công.",
+        error instanceof Error
+          ? error.message
+          : "Không thể tạo bảng công.",
       );
     } finally {
       setGenerating(false);
@@ -340,14 +403,18 @@ export default function AttendancePage() {
 
   const toggleEmployee = (id: string) =>
     setSelectedEmployeeIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id],
     );
 
   const toggleVisibleEmployees = () => {
-    const visibleIds = filteredEmployees.map((e) => e._id);
+    const visibleIds = filteredEmployees.map((employee) => employee._id);
+
     const allSelected = visibleIds.every((id) =>
       selectedEmployeeIds.includes(id),
     );
+
     setSelectedEmployeeIds((prev) =>
       allSelected
         ? prev.filter((id) => !visibleIds.includes(id))
@@ -357,9 +424,13 @@ export default function AttendancePage() {
 
   const openScheduleEditor = (employee: Employee) => {
     const existing = attendanceMap.get(employee._id);
+
     const current =
-      scheduleByEmployee[employee._id] || getScheduleFromAttendance(existing);
+      scheduleByEmployee[employee._id] ||
+      getScheduleFromAttendance(existing);
+
     setEditingEmployee(employee);
+
     setDraftSchedule({
       ...current,
       weeklySchedule: { ...current.weeklySchedule },
@@ -369,9 +440,11 @@ export default function AttendancePage() {
 
   const saveSchedule = async () => {
     if (!editingEmployee) return;
+
     setScheduleSaving(true);
     setErrorMessage("");
     setMessage("");
+
     try {
       const schedule: EmployeeSchedule = {
         ...draftSchedule,
@@ -382,27 +455,37 @@ export default function AttendancePage() {
           ]),
         ) as Record<number, any>,
       };
+
       const attendance = attendanceMap.get(editingEmployee._id);
+
       if (attendance) {
         await request(`${API}/${attendance._id}/schedule`, {
           method: "PATCH",
           body: JSON.stringify(schedule),
         });
+
         setMessage(
           "Đã lưu lịch phân ca. Các ô chấm công trong tháng hiện tại chưa bị thay đổi.",
         );
       } else {
-        setMessage("Đã lưu cấu hình lịch làm cho lần tạo bảng công tiếp theo.");
+        setMessage(
+          "Đã lưu cấu hình lịch làm cho lần tạo bảng công tiếp theo.",
+        );
       }
+
       setScheduleByEmployee((prev) => ({
         ...prev,
         [editingEmployee._id]: schedule,
       }));
+
       setEditingEmployee(null);
+
       if (attendance) await loadAttendances();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Không thể lưu lịch phân ca.",
+        error instanceof Error
+          ? error.message
+          : "Không thể lưu lịch phân ca.",
       );
     } finally {
       setScheduleSaving(false);
@@ -413,20 +496,26 @@ export default function AttendancePage() {
     attendance: Attendance,
     record: AttendanceDay,
     status: DayStatus,
-    shift?: { shiftType: ShiftType | null; shiftTime: string | null },
+    shift?: {
+      shiftType: ShiftType | null;
+      shiftTime: string | null;
+    },
   ) => {
     if (attendance.status === "LOCKED") {
       setErrorMessage("Bảng công đã khóa, không thể sửa.");
       return;
     }
+
     setSavingDay(`${attendance._id}-${record.date}`);
     setErrorMessage("");
     setMessage("");
+
     try {
       const nextShiftType =
         status === "WORK"
           ? shift?.shiftType ?? record.shiftType ?? "SHIFT_2"
           : null;
+
       const nextShiftTime =
         status === "WORK"
           ? shift?.shiftTime ?? record.shiftTime ?? "15:30"
@@ -443,11 +532,14 @@ export default function AttendancePage() {
           note: record.note || "",
         }),
       });
+
       setMessage(`Đã cập nhật ngày ${record.date}.`);
       await loadAttendances();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Không thể cập nhật ngày công.",
+        error instanceof Error
+          ? error.message
+          : "Không thể cập nhật ngày công.",
       );
     } finally {
       setSavingDay(null);
@@ -464,19 +556,24 @@ export default function AttendancePage() {
         : status === "CONFIRMED"
           ? "xác nhận"
           : "khóa";
+
     if (
       !window.confirm(
         `Bạn có chắc muốn ${label} bảng công của ${attendance.employeeName}?`,
       )
-    )
+    ) {
       return;
+    }
+
     setErrorMessage("");
     setMessage("");
+
     try {
       await request(`${API}/${attendance._id}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
+
       setMessage("Đã cập nhật trạng thái bảng công.");
       await loadAttendances();
     } catch (error) {
@@ -493,21 +590,29 @@ export default function AttendancePage() {
       setErrorMessage("Bảng công đã khóa, không thể xóa.");
       return;
     }
+
     if (
       !window.confirm(
         `Bạn có chắc muốn xóa bảng công tháng ${attendance.month}/${attendance.year} của ${attendance.employeeName}? Thao tác này không thể hoàn tác.`,
       )
-    )
+    ) {
       return;
+    }
+
     setErrorMessage("");
     setMessage("");
+
     try {
       await request(`${API}/${attendance._id}`, { method: "DELETE" });
+
       setMessage(`Đã xóa bảng công của ${attendance.employeeName}.`);
+
       await Promise.all([loadAttendances(), loadYearAttendances()]);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Không thể xóa bảng công.",
+        error instanceof Error
+          ? error.message
+          : "Không thể xóa bảng công.",
       );
     }
   };
@@ -518,7 +623,9 @@ export default function AttendancePage() {
     rows: Attendance[],
   ) => {
     if (rows.length === 0) return;
-    const locked = rows.filter((i) => i.status === "LOCKED");
+
+    const locked = rows.filter((item) => item.status === "LOCKED");
+
     if (locked.length > 0) {
       setErrorMessage(
         `Không thể xóa tháng ${m}/${y} vì có ${locked.length} bảng công đã khóa.`,
@@ -526,17 +633,27 @@ export default function AttendancePage() {
       setMessage("");
       return;
     }
+
     if (
       !window.confirm(
         `Bạn có chắc muốn XÓA TOÀN BỘ ${rows.length} bảng công của tháng ${m}/${y}?`,
       )
-    )
+    ) {
       return;
+    }
+
     setErrorMessage("");
     setMessage("");
+
     try {
-      for (const a of rows) await request(`${API}/${a._id}`, { method: "DELETE" });
-      setMessage(`Đã xóa toàn bộ ${rows.length} bảng công của tháng ${m}/${y}.`);
+      for (const attendance of rows) {
+        await request(`${API}/${attendance._id}`, { method: "DELETE" });
+      }
+
+      setMessage(
+        `Đã xóa toàn bộ ${rows.length} bảng công của tháng ${m}/${y}.`,
+      );
+
       await Promise.all([loadAttendances(), loadYearAttendances()]);
     } catch (error) {
       setErrorMessage(
@@ -544,6 +661,7 @@ export default function AttendancePage() {
           ? error.message
           : "Không thể xóa toàn bộ bảng công tháng này.",
       );
+
       await Promise.all([loadAttendances(), loadYearAttendances()]);
     }
   };
@@ -557,29 +675,41 @@ export default function AttendancePage() {
 
   const addOvertime = async () => {
     if (!overtimeAttendance) return;
+
     const hours = Number(overtimeHours);
+
     if (!overtimeDate || !Number.isFinite(hours) || hours === 0) {
       setErrorMessage("Nhập ngày và số giờ OT khác 0.");
       return;
     }
+
     if (hours < -24 || hours > 24) {
       setErrorMessage("Số giờ OT phải trong khoảng -24 đến 24.");
       return;
     }
+
     setOvertimeSaving(true);
     setErrorMessage("");
     setMessage("");
+
     try {
       await request(`${API}/${overtimeAttendance._id}/overtime`, {
         method: "POST",
-        body: JSON.stringify({ date: overtimeDate, hours, note: overtimeNote }),
+        body: JSON.stringify({
+          date: overtimeDate,
+          hours,
+          note: overtimeNote,
+        }),
       });
+
       setOvertimeAttendance(null);
+
       setMessage(
         hours > 0
           ? `Đã thêm ${hours} giờ tăng ca.`
           : `Đã ghi nhận ${Math.abs(hours)} giờ về sớm.`,
       );
+
       await loadAttendances();
     } catch (error) {
       setErrorMessage(
@@ -590,8 +720,9 @@ export default function AttendancePage() {
     }
   };
 
+  // Reset toàn bộ bộ lọc phòng ban và từ khóa tìm kiếm.
   const handleResetFilter = () => {
-    setDepartmentFilter("all");
+    setDepartmentFilter([]);
     setSearch("");
   };
 
@@ -624,6 +755,7 @@ export default function AttendancePage() {
           <span>{message}</span>
         </div>
       )}
+
       {errorMessage && (
         <div className="flex items-start gap-3 whitespace-pre-wrap rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-base text-rose-700">
           <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 text-xs font-bold text-white">
@@ -633,7 +765,21 @@ export default function AttendancePage() {
         </div>
       )}
 
-      <style>{`@media print { body * { visibility: hidden !important; } .weekly-print-area, .weekly-print-area * { visibility: visible !important; } .weekly-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; box-shadow: none !important; border: 0 !important; } .weekly-no-print { display: none !important; } @page { size: landscape; margin: 8mm; } }`}</style>
+      <style>{`@media print {
+        body * { visibility: hidden !important; }
+        .weekly-print-area,
+        .weekly-print-area * { visibility: visible !important; }
+        .weekly-print-area {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          box-shadow: none !important;
+          border: 0 !important;
+        }
+        .weekly-no-print { display: none !important; }
+        @page { size: landscape; margin: 8mm; }
+      }`}</style>
 
       {activeTab === "weekly" && (
         <WeeklyScheduleTab
@@ -641,13 +787,9 @@ export default function AttendancePage() {
           year={year}
           now={now}
           loading={loading}
-          weeklyIndex={weeklyIndex}
-          weeklyRanges={weeklyRanges}
-          selectedWeekDays={selectedWeekDays}
           rows={weeklyAttendanceRows}
           onChangeMonth={setMonth}
           onChangeYear={setYear}
-          onChangeWeek={setWeeklyIndex}
         />
       )}
 
@@ -663,7 +805,9 @@ export default function AttendancePage() {
             setYear(y);
             setActiveTab("attendance");
           }}
-          onDeleteMonth={(m, y, rows) => void deleteAttendanceMonth(m, y, rows)}
+          onDeleteMonth={(m, y, rows) =>
+            void deleteAttendanceMonth(m, y, rows)
+          }
           onCreateNew={() => {
             setMonth(now.getMonth() + 1);
             setYear(now.getFullYear());
@@ -683,14 +827,20 @@ export default function AttendancePage() {
           employees={employees}
           filteredEmployees={filteredEmployees}
           selectedEmployeeIds={selectedEmployeeIds}
-          departmentFilter={departmentFilter}
+          departmentFilter={
+            departmentFilter.length > 0
+              ? departmentFilter.join(", ")
+              : "all"
+          }
           search={search}
           savingDay={savingDay}
           onToggleEmployee={toggleEmployee}
           onToggleVisible={toggleVisibleEmployees}
           onOpenSchedule={openScheduleEditor}
           onOpenOvertime={openOvertime}
-          onUpdateDay={(a, r, s, shift) => void updateDay(a, r, s, shift)}
+          onUpdateDay={(a, r, s, shift) =>
+            void updateDay(a, r, s, shift)
+          }
           onChangeStatus={(a, s) => void changeSheetStatus(a, s)}
           onDelete={(a) => void deleteAttendance(a)}
           onGenerate={() => void handleGenerate()}
@@ -718,7 +868,10 @@ export default function AttendancePage() {
       )}
 
       {activeTab === "summary" && (
-        <SummaryCards attendanceCount={attendances.length} summary={summary} />
+        <SummaryCards
+          attendanceCount={attendances.length}
+          summary={summary}
+        />
       )}
 
       {editingEmployee && (
