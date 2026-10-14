@@ -40,9 +40,9 @@ export default function ScheduleModal({
   const defaultShift = getDefaultShift(employee);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4">
-      <div className="my-auto w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 p-4 sm:items-center">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 p-5">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Thiết lập lịch phân ca</h2>
             <p className="mt-1 text-sm text-slate-500">
@@ -55,7 +55,7 @@ export default function ScheduleModal({
           </button>
         </div>
 
-        <div className="space-y-5 p-5">
+        <div className="flex-1 space-y-5 overflow-y-auto p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-slate-500">Số ngày nghỉ tuần</label>
@@ -161,7 +161,7 @@ export default function ScheduleModal({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-slate-200 p-5">
+        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 p-5">
           <button
             type="button"
             onClick={onClose}

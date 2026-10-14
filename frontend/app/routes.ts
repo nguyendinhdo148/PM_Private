@@ -1,4 +1,3 @@
-
 import {
   type RouteConfig,
   index,
@@ -40,6 +39,17 @@ export default [
       "hr/attendance",
       "routes/hr/attendance/index.tsx",
     ),
+  ]),
+
+  // =========================
+  // TRAINING - ĐÀO TẠO
+  // =========================
+  layout("routes/training/training-layout.tsx", [
+    route("training", "routes/training/TrainingDashboard.tsx"),
+    route("training/chinese", "routes/training/ChineseLearning.tsx"),
+    route("training/english", "routes/training/EnglishLearning.tsx"),
+    route("training/lesson/:lessonId", "routes/training/LessonDetail.tsx"),
+    route("training/quiz/:quizId", "routes/training/Quiz.tsx"),
   ]),
 
   // =========================
@@ -104,4 +114,4 @@ export default [
     route("achieved", "routes/dashboard/achieved.tsx"),
     route("settings", "routes/dashboard/settings.tsx"),
   ]),
-] satisfies RouteConfig;
+];

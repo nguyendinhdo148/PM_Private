@@ -21,6 +21,12 @@ import bottleKeepRoutes from "./bottleKeep.js";
 import aiRoutes from "./ai-routes.js";
 import employeeRoutes from "./employee.js";
 import attendanceRoutes from "./attendance.js";
+
+import trainingLessonRoutes from "./trainingLessons.js";
+import trainingCourseRoutes from "./trainingCourses.js";
+import trainingProgressRoutes from "./trainingProgress.js";
+import trainingQuizRoutes from "./trainingQuizzes.js";
+
 const router = express.Router();
 
 router.use("/auth", authRoutes);
@@ -40,6 +46,7 @@ router.use("/tips", tipRoutes);
 router.use("/staff", staffRoutes);
 router.use("/funds", fundRoutes);
 router.use("/attendance", attendanceRoutes);
+
 // Hoa hồng rượu
 router.use("/wine-commission", wineCommissionRoutes);
 
@@ -56,5 +63,14 @@ router.use("/ai", aiRoutes);
 // HR - EMPLOYEE
 // =========================================================
 router.use("/employees", employeeRoutes);
+
+
+/* =========================================================
+   TRAINING - ĐÀO TẠO
+========================================================= */
+router.use("/training/lessons", trainingLessonRoutes);
+router.use("/training/courses", trainingCourseRoutes);
+router.use("/training/progress", trainingProgressRoutes);
+router.use("/training/quizzes", trainingQuizRoutes);
 
 export default router;
