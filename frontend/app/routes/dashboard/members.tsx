@@ -150,8 +150,9 @@ export default function TipManagement() {
       return { ...s, workDays, deductedDays, effectiveDays };
     });
 
-    const activeMembers = enriched.filter((s) => s.effectiveDays > 0);
-    const totalDays = activeMembers.reduce((acc, curr) => acc + curr.effectiveDays, 0);
+    // Tổng công gốc (chỉ tính người có đi làm)
+    const activeMembers = enriched.filter((s) => s.workDays > 0);
+    const totalDays = activeMembers.reduce((acc, curr) => acc + curr.workDays, 0);
     const tipPerDay = totalDays > 0 ? remainingTip / totalDays : 0;
 
     let totalPenalty = 0;
@@ -159,15 +160,21 @@ export default function TipManagement() {
 
     const details = activeMembers.map((staff) => {
       const isTop = applyBonus && staff._id === topPerformerId;
-      const baseTip = staff.effectiveDays * tipPerDay;
+
+      // ✅ Công gốc × đơn giá (chưa trừ gì)
+      const baseTip = staff.workDays * tipPerDay;
+
+      // ✅ Tiền phạt = số công bị trừ × đơn giá
       const penaltyAmount = staff.deductedDays * tipPerDay;
 
+      // ✅ Quỹ 5% chỉ áp dụng cho FOH, tính trên công gốc
       let fundDeduction = 0;
       if (staff.department === "FOH") {
         fundDeduction = baseTip * FUND_PERCENT;
       }
 
-      let finalTip = baseTip - fundDeduction;
+      // ✅ Thực nhận = công gốc - tiền phạt - quỹ (+ thưởng nếu TOP)
+      let finalTip = baseTip - penaltyAmount - fundDeduction;
       if (isTop) finalTip += BONUS_AMOUNT;
 
       totalPenalty += penaltyAmount;
