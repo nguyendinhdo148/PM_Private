@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import Groq from "groq-sdk";
-import Lesson  from "../models/Lesson.js";
+import Lesson from "../models/Lesson.js";
 import Course from "../models/Course.js";
 import LearningProgress from "../models/LearningProgress.js";
 import QuizAttempt from "../models/QuizAttempt.js";
@@ -19,7 +19,6 @@ const sendError = (res, error, message) => {
   return res.status(500).json({ success: false, message });
 };
 
-// Chuẩn hoá language FE-friendly
 const normalizeLanguageForClient = (lang) => {
   const value = String(lang || "").toLowerCase();
   if (["zh-cn", "zh", "chinese", "zh-hans"].includes(value)) return "zh-CN";
@@ -27,7 +26,6 @@ const normalizeLanguageForClient = (lang) => {
   return lang;
 };
 
-// Groq AI config
 const resolveGroqApiKey = () => {
   const key =
     process.env.GROQ_API_KEY ||
@@ -44,6 +42,7 @@ const FALLBACK_LESSON_MODEL = "openai/gpt-oss-20b";
 
 const createLessonPrompt = ({ topic, language, level, count, objectives }) => {
   const languageName = language === "zh-CN" ? "tiếng Trung phổ thông giản thể" : "tiếng Anh";
+  const isChinese = language === "zh-CN";
 
   return `
 Bạn là giáo viên ngoại ngữ chuyên nghiệp, chuyên dạy người Việt.
@@ -72,13 +71,14 @@ JSON phải theo đúng cấu trúc sau:
       "meaning": "Nghĩa tiếng Việt",
       "partOfSpeech": "Từ loại",
       "example": "Câu ví dụ bằng ngôn ngữ đang học",
+      "examplePinyin": "Pinyin có dấu thanh của CÂU VÍ DỤ nếu là tiếng Trung; chuỗi rỗng nếu là tiếng Anh",
       "exampleTranslation": "Bản dịch tiếng Việt"
     }
   ],
   "examples": [
     {
       "sentence": "Câu ví dụ bằng ngôn ngữ đang học",
-      "pinyin": "Pinyin nếu là tiếng Trung; chuỗi rỗng nếu là tiếng Anh",
+      "pinyin": "Pinyin có dấu thanh của câu nếu là tiếng Trung; chuỗi rỗng nếu là tiếng Anh",
       "translation": "Dịch tiếng Việt",
       "explanation": "Giải thích ngắn bằng tiếng Việt"
     }
@@ -91,7 +91,7 @@ JSON phải theo đúng cấu trúc sau:
       "examples": [
         {
           "sentence": "Câu ví dụ",
-          "pinyin": "Pinyin nếu là tiếng Trung; chuỗi rỗng nếu là tiếng Anh",
+          "pinyin": "Pinyin có dấu thanh của câu nếu là tiếng Trung; chuỗi rỗng nếu là tiếng Anh",
           "translation": "Dịch tiếng Việt",
           "explanation": "Giải thích ví dụ"
         }
@@ -100,13 +100,13 @@ JSON phải theo đúng cấu trúc sau:
   ],
   "dialogues": [
     {
-      "title": "Tên hội thoại",
-      "context": "Bối cảnh hội thoại",
+      "title": "Tên hội thoại (bắt buộc)",
+      "context": "Bối cảnh cụ thể (bắt buộc)",
       "lines": [
         {
           "speaker": "A",
           "text": "Câu thoại bằng ngôn ngữ đang học",
-          "pinyin": "Pinyin nếu là tiếng Trung; chuỗi rỗng nếu là tiếng Anh",
+          "pinyin": "Pinyin có dấu thanh của câu thoại nếu là tiếng Trung; chuỗi rỗng nếu là tiếng Anh",
           "translation": "Dịch tiếng Việt"
         }
       ]
@@ -128,20 +128,47 @@ YÊU CẦU CHẤT LƯỢNG (BẮT BUỘC TUÂN THỦ):
 - Tạo đúng ${count} mục từ vựng, mỗi từ có ví dụ + bản dịch đầy đủ.
 - Tạo 8-12 câu ví dụ thực hành đa dạng ngữ cảnh (không trùng lặp).
 - Tạo 4-6 điểm ngữ pháp quan trọng, mỗi điểm có cấu trúc + 2-3 ví dụ minh hoạ.
-- Tạo 2 hội thoại thực tế, mỗi hội thoại 8-12 lượt nói, có bối cảnh rõ ràng.
-- Tạo 10 câu trắc nghiệm đa dạng (nhận biết nghĩa, chọn từ đúng, sắp xếp câu, điền khuyết).
-- Mỗi câu quiz có 4 lựa chọn, correctAnswer là chỉ số từ 0 đến 3.
+
+🎯 YÊU CẦU ĐẶC BIỆT VỀ HỘI THOẠI (BẮT BUỘC - KHÔNG ĐƯỢC BỎ QUA):
+- PHẢI tạo ĐÚNG 2 hội thoại khác nhau. KHÔNG được để mảng "dialogues" rỗng.
+- MỖI hội thoại PHẢI có trường "lines" là MỘT MẢNG với ít nhất 8 dòng.
+- Mỗi hội thoại phải có "title" (tên hội thoại) và "context" (bối cảnh cụ thể).
+- Mỗi dòng trong "lines" phải có: speaker, text, pinyin (nếu tiếng Trung), translation.
+- Hai hội thoại phải KHÁC NHAU về bối cảnh (VD: 1 ở quán ăn, 1 ở cửa hàng).
+- Trong hội thoại, dùng các từ vựng đã liệt kê ở trên.
+
+🎯 YÊU CẦU ĐẶC BIỆT VỀ QUIZ (BẮT BUỘC - KHÔNG ĐƯỢC BỎ QUA):
+- PHẢI tạo ĐÚNG 10 câu hỏi trắc nghiệm. KHÔNG được để mảng "quiz" rỗng.
+- Mỗi câu hỏi PHẢI LIÊN QUAN đến MỘT TỪ VỰNG KHÁC NHAU trong danh sách từ vựng ở trên.
+  → Không được hỏi 2 câu cùng về 1 từ.
+  → Nếu có ${count} từ vựng, phải phủ ít nhất 10 từ khác nhau.
+- Các dạng câu hỏi phải ĐA DẠNG:
+  * 2-3 câu hỏi nghĩa ("X" có nghĩa là gì?)
+  * 2-3 câu hỏi pinyin (Chọn pinyin đúng của "X")
+  * 2 câu điền khuyết (Điền từ vào chỗ trống)
+  * 2 câu sắp xếp câu / chọn câu đúng ngữ pháp
+  * 1-2 câu tình huống (Khi nào dùng "X"?)
+- KHÔNG được lặp lại câu hỏi hoặc đáp án giữa các câu.
+- Mỗi câu có 4 lựa chọn (A, B, C, D), correctAnswer là chỉ số 0-3.
+- Các đáp án sai phải "hợp lý" (cùng từ loại, không quá dễ loại trừ).
+
+QUY TẮC KHÁC:
 - Các trường bắt buộc phải có đúng kiểu dữ liệu theo schema.
 - Giải thích, bản dịch và ghi chú bằng tiếng Việt tự nhiên, dễ hiểu.
-- Nếu là tiếng Trung, dùng chữ Hán giản thể và Pinyin có dấu thanh chính xác; không để trống Pinyin cho từ/câu tiếng Trung.
-- Nếu là tiếng Anh, dùng tiếng Anh tự nhiên và để trường pinyin là chuỗi rỗng.
+${
+  isChinese
+    ? `- Đây là bài học TIẾNG TRUNG: dùng chữ Hán giản thể và Pinyin có dấu thanh CHÍNH XÁC.
+- BẮT BUỘC: mỗi từ vựng phải có "pinyin" (pinyin của từ) VÀ "examplePinyin" (pinyin của câu ví dụ). KHÔNG được để trống hai trường này.
+- BẮT BUỘC: mỗi câu trong "examples", mỗi dòng trong "dialogues.lines" phải có trường "pinyin". KHÔNG được để trống.`
+    : `- Đây là bài học TIẾNG ANH: để tất cả trường "pinyin" và "examplePinyin" là chuỗi rỗng "".`
+}
 - Không bịa thông tin văn hóa hoặc ngữ pháp; nội dung phải phù hợp trình độ đã yêu cầu.
 - Không dùng dấu phẩy cuối cùng trong JSON. Không trả về null cho các trường chuỗi.
 `;
 };
 
 // Chuẩn hoá dữ liệu AI trả về cho FE
-const sanitizeLessonForClient = (lessonDoc) => {
+const sanitizeLessonForClient = (lessonDoc, { includeAnswers = false } = {}) => {
   if (!lessonDoc) return null;
   const obj = lessonDoc.toObject ? lessonDoc.toObject() : { ...lessonDoc };
 
@@ -154,6 +181,7 @@ const sanitizeLessonForClient = (lessonDoc) => {
       meaning: v.meaning || "",
       partOfSpeech: v.partOfSpeech || "",
       example: v.example || "",
+      examplePinyin: v.examplePinyin || v.example_pinyin || "",
       exampleTranslation: v.exampleTranslation || "",
     }));
   }
@@ -198,10 +226,87 @@ const sanitizeLessonForClient = (lessonDoc) => {
   }
 
   if (Array.isArray(obj.quiz)) {
-    obj.quiz = obj.quiz.map(({ correctAnswer, ...rest }) => rest);
+    if (includeAnswers) {
+      obj.quiz = obj.quiz.map((qq) => ({
+        question: qq.question || "",
+        pinyin: qq.pinyin || "",
+        options: Array.isArray(qq.options) ? qq.options : [],
+        correctAnswer: Number.isInteger(qq.correctAnswer) ? qq.correctAnswer : -1,
+        explanation: qq.explanation || "",
+      }));
+    } else {
+      obj.quiz = obj.quiz.map(({ correctAnswer, ...rest }) => rest);
+    }
   }
 
   return obj;
+};
+
+// Helper: chuẩn hoá vocabulary + examples + dialogues trước khi lưu DB
+const normalizeLessonContent = (lessonData) => {
+  const vocabulary = Array.isArray(lessonData.vocabulary)
+    ? lessonData.vocabulary.map((v) => ({
+        word: String(v?.word || "").trim(),
+        pinyin: String(v?.pinyin || "").trim(),
+        meaning: String(v?.meaning || "").trim(),
+        partOfSpeech: String(v?.partOfSpeech || "").trim(),
+        example: String(v?.example || "").trim(),
+        examplePinyin: String(v?.examplePinyin || v?.example_pinyin || "").trim(),
+        exampleTranslation: String(v?.exampleTranslation || "").trim(),
+      }))
+    : [];
+
+  const examples = Array.isArray(lessonData.examples)
+    ? lessonData.examples.map((e) => ({
+        sentence: String(e?.sentence || "").trim(),
+        pinyin: String(e?.pinyin || "").trim(),
+        translation: String(e?.translation || "").trim(),
+        explanation: String(e?.explanation || "").trim(),
+      }))
+    : [];
+
+  const grammar = Array.isArray(lessonData.grammar)
+    ? lessonData.grammar.map((g) => ({
+        title: String(g?.title || "").trim(),
+        explanation: String(g?.explanation || "").trim(),
+        structure: String(g?.structure || "").trim(),
+        examples: Array.isArray(g?.examples)
+          ? g.examples.map((ex) => ({
+              sentence: String(ex?.sentence || "").trim(),
+              pinyin: String(ex?.pinyin || "").trim(),
+              translation: String(ex?.translation || "").trim(),
+              explanation: String(ex?.explanation || "").trim(),
+            }))
+          : [],
+      }))
+    : [];
+
+  const dialogues = Array.isArray(lessonData.dialogues)
+    ? lessonData.dialogues.map((d) => ({
+        title: String(d?.title || "").trim(),
+        context: String(d?.context || "").trim(),
+        lines: Array.isArray(d?.lines)
+          ? d.lines.map((l) => ({
+              speaker: String(l?.speaker || "").trim(),
+              text: String(l?.text || "").trim(),
+              pinyin: String(l?.pinyin || "").trim(),
+              translation: String(l?.translation || "").trim(),
+            }))
+          : [],
+      }))
+    : [];
+
+  const quiz = Array.isArray(lessonData.quiz)
+    ? lessonData.quiz.map((q) => ({
+        question: String(q?.question || "").trim(),
+        pinyin: String(q?.pinyin || "").trim(),
+        options: Array.isArray(q?.options) ? q.options.map((o) => String(o || "")) : [],
+        correctAnswer: Number.isInteger(q?.correctAnswer) ? q.correctAnswer : 0,
+        explanation: String(q?.explanation || "").trim(),
+      }))
+    : [];
+
+  return { vocabulary, examples, grammar, dialogues, quiz };
 };
 
 // Chỉ cho phép cashier tạo bài học bằng AI.
@@ -260,12 +365,12 @@ export const generateLessonWithAI = async (req, res) => {
         messages: [
           {
             role: "system",
-            content: "Bạn là hệ thống tạo bài học ngoại ngữ. Tuân thủ schema JSON được yêu cầu, không thêm nội dung ngoài JSON và không bỏ sót trường.",
+            content: "Bạn là hệ thống tạo bài học ngoại ngữ. Tuân thủ schema JSON được yêu cầu, không thêm nội dung ngoài JSON và không bỏ sót trường. ĐẶC BIỆT chú ý: mảng 'dialogues' và 'quiz' PHẢI có dữ liệu đầy đủ.",
           },
           { role: "user", content: prompt },
         ],
-        temperature: 0.3,
-        max_tokens: 6000,
+        temperature: 0.4,
+        max_tokens: 8000,
         top_p: 0.9,
         stream: false,
         response_format: { type: "json_object" },
@@ -313,17 +418,17 @@ export const generateLessonWithAI = async (req, res) => {
       generated = await requestModel(FALLBACK_LESSON_MODEL);
     }
 
-    const lessonData = generated.parsed;
+    const rawLessonData = generated.parsed;
 
     if (
-      !lessonData ||
-      typeof lessonData.title !== "string" ||
-      !lessonData.title.trim() ||
-      !Array.isArray(lessonData.vocabulary) ||
-      !Array.isArray(lessonData.examples) ||
-      !Array.isArray(lessonData.grammar) ||
-      !Array.isArray(lessonData.dialogues) ||
-      !Array.isArray(lessonData.quiz)
+      !rawLessonData ||
+      typeof rawLessonData.title !== "string" ||
+      !rawLessonData.title.trim() ||
+      !Array.isArray(rawLessonData.vocabulary) ||
+      !Array.isArray(rawLessonData.examples) ||
+      !Array.isArray(rawLessonData.grammar) ||
+      !Array.isArray(rawLessonData.dialogues) ||
+      !Array.isArray(rawLessonData.quiz)
     ) {
       return res.status(502).json({
         success: false,
@@ -332,19 +437,26 @@ export const generateLessonWithAI = async (req, res) => {
       });
     }
 
-    const invalidVocabulary = lessonData.vocabulary.some(
-      (item) =>
-        !item ||
-        typeof item.word !== "string" ||
-        !item.word.trim() ||
-        typeof item.meaning !== "string" ||
-        !item.meaning.trim()
+    // Log để debug
+    console.log("[AI Raw]", JSON.stringify({
+      vocab: rawLessonData.vocabulary?.length,
+      examples: rawLessonData.examples?.length,
+      grammar: rawLessonData.grammar?.length,
+      dialogues: rawLessonData.dialogues?.length,
+      firstDialogueLines: rawLessonData.dialogues?.[0]?.lines?.length,
+      quiz: rawLessonData.quiz?.length,
+    }));
+
+    // ✅ Chuẩn hoá nội dung
+    const { vocabulary, examples, grammar, dialogues, quiz } = normalizeLessonContent(rawLessonData);
+
+    const invalidVocabulary = vocabulary.some(
+      (item) => !item.word || !item.meaning
     );
 
-    const invalidQuiz = lessonData.quiz.some(
+    const invalidQuiz = quiz.some(
       (question) =>
-        !question ||
-        typeof question.question !== "string" ||
+        !question.question ||
         !Array.isArray(question.options) ||
         question.options.length < 2 ||
         !Number.isInteger(question.correctAnswer) ||
@@ -360,22 +472,43 @@ export const generateLessonWithAI = async (req, res) => {
       });
     }
 
+    // ✅ Validate dialogues phải có ít nhất 1 hội thoại với >= 4 dòng
+    const validDialogues = dialogues.filter(
+      (d) => Array.isArray(d.lines) && d.lines.length >= 4
+    );
+    if (validDialogues.length === 0) {
+      return res.status(502).json({
+        success: false,
+        message: "AI chưa tạo được hội thoại hợp lệ (cần ít nhất 1 hội thoại có ≥ 4 dòng). Vui lòng thử lại.",
+        code: "INVALID_DIALOGUES",
+      });
+    }
+
+    // ✅ Validate quiz phải có ít nhất 5 câu
+    if (quiz.length < 5) {
+      return res.status(502).json({
+        success: false,
+        message: "AI chưa tạo đủ câu hỏi trắc nghiệm (cần ít nhất 5 câu). Vui lòng thử lại.",
+        code: "INVALID_QUIZ",
+      });
+    }
+
     const lesson = await Lesson.create({
-      title: lessonData.title.trim(),
-      description: typeof lessonData.description === "string" ? lessonData.description : "",
+      title: rawLessonData.title.trim(),
+      description: typeof rawLessonData.description === "string" ? rawLessonData.description : "",
       language,
       level,
       topic: topic.trim(),
-      objectives: Array.isArray(lessonData.objectives)
-        ? lessonData.objectives.filter((item) => typeof item === "string").slice(0, 10)
+      objectives: Array.isArray(rawLessonData.objectives)
+        ? rawLessonData.objectives.filter((item) => typeof item === "string").slice(0, 10)
         : [],
       estimatedMinutes: safeMinutes,
-      vocabulary: lessonData.vocabulary,
-      examples: lessonData.examples,
-      grammar: lessonData.grammar,
-      dialogues: lessonData.dialogues,
-      quiz: lessonData.quiz,
-      studyNotes: typeof lessonData.studyNotes === "string" ? lessonData.studyNotes : "",
+      vocabulary,
+      examples,
+      grammar,
+      dialogues: validDialogues,
+      quiz,
+      studyNotes: typeof rawLessonData.studyNotes === "string" ? rawLessonData.studyNotes : "",
       status: "draft",
       createdBy: getUserId(req),
       aiGenerated: true,
@@ -491,6 +624,8 @@ export const createLessonManually = async (req, res) => {
       return res.status(401).json({ success: false, message: "Không xác định được tài khoản tạo bài học." });
     }
 
+    const normalized = normalizeLessonContent({ vocabulary, examples, grammar, dialogues, quiz });
+
     const lesson = await Lesson.create({
       title: title.trim(),
       description: String(description || ""),
@@ -499,11 +634,11 @@ export const createLessonManually = async (req, res) => {
       topic: String(topic || title).trim(),
       objectives: Array.isArray(objectives) ? objectives.filter((item) => typeof item === "string").slice(0, 20) : [],
       estimatedMinutes: Math.max(1, Math.min(240, Number(estimatedMinutes) || 15)),
-      vocabulary,
-      examples,
-      grammar,
-      dialogues,
-      quiz: quiz.map((question) => ({ ...question, correctAnswer: Number(question.correctAnswer) })),
+      vocabulary: normalized.vocabulary,
+      examples: normalized.examples,
+      grammar: normalized.grammar,
+      dialogues: normalized.dialogues,
+      quiz: normalized.quiz,
       studyNotes: String(studyNotes || ""),
       status: "draft",
       createdBy: userId,
@@ -597,14 +732,14 @@ export const getLessonById = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      lesson: sanitizeLessonForClient(lesson),
+      // ✅ Trả correctAnswer để FE chấm điểm realtime
+      lesson: sanitizeLessonForClient(lesson, { includeAnswers: true }),
     });
   } catch (error) {
     return sendError(res, error, "Không thể lấy chi tiết bài học.");
   }
 };
 
-// Chỉnh sửa bài học nháp
 export const updateLesson = async (req, res) => {
   try {
     const { id } = req.params;
@@ -650,7 +785,6 @@ export const updateLesson = async (req, res) => {
   }
 };
 
-// Xuất bản bài học
 export const publishLesson = async (req, res) => {
   try {
     const { id } = req.params;
@@ -685,7 +819,6 @@ export const publishLesson = async (req, res) => {
   }
 };
 
-// Lưu trữ bài học
 export const archiveLesson = async (req, res) => {
   try {
     const { id } = req.params;
@@ -712,7 +845,6 @@ export const archiveLesson = async (req, res) => {
   }
 };
 
-// Xóa bài học nháp
 export const deleteLesson = async (req, res) => {
   try {
     const { id } = req.params;
@@ -846,7 +978,6 @@ export const updateProgress = async (req, res) => {
 
     const { completed = false, status = "completed" } = req.body || {};
 
-    // Upsert: tìm progress cũ, nếu chưa có thì tạo mới
     const progress = await LearningProgress.findOneAndUpdate(
       { user: userId, lesson: lessonId },
       {

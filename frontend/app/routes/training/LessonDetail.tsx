@@ -15,6 +15,7 @@ import {
   Volume2,
   XCircle,
 } from "lucide-react";
+import { pinyin as toPinyin } from "pinyin-pro";
 import { fetchData, patchData, postData } from "@/lib/fetch-util";
 import { useAuth } from "@/provider/auth-context";
 // ✅ Đúng - cùng thư mục training
@@ -28,10 +29,16 @@ type VocabularyItem = {
   pronunciation?: string;
   phonetic?: string;
   pinyin?: string;
+  romanization?: string;
+  ipa?: string;
   meaning?: string;
   definition?: string;
   translation?: string;
   example?: string;
+  examplePinyin?: string;
+  example_pinyin?: string;
+  pinyinExample?: string;
+  pinyin_example?: string;
   exampleTranslation?: string;
   exampleSentence?: string;
   partOfSpeech?: string;
@@ -147,6 +154,43 @@ function toSpeechLang(language?: string) {
   if (["zh-cn", "zh", "chinese"].includes(value)) return "zh-CN";
   if (["en", "en-us", "en-gb", "english"].includes(value)) return "en-US";
   return value || "en-US";
+}
+
+/**
+ * Lấy pinyin cho câu ví dụ / hội thoại:
+ * 1. Ưu tiên field từ API (nhiều tên khác nhau)
+ * 2. Nếu API không có → tự sinh pinyin bằng pinyin-pro
+ *    (CHỈ khi chuỗi chủ yếu là chữ Hán, tránh tách từng chữ cái câu Việt)
+ */
+function getExamplePinyin(
+  item: VocabularyItem | ExampleItem | DialogueLine | Record<string, unknown>,
+  sourceText?: string
+): string {
+  const anyItem = item as Record<string, unknown>;
+  // ❌ KHÔNG lấy anyItem.pinyin — vì đó là pinyin của TỪ, không phải của CÂU
+  const fromApi =
+    (anyItem.examplePinyin as string) ||
+    (anyItem.example_pinyin as string) ||
+    (anyItem.pinyinExample as string) ||
+    (anyItem.pinyin_example as string);
+
+  if (fromApi && String(fromApi).trim()) return String(fromApi).trim();
+
+  // ✅ Chỉ tự sinh khi chuỗi CHỦ YẾU là chữ Hán (>= 50% ký tự)
+  if (sourceText) {
+    const trimmed = sourceText.trim();
+    const total = trimmed.replace(/\s/g, "").length;
+    const chinese = (trimmed.match(/[\u4e00-\u9fff]/g) || []).length;
+    if (total > 0 && chinese / total >= 0.5) {
+      try {
+        const result = toPinyin(trimmed, { toneType: "symbol", type: "array" });
+        return Array.isArray(result) ? result.join(" ") : String(result);
+      } catch {
+        return "";
+      }
+    }
+  }
+  return "";
 }
 
 export default function LessonDetail() {
@@ -408,15 +452,30 @@ export default function LessonDetail() {
                 <div className="divide-y divide-slate-100">
                   {vocabulary.map((item, index) => {
                     const word = item.word || item.term || item.vocabulary || "Từ vựng";
-                    const pronunciation = item.pronunciation || item.phonetic || item.pinyin;
+                    const wordPinyin =
+                      item.pinyin ||
+                      item.romanization ||
+                      item.ipa ||
+                      item.pronunciation ||
+                      item.phonetic ||
+                      (word && /[\u4e00-\u9fff]/.test(word)
+                        ? (() => {
+                            try {
+                              const r = toPinyin(word, { toneType: "symbol", type: "array" });
+                              return Array.isArray(r) ? r.join(" ") : String(r);
+                            } catch {
+                              return "";
+                            }
+                          })()
+                        : "");
                     const meaning = item.meaning || item.definition || item.translation;
                     const example = item.example || item.exampleSentence;
+                    const examplePinyin = getExamplePinyin(item, example);
                     return (
                       <div key={`${word}-${index}`} className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_1.4fr] sm:gap-6 sm:px-6">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="text-lg font-bold text-slate-900">{word}</h3>
-                            {pronunciation && <span className="text-sm text-indigo-600">{pronunciation}</span>}
                             <button
                               type="button"
                               onClick={() => speak(word)}
@@ -427,6 +486,14 @@ export default function LessonDetail() {
                               <Volume2 className="h-4 w-4" />
                             </button>
                           </div>
+
+                          {/* Pinyin hiển thị riêng, nổi bật */}
+                          {wordPinyin && (
+                            <p className="mt-1 text-base font-medium tracking-wide text-indigo-600">
+                              {wordPinyin}
+                            </p>
+                          )}
+
                           {item.partOfSpeech && <p className="mt-1 text-xs italic text-slate-400">{item.partOfSpeech}</p>}
                           {meaning && <p className="mt-1 text-sm text-slate-600">{meaning}</p>}
                         </div>
@@ -443,7 +510,11 @@ export default function LessonDetail() {
                                 <Volume2 className="h-3.5 w-3.5" />
                               </button>
                             </div>
-                            <p>{example}</p>
+                            <p className="font-medium text-slate-800">{example}</p>
+                            {/* Pinyin của câu ví dụ */}
+                            {examplePinyin && (
+                              <p className="mt-1 text-sm font-medium text-indigo-600">{examplePinyin}</p>
+                            )}
                             {item.exampleTranslation && <p className="mt-1 text-slate-500">{item.exampleTranslation}</p>}
                           </div>
                         )}
@@ -478,6 +549,7 @@ export default function LessonDetail() {
               <div className="divide-y divide-slate-100 border-t border-slate-100">
                 {examples.map((item, index) => {
                   const sentence = item.sentence || item.text || "";
+                  const examplePinyin = getExamplePinyin(item, sentence);
                   return (
                     <div key={index} className="px-5 py-4 sm:px-6">
                       <div className="flex items-start justify-between gap-2">
@@ -493,7 +565,7 @@ export default function LessonDetail() {
                           </button>
                         )}
                       </div>
-                      {item.pinyin && <p className="mt-1 text-sm text-slate-500">{item.pinyin}</p>}
+                      {examplePinyin && <p className="mt-1 text-sm font-medium text-indigo-600">{examplePinyin}</p>}
                       {(item.translation || item.meaning) && <p className="mt-1 text-sm text-slate-500">{item.translation || item.meaning}</p>}
                       {item.explanation && <p className="mt-2 text-sm leading-6 text-indigo-700">{item.explanation}</p>}
                     </div>
@@ -505,13 +577,14 @@ export default function LessonDetail() {
         )}
 
         {/* ===== DIALOGUES ===== */}
-        {dialogues.length > 0 && (
+        {dialogues.length > 0 ? (
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <SectionHeader id="dialogues" title="Hội thoại" subtitle="Luyện đọc theo từng lượt nói" count={dialogues.length} />
             {expandedSections.dialogues && (
               <div className="space-y-3 border-t border-slate-100 p-5 sm:p-6">
                 {dialogues.map((line, index) => {
                   const text = line.text || line.sentence || "";
+                  const linePinyin = getExamplePinyin(line, text);
                   return (
                     <div key={index} className={`max-w-[90%] rounded-2xl px-4 py-3 ${index % 2 === 0 ? "bg-indigo-50 text-indigo-950" : "ml-auto bg-slate-100 text-slate-800"}`}>
                       <div className="mb-1 flex items-center justify-between gap-2">
@@ -528,7 +601,7 @@ export default function LessonDetail() {
                         )}
                       </div>
                       <p className="text-sm leading-6">{text}</p>
-                      {line.pinyin && <p className="mt-1 text-sm opacity-70">{line.pinyin}</p>}
+                      {linePinyin && <p className="mt-1 text-sm font-medium text-indigo-700">{linePinyin}</p>}
                       {line.translation && <p className="mt-1 text-sm opacity-70">{line.translation}</p>}
                     </div>
                   );
@@ -536,7 +609,13 @@ export default function LessonDetail() {
               </div>
             )}
           </section>
-        )}
+        ) : (vocabulary.length > 0 || quiz.length > 0) ? (
+          <section className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5 text-center">
+            <p className="text-sm font-semibold text-amber-800">
+              ⚠️ Bài học này chưa có hội thoại. Bạn có thể yêu cầu cashier tạo lại để bổ sung.
+            </p>
+          </section>
+        ) : null}
 
         {/* ===== QUIZ (countdown) ===== */}
         {quiz.length > 0 && (

@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { pinyin as toPinyin } from "pinyin-pro";
 import {
   ArrowRight,
   CheckCircle2,
   Clock,
   Flame,
   LoaderCircle,
+  Play,
   RefreshCw,
+  Sparkles,
   Star,
+  Target,
   Trophy,
   Volume2,
   XCircle,
@@ -56,6 +60,64 @@ type Props = {
 const MAX_POINTS = 20;
 const BASE_POINTS = 10;
 
+const countChinese = (text: string) => (text.match(/[\u4e00-\u9fff]/g) || []).length;
+
+/**
+ * 🔑 Ép kiểu correctAnswer an toàn:
+ * - Chấp nhận number, string number, hoặc undefined
+ * - Trả về -1 nếu không hợp lệ
+ */
+const parseCorrectIndex = (q: QuizQuestion): number => {
+  const raw = (q as any)?.correctAnswer;
+  if (raw === undefined || raw === null || raw === "") return -1;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : -1;
+};
+
+/**
+ * So sánh đáp án an toàn (ép cả 2 về Number).
+ */
+const isAnswerCorrect = (optionIndex: number, q: QuizQuestion): boolean => {
+  const correctIdx = parseCorrectIndex(q);
+  if (correctIdx < 0) return false;
+  return Number(optionIndex) === correctIdx;
+};
+
+/**
+ * Tự sinh pinyin CHỈ khi chuỗi chủ yếu là chữ Hán (>= 50% ký tự).
+ */
+const autoPinyin = (text?: string): string => {
+  if (!text) return "";
+  const trimmed = text.trim();
+  const total = trimmed.replace(/\s/g, "").length;
+  const chinese = countChinese(trimmed);
+  if (total === 0 || chinese / total < 0.5) return "";
+
+  try {
+    const r = toPinyin(trimmed, { toneType: "symbol", type: "array" });
+    return Array.isArray(r) ? r.join(" ") : String(r);
+  } catch {
+    return "";
+  }
+};
+
+const getQuestionPinyin = (q: QuizQuestion): string => {
+  if (q.pinyin && q.pinyin.trim()) return q.pinyin.trim();
+  const text = (q.question || "").trim();
+  const isChineseQuestion = /^[\u4e00-\u9fff\s，。？！、；：""''（）《》【】…—]+$/.test(text);
+  if (!isChineseQuestion) return "";
+  return autoPinyin(text);
+};
+
+const getOptionPinyin = (opt: string): string => {
+  if (!opt) return "";
+  const trimmed = opt.trim();
+  const isPureChinese = /^[\u4e00-\u9fff\s]+$/.test(trimmed);
+  if (!isPureChinese) return "";
+  if (trimmed.replace(/\s/g, "").length > 8) return "";
+  return autoPinyin(trimmed);
+};
+
 export default function QuizCountdown({
   questions,
   secondsPerQuestion = 15,
@@ -66,6 +128,7 @@ export default function QuizCountdown({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(secondsPerQuestion);
   const [isRunning, setIsRunning] = useState(false);
+  const [started, setStarted] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [answers, setAnswers] = useState<QuizAnswerResult[]>([]);
@@ -85,6 +148,7 @@ export default function QuizCountdown({
     setCurrentIndex(0);
     setTimeLeft(secondsPerQuestion);
     setIsRunning(false);
+    setStarted(false);
     setSelectedAnswer(null);
     setRevealed(false);
     setAnswers([]);
@@ -124,9 +188,14 @@ export default function QuizCountdown({
     setTimeout(() => playTone(880, 0.15, 0.15), 100);
   };
   const playWrong = () => playTone(220, 0.3, 0.15);
+  const playStart = () => {
+    playTone(523, 0.1, 0.13);
+    setTimeout(() => playTone(659, 0.1, 0.13), 90);
+    setTimeout(() => playTone(784, 0.18, 0.13), 180);
+  };
 
   useEffect(() => {
-    if (!isRunning || revealed || finished) return;
+    if (!started || !isRunning || revealed || finished) return;
     if (timeLeft <= 0) {
       handleTimeout();
       return;
@@ -140,18 +209,22 @@ export default function QuizCountdown({
     }, 1000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning, timeLeft, revealed, finished]);
+  }, [started, isRunning, timeLeft, revealed, finished]);
 
-  useEffect(() => {
-    if (total === 0) return;
+  const startQuiz = () => {
+    playStart();
+    setStarted(true);
     setIsRunning(true);
-  }, [total]);
+  };
 
   const handleSelect = (optionIndex: number) => {
-    if (revealed || finished) return;
+    if (revealed || finished || !started) return;
     const spent = secondsPerQuestion - timeLeft;
     const q = questions[currentIndex];
-    const isCorrect = optionIndex === q.correctAnswer;
+
+    // ✅ Ép kiểu an toàn — chấp nhận cả number và string
+    const correctIdx = parseCorrectIndex(q);
+    const isCorrect = correctIdx >= 0 && Number(optionIndex) === correctIdx;
 
     const timeBonus = isCorrect
       ? Math.round((timeLeft / secondsPerQuestion) * (MAX_POINTS - BASE_POINTS))
@@ -167,7 +240,7 @@ export default function QuizCountdown({
       {
         index: currentIndex,
         selected: optionIndex,
-        correctAnswer: q.correctAnswer ?? -1,
+        correctAnswer: correctIdx,
         isCorrect,
         timeSpent: spent,
         points,
@@ -175,12 +248,14 @@ export default function QuizCountdown({
     ]);
 
     isCorrect ? playCorrect() : playWrong();
-    setTimeout(() => goNext(), 1400);
+    setTimeout(() => goNext(), 1600);
   };
 
   const handleTimeout = () => {
     if (revealed || finished) return;
     const q = questions[currentIndex];
+    const correctIdx = parseCorrectIndex(q);
+
     setSelectedAnswer(null);
     setRevealed(true);
     setIsRunning(false);
@@ -191,14 +266,14 @@ export default function QuizCountdown({
       {
         index: currentIndex,
         selected: null,
-        correctAnswer: q.correctAnswer ?? -1,
+        correctAnswer: correctIdx,
         isCorrect: false,
         timeSpent: secondsPerQuestion,
         points: 0,
       },
     ]);
 
-    setTimeout(() => goNext(), 1400);
+    setTimeout(() => goNext(), 1600);
   };
 
   const goNext = () => {
@@ -234,7 +309,8 @@ export default function QuizCountdown({
   const restart = () => {
     setCurrentIndex(0);
     setTimeLeft(secondsPerQuestion);
-    setIsRunning(true);
+    setIsRunning(false);
+    setStarted(false);
     setSelectedAnswer(null);
     setRevealed(false);
     setAnswers([]);
@@ -246,6 +322,7 @@ export default function QuizCountdown({
   if (total === 0) return null;
 
   const q = questions[currentIndex];
+  const questionPinyin = useMemo(() => getQuestionPinyin(q), [q]);
   const progressPercent = (timeLeft / secondsPerQuestion) * 100;
   const progressColor =
     timeLeft > 10
@@ -253,7 +330,62 @@ export default function QuizCountdown({
       : timeLeft > 5
         ? "bg-gradient-to-r from-amber-500 to-yellow-400"
         : "bg-gradient-to-r from-rose-500 to-pink-500";
-  const urgent = timeLeft <= 5 && !revealed && !finished;
+  const urgent = timeLeft <= 5 && !revealed && !finished && started;
+
+  // ===== MÀN HÌNH START =====
+  if (!started && !finished) {
+    return (
+      <div className="relative overflow-hidden rounded-3xl border-2 border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-6 shadow-lg sm:p-10">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-indigo-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-sky-200/40 blur-3xl" />
+
+        <div className="relative flex flex-col items-center text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-indigo-700 shadow-sm">
+            <Sparkles className="h-3.5 w-3.5" /> Sẵn sàng chưa?
+          </span>
+
+          <h2 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+            Bài kiểm tra <span className="text-indigo-600">{total}</span> câu
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-6 text-slate-600">
+            Mỗi câu bạn có <strong className="text-indigo-700">{secondsPerQuestion} giây</strong>. Trả lời càng nhanh, điểm càng cao!
+          </p>
+
+          <div className="mt-6 grid w-full max-w-lg grid-cols-3 gap-3 text-left">
+            <div className="rounded-2xl border border-indigo-100 bg-white/80 p-3 shadow-sm backdrop-blur">
+              <Target className="h-5 w-5 text-indigo-600" />
+              <p className="mt-2 text-[11px] font-semibold uppercase text-slate-500">Số câu</p>
+              <p className="text-lg font-black text-slate-900">{total}</p>
+            </div>
+            <div className="rounded-2xl border border-indigo-100 bg-white/80 p-3 shadow-sm backdrop-blur">
+              <Clock className="h-5 w-5 text-amber-500" />
+              <p className="mt-2 text-[11px] font-semibold uppercase text-slate-500">Mỗi câu</p>
+              <p className="text-lg font-black text-slate-900">{secondsPerQuestion}s</p>
+            </div>
+            <div className="rounded-2xl border border-indigo-100 bg-white/80 p-3 shadow-sm backdrop-blur">
+              <Zap className="h-5 w-5 text-rose-500" />
+              <p className="mt-2 text-[11px] font-semibold uppercase text-slate-500">Tối đa</p>
+              <p className="text-lg font-black text-slate-900">{total * MAX_POINTS}</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={startQuiz}
+            className="group mt-7 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-500 px-7 py-3.5 text-base font-black text-white shadow-xl shadow-indigo-200 transition-all hover:-translate-y-0.5 hover:shadow-2xl active:translate-y-0"
+          >
+            <Play className="h-5 w-5 transition-transform group-hover:scale-110" />
+            Bắt đầu làm bài
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </button>
+
+          <p className="mt-4 text-xs text-slate-400">
+            ⏱️ Đồng hồ sẽ bắt đầu đếm khi bạn nhấn nút
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ===== KẾT QUẢ =====
   if (finished) {
@@ -264,53 +396,53 @@ export default function QuizCountdown({
 
     const grade =
       percent >= 90
-        ? { label: "Xuất sắc!", color: "text-emerald-600", bg: "from-emerald-500 to-teal-400", icon: Trophy }
+        ? { label: "Xuất sắc!", color: "text-emerald-600", bg: "from-emerald-500 via-teal-500 to-cyan-400", icon: Trophy }
         : percent >= 70
-          ? { label: "Rất tốt!", color: "text-indigo-600", bg: "from-indigo-500 to-blue-400", icon: Star }
+          ? { label: "Rất tốt!", color: "text-indigo-600", bg: "from-indigo-500 via-blue-500 to-sky-400", icon: Star }
           : percent >= 50
-            ? { label: "Khá ổn", color: "text-amber-600", bg: "from-amber-500 to-orange-400", icon: Flame }
-            : { label: "Cần cố gắng thêm", color: "text-rose-600", bg: "from-rose-500 to-pink-400", icon: Zap };
+            ? { label: "Khá ổn", color: "text-amber-600", bg: "from-amber-500 via-orange-500 to-yellow-400", icon: Flame }
+            : { label: "Cần cố gắng thêm", color: "text-rose-600", bg: "from-rose-500 via-pink-500 to-fuchsia-400", icon: Zap };
 
     const GradeIcon = grade.icon;
 
     return (
       <div className="space-y-5">
-        {/* Card điểm tổng */}
-        <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${grade.bg} p-6 text-white shadow-xl sm:p-8`}>
-          <div className="pointer-events-none absolute -right-8 -top-12 h-44 w-44 rounded-full bg-white/15 blur-2xl" />
-          <div className="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-black/10 blur-2xl" />
+        <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${grade.bg} p-6 text-white shadow-2xl sm:p-8`}>
+          <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-white/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
           <div className="relative flex flex-col items-center text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wide">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-wide backdrop-blur">
               <GradeIcon className="h-3.5 w-3.5" />
               {grade.label}
             </span>
-            <p className="mt-4 text-6xl font-black drop-shadow-sm sm:text-7xl">
+            <p className="mt-5 text-7xl font-black drop-shadow-md sm:text-8xl">
               {percent}
-              <span className="text-3xl font-bold opacity-80">%</span>
+              <span className="text-4xl font-bold opacity-80">%</span>
             </p>
-            <p className="mt-2 text-sm text-white/90">
+            <p className="mt-3 text-sm text-white/95">
               Đúng <strong>{totalCorrect}/{total}</strong> câu · Tổng điểm{" "}
               <strong>{totalPoints}/{maxPoints}</strong>
             </p>
             {submitting && (
-              <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs">
+              <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs backdrop-blur">
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Đang đồng bộ server...
               </p>
             )}
             {quizResult && !submitting && (
-              <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs">
+              <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs backdrop-blur">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Server chấm: {quizResult.score}/100
               </p>
             )}
           </div>
         </div>
 
-        {/* Chi tiết từng câu */}
         <div className="space-y-3">
           {questions.map((qq, idx) => {
             const ans = answers.find((a) => a.index === idx);
             const serverResult = quizResult?.results?.find((r) => r.index === idx);
             const correct = serverResult ? serverResult.isCorrect : (ans?.isCorrect ?? false);
+            const qPinyin = getQuestionPinyin(qq);
+            const correctIdx = parseCorrectIndex(qq);
 
             return (
               <div
@@ -333,7 +465,7 @@ export default function QuizCountdown({
                     <p className="text-sm font-bold text-slate-800">
                       Câu {idx + 1}: {qq.question}
                     </p>
-                    {qq.pinyin && <p className="mt-0.5 text-xs text-slate-500">{qq.pinyin}</p>}
+                    {qPinyin && <p className="mt-0.5 text-xs font-medium text-indigo-600">{qPinyin}</p>}
 
                     {ans?.selected != null && (
                       <p className="mt-2 text-xs">
@@ -346,11 +478,11 @@ export default function QuizCountdown({
                     {ans?.selected == null && (
                       <p className="mt-2 text-xs font-semibold text-rose-700">Hết giờ - chưa chọn đáp án</p>
                     )}
-                    {!correct && qq.correctAnswer != null && (
+                    {!correct && correctIdx >= 0 && (
                       <p className="mt-1 text-xs">
                         <span className="font-semibold text-slate-500">Đáp án đúng: </span>
                         <span className="font-bold text-emerald-700">
-                          {String.fromCharCode(65 + qq.correctAnswer)}. {qq.options?.[qq.correctAnswer]}
+                          {String.fromCharCode(65 + correctIdx)}. {qq.options?.[correctIdx]}
                         </span>
                       </p>
                     )}
@@ -384,9 +516,10 @@ export default function QuizCountdown({
   }
 
   // ===== CÂU HỎI =====
+  const liveCorrectIdx = parseCorrectIndex(q);
+
   return (
     <div className="space-y-4">
-      {/* Thanh tiến độ + timer */}
       <div
         className={`relative overflow-hidden rounded-2xl border-2 p-4 transition-all ${
           urgent
@@ -422,14 +555,17 @@ export default function QuizCountdown({
         </div>
       </div>
 
-      {/* Câu hỏi + đáp án */}
       <div className="rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-base font-bold leading-6 text-slate-900 sm:text-lg">
               {q.question || ""}
             </p>
-            {q.pinyin && <p className="mt-1 text-sm text-slate-500">{q.pinyin}</p>}
+            {questionPinyin && (
+              <p className="mt-1 text-sm font-medium tracking-wide text-indigo-600">
+                {questionPinyin}
+              </p>
+            )}
           </div>
           {onSpeak && q.question && (
             <button
@@ -446,9 +582,11 @@ export default function QuizCountdown({
         <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
           {(q.options || []).map((opt, optIndex) => {
             const isSelected = selectedAnswer === optIndex;
-            const isCorrect = revealed && optIndex === q.correctAnswer;
-            const isWrong = revealed && isSelected && optIndex !== q.correctAnswer;
+            // ✅ Ép kiểu Number cho cả 2 vế
+            const isCorrect = revealed && liveCorrectIdx >= 0 && Number(optIndex) === liveCorrectIdx;
+            const isWrong = revealed && isSelected && liveCorrectIdx >= 0 && Number(optIndex) !== liveCorrectIdx;
             const letter = String.fromCharCode(65 + optIndex);
+            const optPinyin = getOptionPinyin(opt);
 
             const base =
               "group flex items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 text-sm text-left transition-all duration-200";
@@ -483,7 +621,14 @@ export default function QuizCountdown({
                   >
                     {letter}
                   </span>
-                  <span className="min-w-0 flex-1">{opt}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block">{opt}</span>
+                    {optPinyin && (
+                      <span className="mt-0.5 block text-xs font-medium text-indigo-500 opacity-90">
+                        {optPinyin}
+                      </span>
+                    )}
+                  </span>
                 </button>
                 {opt && onSpeak && (
                   <button
@@ -515,6 +660,10 @@ export default function QuizCountdown({
                     <p className="font-semibold text-rose-700">
                       ⏰ Hết giờ! Bạn chưa chọn đáp án.
                     </p>
+                  ) : liveCorrectIdx < 0 ? (
+                    <p className="font-semibold text-slate-700">
+                      ℹ️ Đã ghi nhận đáp án. Server sẽ chấm điểm khi bạn hoàn thành.
+                    </p>
                   ) : (
                     <p
                       className={`font-semibold ${
@@ -523,7 +672,7 @@ export default function QuizCountdown({
                     >
                       {lastAnswer?.isCorrect
                         ? `🎉 Chính xác! +${lastAnswer.points} điểm (${lastAnswer.timeSpent}s)`
-                        : `❌ Sai rồi! Đáp án đúng là ${String.fromCharCode(65 + (q.correctAnswer ?? 0))}.`}
+                        : `❌ Sai rồi! Đáp án đúng là ${String.fromCharCode(65 + liveCorrectIdx)}.`}
                     </p>
                   )}
                   {q.explanation && (
