@@ -4,9 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select as SelectUI, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Save, Users, Star, PlusCircle, FileText, AlertCircle } from "lucide-react";
-import React, { useState, useMemo, useEffect } from "react";
+import { Trash2, Save, Users, Star, PlusCircle, FileText, AlertCircle, Camera } from "lucide-react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { fetchData, postData, updateData, deleteData } from "@/lib/fetch-util";
+import html2canvas from "html2canvas-pro";
 
 type StaffMember = {
   _id: string;
@@ -48,11 +49,15 @@ export default function TipManagement() {
   const [topPerformerId, setTopPerformerId] = useState<string>("");
   const [activeStaffList, setActiveStaffList] = useState<StaffMember[]>([]);
   const [applyBonus, setApplyBonus] = useState(true);
+  const [isEditingTotalTip, setIsEditingTotalTip] = useState(false);
 
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffDept, setNewStaffDept] = useState<"FOH" | "BOH">("FOH");
 
   const [deletedStaffMap, setDeletedStaffMap] = useState<Map<string, StaffMember>>(new Map());
+
+  const captureRef = useRef<HTMLDivElement>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const BONUS_AMOUNT = 500000;
   const FUND_PERCENT = 0.05;
@@ -84,6 +89,7 @@ export default function TipManagement() {
     setTotalTipStr("");
     setTopPerformerId("");
     setApplyBonus(true);
+    setIsEditingTotalTip(false);
     const activeStaff = staffBase.filter((s) => !s.isDeleted);
     setActiveStaffList(activeStaff.map((s) => ({ ...s, workDays: "", deductedDays: "" })));
   };
@@ -124,6 +130,7 @@ export default function TipManagement() {
         setPeriodName(board.periodName);
         setTotalTipStr(board.totalTip ? board.totalTip.toString() : "");
         setApplyBonus(board.applyBonus !== false);
+        setIsEditingTotalTip(false);
 
         const topDetail = board.details.find((d: any) => d.isTopPerformer);
         const topStaff = masterStaff.find((s) => s.name === topDetail?.employeeName);
@@ -271,6 +278,58 @@ export default function TipManagement() {
     } catch (error) {}
   };
 
+  const handleCaptureImage = async () => {
+    if (!captureRef.current) return;
+
+    if (!month || !periodName || Number(totalTipStr) <= 0) {
+      return alert("Nhập đủ Tháng, Kỳ, Tổng Tip trước khi chụp nhé!");
+    }
+
+    setIsCapturing(true);
+    try {
+      // Đảm bảo ô Tổng Tip đang ở dạng hiển thị (không phải input đang edit)
+      setIsEditingTotalTip(false);
+
+      // Đợi UI ổn định
+      await new Promise((r) => setTimeout(r, 100));
+
+      const canvas = await html2canvas(captureRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        ignoreElements: (el) => el.getAttribute?.("data-no-capture") === "true",
+        onclone: (clonedDoc) => {
+          // Loại bỏ sticky header khi capture (tránh lỗi render)
+          clonedDoc.querySelectorAll("th.sticky, thead.sticky").forEach((el) => {
+            (el as HTMLElement).style.position = "static";
+          });
+          // Bỏ mọi viền focus
+          clonedDoc.querySelectorAll("input, div").forEach((el) => {
+            (el as HTMLElement).style.outline = "none";
+            (el as HTMLElement).style.boxShadow = "none";
+          });
+        },
+      });
+
+      const dataUrl = canvas.toDataURL("image/png", 1.0);
+
+      const safeMonth = month.replace(/[\/\\:*?"<>|]/g, "-");
+      const safePeriod = periodName.replace(/[\/\\:*?"<>|]/g, "-");
+      const fileName = `Tip_${safeMonth}_${safePeriod}.png`;
+
+      const link = document.createElement("a");
+      link.download = fileName;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi chụp ảnh. Vui lòng thử lại!");
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
   const handleAddMasterStaff = async () => {
     if (!newStaffName) return;
     try {
@@ -385,498 +444,537 @@ export default function TipManagement() {
           </TabsList>
 
           <TabsContent value="calculator" className="space-y-3 m-0">
-            {/* THÔNG TIN BẢNG VÀ THỐNG KÊ */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-              <div className="lg:col-span-5 bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-100">
-                  <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                    {selectedBoardId === "NEW" ? (
-                      <>
-                        <PlusCircle className="w-4 h-4 text-blue-500" /> Khởi Tạo Mới
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 text-blue-500" /> Sửa Bảng
-                      </>
-                    )}
-                    {selectedBoardId !== "NEW" && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] h-5 px-2 bg-amber-50 text-amber-700 border-amber-200 font-semibold"
-                      >
-                        {activeStaffList.filter((s) => isStaffDeleted(s)).length} nhân viên đã nghỉ
-                      </Badge>
-                    )}
-                  </span>
-                  <div className="flex gap-2">
-                    {selectedBoardId !== "NEW" && (
+            {/* VÙNG CHỤP ẢNH */}
+            <div ref={captureRef} className="space-y-3 bg-white p-3 rounded-xl">
+              {/* THÔNG TIN BẢNG VÀ THỐNG KÊ */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                <div className="lg:col-span-5 bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-100">
+                    <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      {selectedBoardId === "NEW" ? (
+                        <>
+                          <PlusCircle className="w-4 h-4 text-blue-500" /> Khởi Tạo Mới
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 text-blue-500" /> Sửa Bảng
+                        </>
+                      )}
+                      {selectedBoardId !== "NEW" && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] h-5 px-2 bg-amber-50 text-amber-700 border-amber-200 font-semibold"
+                        >
+                          {activeStaffList.filter((s) => isStaffDeleted(s)).length} nhân viên đã nghỉ
+                        </Badge>
+                      )}
+                    </span>
+                    <div className="flex gap-2">
+                      {selectedBoardId !== "NEW" && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-8 text-xs px-3 rounded-lg shadow-sm"
+                          onClick={handleDeleteTipBoard}
+                          data-no-capture="true"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1" /> Xóa
+                        </Button>
+                      )}
                       <Button
-                        variant="destructive"
                         size="sm"
-                        className="h-8 text-xs px-3 rounded-lg shadow-sm"
-                        onClick={handleDeleteTipBoard}
+                        variant="outline"
+                        className="h-8 text-xs px-3 rounded-lg shadow-sm border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-semibold"
+                        onClick={handleCaptureImage}
+                        disabled={isCapturing}
+                        data-no-capture="true"
                       >
-                        <Trash2 className="w-3.5 h-3.5 mr-1" /> Xóa
+                        <Camera className="w-3.5 h-3.5 mr-1" />
+                        {isCapturing ? "Đang chụp..." : "Chụp hình"}
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      className="h-8 text-xs px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg shadow-sm font-semibold"
-                      onClick={handleSaveTip}
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg shadow-sm font-semibold"
+                        onClick={handleSaveTip}
+                        data-no-capture="true"
+                      >
+                        <Save className="w-3.5 h-3.5 mr-1" /> Lưu
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-bold block mb-1 uppercase tracking-wide">
+                        Tháng
+                      </span>
+                      <Input
+                        placeholder="VD: 3/2026"
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
+                        className="h-9 text-xs rounded-lg border-slate-300 focus-visible:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-bold block mb-1 uppercase tracking-wide">
+                        Kỳ
+                      </span>
+                      <Input
+                        placeholder="VD: 15-30/3"
+                        value={periodName}
+                        onChange={(e) => setPeriodName(e.target.value)}
+                        className="h-9 text-xs rounded-lg border-slate-300 focus-visible:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-blue-600 font-bold block mb-1 uppercase tracking-wide">
+                        Tổng Tip
+                      </span>
+                      {isEditingTotalTip ? (
+                        <Input
+                          autoFocus
+                          type="text"
+                          placeholder="Nhập..."
+                          value={totalTipStr ? Number(totalTipStr).toLocaleString("vi-VN") : ""}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\./g, "");
+                            if (/^\d*$/.test(raw)) setTotalTipStr(raw);
+                          }}
+                          onBlur={() => setIsEditingTotalTip(false)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === "Escape") {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          className="h-9 text-xs font-bold border-blue-300 focus-visible:ring-blue-500 rounded-lg bg-blue-50/30 tabular-nums text-right"
+                        />
+                      ) : (
+                        <div
+                          onClick={() => setIsEditingTotalTip(true)}
+                          className="h-9 text-xs font-bold border border-blue-300 rounded-lg bg-blue-50/30 tabular-nums text-right px-3 flex items-center justify-end cursor-text hover:bg-blue-50 transition-colors"
+                        >
+                          {totalTipStr ? (
+                            <span className="text-slate-800">
+                              {Number(totalTipStr).toLocaleString("vi-VN")}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-normal">Nhập...</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-slate-100">
+                    <input
+                      type="checkbox"
+                      id="applyBonus"
+                      checked={applyBonus}
+                      onChange={(e) => setApplyBonus(e.target.checked)}
+                      className="w-4 h-4 accent-blue-600 cursor-pointer"
+                    />
+                    <label
+                      htmlFor="applyBonus"
+                      className="text-xs font-semibold text-slate-700 cursor-pointer select-none flex items-center gap-1.5"
                     >
-                      <Save className="w-3.5 h-3.5 mr-1" /> Lưu
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-bold block mb-1 uppercase tracking-wide">
-                      Tháng
-                    </span>
-                    <Input
-                      placeholder="VD: 3/2026"
-                      value={month}
-                      onChange={(e) => setMonth(e.target.value)}
-                      className="h-9 text-xs rounded-lg border-slate-300 focus-visible:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-bold block mb-1 uppercase tracking-wide">
-                      Kỳ
-                    </span>
-                    <Input
-                      placeholder="VD: 15-30/3"
-                      value={periodName}
-                      onChange={(e) => setPeriodName(e.target.value)}
-                      className="h-9 text-xs rounded-lg border-slate-300 focus-visible:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-blue-600 font-bold block mb-1 uppercase tracking-wide">
-                      Tổng Tip
-                    </span>
-                    <Input
-                      type="text"
-                      placeholder="Nhập..."
-                      value={totalTipStr ? Number(totalTipStr).toLocaleString("vi-VN") : ""}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\./g, "");
-                        if (/^\d*$/.test(raw)) setTotalTipStr(raw);
-                      }}
-                      className="h-9 text-xs font-bold border-blue-300 focus-visible:ring-blue-500 rounded-lg bg-blue-50/30 tabular-nums text-right"
-                    />
+                      Trích <span className="text-rose-600 font-bold">500.000đ</span> thưởng cho TOP 1
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          applyBonus ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {applyBonus ? "ĐANG BẬT" : "CHIA ĐỀU"}
+                      </span>
+                    </label>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-slate-100">
-                  <input
-                    type="checkbox"
-                    id="applyBonus"
-                    checked={applyBonus}
-                    onChange={(e) => setApplyBonus(e.target.checked)}
-                    className="w-4 h-4 accent-blue-600 cursor-pointer"
-                  />
-                  <label
-                    htmlFor="applyBonus"
-                    className="text-xs font-semibold text-slate-700 cursor-pointer select-none flex items-center gap-1.5"
-                  >
-                    Trích <span className="text-rose-600 font-bold">500.000đ</span> thưởng cho TOP 1
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        applyBonus ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {applyBonus ? "ĐANG BẬT" : "CHIA ĐỀU"}
-                    </span>
-                  </label>
+                {/* KHỐI THỐNG KÊ */}
+                <div className="lg:col-span-7 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 h-full items-center text-center">
+                    <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-2.5 rounded-lg border border-purple-200 flex flex-col justify-center">
+                      <p className="text-[10px] text-purple-600 font-bold whitespace-nowrap uppercase tracking-wide">
+                        Tổng Tip
+                      </p>
+                      <p className="text-sm font-bold text-purple-700 tabular-nums">
+                        {formatVND(calculations.grandTotal)}
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-rose-50 to-red-50 p-2.5 rounded-lg border border-rose-200 flex flex-col justify-center">
+                      <p className="text-[10px] text-rose-600 font-bold whitespace-nowrap uppercase tracking-wide">
+                        Còn lại {applyBonus && <span className="text-rose-500 font-medium">(-500K)</span>}
+                      </p>
+                      <p className="text-sm font-bold text-rose-700 tabular-nums">
+                        {formatVND(calculations.remainingTip)}
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-slate-50 to-gray-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                      <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wide">
+                        Tổng công
+                      </p>
+                      <p className="text-sm font-bold text-slate-800 tabular-nums">
+                        {calculations.totalDays}
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-2.5 rounded-lg border border-blue-200 flex flex-col justify-center">
+                      <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">
+                        1 Công
+                      </p>
+                      <p className="text-sm font-bold text-blue-700 tabular-nums">
+                        {formatVND(calculations.tipPerDay)}
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-2.5 rounded-lg border border-orange-200 flex flex-col justify-center">
+                      <p className="text-[10px] text-orange-600 font-bold uppercase tracking-wide">
+                        Quỹ PV
+                      </p>
+                      <p className="text-sm font-bold text-orange-700 tabular-nums">
+                        {formatVND(calculations.totalServiceFund)}
+                      </p>
+                      <p className="text-[9px] text-orange-500 leading-tight mt-0.5">
+                        5% FOH ({formatVND(calculations.totalFohFund)})
+                        <br />+ Phạt ({formatVND(calculations.totalPenalty)})
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* KHỐI THỐNG KÊ */}
-              <div className="lg:col-span-7 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 h-full items-center text-center">
-                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-2.5 rounded-lg border border-purple-200 flex flex-col justify-center">
-                    <p className="text-[10px] text-purple-600 font-bold whitespace-nowrap uppercase tracking-wide">
-                      Tổng Tip
-                    </p>
-                    <p className="text-sm font-bold text-purple-700 tabular-nums">
-                      {formatVND(calculations.grandTotal)}
-                    </p>
+              {/* BẢNG CHIA FOH/BOH */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col xl:flex-row">
+                {/* BẢNG FOH */}
+                <div className="flex-1 border-b xl:border-b-0 xl:border-r border-slate-200">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 border-b-2 border-blue-200 flex justify-between items-center">
+                    <h3 className="font-bold text-blue-800 text-xs pl-1 flex items-center gap-1.5 uppercase tracking-wide">
+                      <Users className="w-4 h-4" /> Front Of House (FOH)
+                    </h3>
+                    <span className="text-[10px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded-full border border-blue-300 shadow-sm">
+                      -5% Quỹ
+                    </span>
                   </div>
-                  <div className="bg-gradient-to-br from-rose-50 to-red-50 p-2.5 rounded-lg border border-rose-200 flex flex-col justify-center">
-                    <p className="text-[10px] text-rose-600 font-bold whitespace-nowrap uppercase tracking-wide">
-                      Còn lại {applyBonus && <span className="text-rose-500 font-medium">(-500K)</span>}
-                    </p>
-                    <p className="text-sm font-bold text-rose-700 tabular-nums">
-                      {formatVND(calculations.remainingTip)}
-                    </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
+                        <tr>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[110px] pl-3 font-bold uppercase tracking-wide text-[10px]">
+                            Nhân viên
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[55px] text-center font-bold uppercase tracking-wide text-[10px]">
+                            Công
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[80px] text-center text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
+                            Trừ công
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[55px] text-center font-bold uppercase tracking-wide text-[10px] text-emerald-700">
+                            Thực tế
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[45px] text-center font-bold uppercase tracking-wide text-[10px]">
+                            TOP
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r text-right font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
+                            Cơ Bản
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r text-right text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
+                            Tiền phạt
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r text-right text-orange-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
+                            -Quỹ
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 text-right font-bold pr-3 uppercase tracking-wide text-[10px] whitespace-nowrap text-emerald-700">
+                            Thực Nhận
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fohStaff.map((row) => {
+                          const calc = calculations.details.find((d) => d._id === row._id);
+                          const isTop = topPerformerId === row._id;
+                          const isDeleted = isStaffDeleted(row);
+                          const showTopHighlight = isTop && applyBonus;
+                          const effectiveDays = Math.max(
+                            0,
+                            (Number(row.workDays) || 0) - (Number(row.deductedDays) || 0)
+                          );
+                          return (
+                            <tr
+                              key={row._id}
+                              className={`border-b border-slate-100 transition-colors ${
+                                showTopHighlight
+                                  ? "bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400"
+                                  : ""
+                              } ${isDeleted ? "bg-slate-100 opacity-75" : "hover:bg-blue-50/40"}`}
+                            >
+                              <td className="p-2 pl-3 border-r border-slate-100 font-semibold text-xs whitespace-nowrap">
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    className={
+                                      isDeleted ? "line-through text-slate-400" : "text-slate-800"
+                                    }
+                                  >
+                                    {row.name}
+                                  </span>
+                                  {isTop && (
+                                    <Star
+                                      className={`w-3.5 h-3.5 ${
+                                        applyBonus ? "text-yellow-500 fill-yellow-500" : "text-slate-400"
+                                      }`}
+                                    />
+                                  )}
+                                  {isDeleted && (
+                                    <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
+                                      Đã nghỉ
+                                    </Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-1.5 border-r border-slate-100">
+                                <Input
+                                  type="number"
+                                  className={`h-7 w-12 mx-auto text-center text-sm font-bold px-1 rounded-md transition-all ${
+                                    Number(row.workDays) > 0
+                                      ? "bg-blue-50 border-blue-400 text-blue-700 shadow-sm"
+                                      : "border-slate-300"
+                                  } ${isDeleted ? "opacity-60" : ""}`}
+                                  value={row.workDays}
+                                  onChange={(e) => handleWorkDaysChange(row._id, e.target.value)}
+                                  disabled={isDeleted && selectedBoardId !== "NEW"}
+                                />
+                              </td>
+                              <td className="p-1.5 border-r border-slate-100">
+                                <Input
+                                  type="text"
+                                  className={`h-7 w-16 min-w-[64px] mx-auto text-center text-xs px-1.5 text-red-600 font-semibold rounded-md border-slate-300 focus-visible:ring-red-400 tabular-nums ${
+                                    isDeleted ? "opacity-60" : ""
+                                  }`}
+                                  value={
+                                    row.deductedDays
+                                      ? Number(row.deductedDays).toLocaleString("vi-VN")
+                                      : ""
+                                  }
+                                  onChange={(e) => handleDeductedDaysChange(row._id, e.target.value)}
+                                  disabled={isDeleted && selectedBoardId !== "NEW"}
+                                />
+                              </td>
+                              <td className="p-2 border-r border-slate-100 text-center">
+                                <span
+                                  className={`font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
+                                    effectiveDays > 0
+                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                      : "text-slate-400"
+                                  }`}
+                                >
+                                  {effectiveDays}
+                                </span>
+                              </td>
+                              <td className="p-1 border-r border-slate-100 text-center">
+                                <button
+                                  onClick={() => !isDeleted && setTopPerformerId(isTop ? "" : row._id)}
+                                  className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${
+                                    isTop
+                                      ? applyBonus
+                                        ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110"
+                                        : "bg-slate-300 text-white scale-110"
+                                      : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105"
+                                  } ${isDeleted ? "cursor-not-allowed opacity-50" : ""}`}
+                                  disabled={isDeleted}
+                                  title={
+                                    applyBonus
+                                      ? "Chọn làm TOP 1 (+500K)"
+                                      : "Chỉ đánh dấu, không cộng thưởng"
+                                  }
+                                >
+                                  ★
+                                </button>
+                              </td>
+                              <td className="p-2 border-r border-slate-100 text-right text-slate-600 text-[11px] whitespace-nowrap tabular-nums">
+                                {calc ? formatVND(calc.baseTip) : "-"}
+                              </td>
+                              <td className="p-2 border-r border-slate-100 text-right text-red-600 text-[11px] whitespace-nowrap tabular-nums font-semibold">
+                                {calc && calc.penaltyAmount > 0
+                                  ? `-${formatVND(calc.penaltyAmount)}`
+                                  : "-"}
+                              </td>
+                              <td className="p-2 border-r border-slate-100 text-right text-orange-600 text-[11px] whitespace-nowrap tabular-nums font-medium">
+                                {calc && calc.fundDeduction > 0
+                                  ? `-${formatVND(calc.fundDeduction)}`
+                                  : "-"}
+                              </td>
+                              <td className="p-2 pr-3 text-right whitespace-nowrap">
+                                <span className="font-bold text-emerald-700 text-sm tabular-nums bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                                  {calc ? formatVND(calc.finalTip) : "-"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="bg-gradient-to-br from-slate-50 to-gray-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-center">
-                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wide">
-                      Tổng công
-                    </p>
-                    <p className="text-sm font-bold text-slate-800 tabular-nums">
-                      {calculations.totalDays}
-                    </p>
+                </div>
+
+                {/* BẢNG BOH */}
+                <div className="flex-1">
+                  <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-2.5 border-b-2 border-emerald-200 flex justify-between items-center">
+                    <h3 className="font-bold text-emerald-800 text-xs pl-1 flex items-center gap-1.5 uppercase tracking-wide">
+                      <Users className="w-4 h-4" /> Back Of House (BOH)
+                    </h3>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-300 shadow-sm">
+                      Giữ Nguyên
+                    </span>
                   </div>
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-2.5 rounded-lg border border-blue-200 flex flex-col justify-center">
-                    <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wide">
-                      1 Công
-                    </p>
-                    <p className="text-sm font-bold text-blue-700 tabular-nums">
-                      {formatVND(calculations.tipPerDay)}
-                    </p>
-                  </div>
-                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-2.5 rounded-lg border border-orange-200 flex flex-col justify-center">
-                    <p className="text-[10px] text-orange-600 font-bold uppercase tracking-wide">
-                      Quỹ PV
-                    </p>
-                    <p className="text-sm font-bold text-orange-700 tabular-nums">
-                      {formatVND(calculations.totalServiceFund)}
-                    </p>
-                    <p className="text-[9px] text-orange-500 leading-tight mt-0.5">
-                      5% FOH ({formatVND(calculations.totalFohFund)})
-                      <br />+ Phạt ({formatVND(calculations.totalPenalty)})
-                    </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
+                        <tr>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[110px] pl-3 font-bold uppercase tracking-wide text-[10px]">
+                            Nhân viên
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[55px] text-center font-bold uppercase tracking-wide text-[10px]">
+                            Công
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[80px] text-center text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
+                            Trừ công
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[55px] text-center font-bold uppercase tracking-wide text-[10px] text-emerald-700">
+                            Thực tế
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r w-[45px] text-center font-bold uppercase tracking-wide text-[10px]">
+                            TOP
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r text-right font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
+                            Cơ Bản
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 border-r text-right text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
+                            Tiền phạt
+                          </th>
+                          <th className="p-2 border-b-2 border-slate-300 text-right font-bold pr-3 uppercase tracking-wide text-[10px] whitespace-nowrap text-emerald-700">
+                            Thực Nhận
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bohStaff.map((row) => {
+                          const calc = calculations.details.find((d) => d._id === row._id);
+                          const isTop = topPerformerId === row._id;
+                          const isDeleted = isStaffDeleted(row);
+                          const showTopHighlight = isTop && applyBonus;
+                          const effectiveDays = Math.max(
+                            0,
+                            (Number(row.workDays) || 0) - (Number(row.deductedDays) || 0)
+                          );
+                          return (
+                            <tr
+                              key={row._id}
+                              className={`border-b border-slate-100 transition-colors ${
+                                showTopHighlight
+                                  ? "bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400"
+                                  : ""
+                              } ${isDeleted ? "bg-slate-100 opacity-75" : "hover:bg-emerald-50/40"}`}
+                            >
+                              <td className="p-2 pl-3 border-r border-slate-100 font-semibold text-xs whitespace-nowrap">
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    className={
+                                      isDeleted ? "line-through text-slate-400" : "text-slate-800"
+                                    }
+                                  >
+                                    {row.name}
+                                  </span>
+                                  {isTop && (
+                                    <Star
+                                      className={`w-3.5 h-3.5 ${
+                                        applyBonus ? "text-yellow-500 fill-yellow-500" : "text-slate-400"
+                                      }`}
+                                    />
+                                  )}
+                                  {isDeleted && (
+                                    <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
+                                      Đã nghỉ
+                                    </Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-1.5 border-r border-slate-100">
+                                <Input
+                                  type="number"
+                                  className={`h-7 w-12 mx-auto text-center text-sm font-bold px-1 rounded-md transition-all ${
+                                    Number(row.workDays) > 0
+                                      ? "bg-emerald-50 border-emerald-400 text-emerald-700 shadow-sm"
+                                      : "border-slate-300"
+                                  } ${isDeleted ? "opacity-60" : ""}`}
+                                  value={row.workDays}
+                                  onChange={(e) => handleWorkDaysChange(row._id, e.target.value)}
+                                  disabled={isDeleted && selectedBoardId !== "NEW"}
+                                />
+                              </td>
+                              <td className="p-1.5 border-r border-slate-100">
+                                <Input
+                                  type="text"
+                                  className={`h-7 w-16 min-w-[64px] mx-auto text-center text-xs px-1.5 text-red-600 font-semibold rounded-md border-slate-300 focus-visible:ring-red-400 tabular-nums ${
+                                    isDeleted ? "opacity-60" : ""
+                                  }`}
+                                  value={
+                                    row.deductedDays
+                                      ? Number(row.deductedDays).toLocaleString("vi-VN")
+                                      : ""
+                                  }
+                                  onChange={(e) => handleDeductedDaysChange(row._id, e.target.value)}
+                                  disabled={isDeleted && selectedBoardId !== "NEW"}
+                                />
+                              </td>
+                              <td className="p-2 border-r border-slate-100 text-center">
+                                <span
+                                  className={`font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
+                                    effectiveDays > 0
+                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                      : "text-slate-400"
+                                  }`}
+                                >
+                                  {effectiveDays}
+                                </span>
+                              </td>
+                              <td className="p-1 border-r border-slate-100 text-center">
+                                <button
+                                  onClick={() => !isDeleted && setTopPerformerId(isTop ? "" : row._id)}
+                                  className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${
+                                    isTop
+                                      ? applyBonus
+                                        ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110"
+                                        : "bg-slate-300 text-white scale-110"
+                                      : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105"
+                                  } ${isDeleted ? "cursor-not-allowed opacity-50" : ""}`}
+                                  disabled={isDeleted}
+                                  title={
+                                    applyBonus
+                                      ? "Chọn làm TOP 1 (+500K)"
+                                      : "Chỉ đánh dấu, không cộng thưởng"
+                                  }
+                                >
+                                  ★
+                                </button>
+                              </td>
+                              <td className="p-2 border-r border-slate-100 text-right text-slate-600 text-[11px] whitespace-nowrap tabular-nums">
+                                {calc ? formatVND(calc.baseTip) : "-"}
+                              </td>
+                              <td className="p-2 border-r border-slate-100 text-right text-red-600 text-[11px] whitespace-nowrap tabular-nums font-semibold">
+                                {calc && calc.penaltyAmount > 0
+                                  ? `-${formatVND(calc.penaltyAmount)}`
+                                  : "-"}
+                              </td>
+                              <td className="p-2 pr-3 text-right whitespace-nowrap">
+                                <span className="font-bold text-emerald-700 text-sm tabular-nums bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                                  {calc ? formatVND(calc.finalTip) : "-"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* BẢNG CHIA FOH/BOH */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col xl:flex-row">
-              {/* BẢNG FOH */}
-              <div className="flex-1 border-b xl:border-b-0 xl:border-r border-slate-200">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 border-b-2 border-blue-200 flex justify-between items-center">
-                  <h3 className="font-bold text-blue-800 text-xs pl-1 flex items-center gap-1.5 uppercase tracking-wide">
-                    <Users className="w-4 h-4" /> Front Of House (FOH)
-                  </h3>
-                  <span className="text-[10px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded-full border border-blue-300 shadow-sm">
-                    -5% Quỹ
-                  </span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
-                      <tr>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[110px] pl-3 font-bold uppercase tracking-wide text-[10px]">
-                          Nhân viên
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[55px] text-center font-bold uppercase tracking-wide text-[10px]">
-                          Công
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[65px] text-center text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
-                          Trừ công
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[55px] text-center font-bold uppercase tracking-wide text-[10px] text-emerald-700">
-                          Thực tế
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[45px] text-center font-bold uppercase tracking-wide text-[10px]">
-                          TOP
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r text-right font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
-                          Cơ Bản
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r text-right text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
-                          Tiền phạt
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r text-right text-orange-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
-                          -Quỹ
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 text-right font-bold pr-3 uppercase tracking-wide text-[10px] whitespace-nowrap text-emerald-700">
-                          Thực Nhận
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fohStaff.map((row) => {
-                        const calc = calculations.details.find((d) => d._id === row._id);
-                        const isTop = topPerformerId === row._id;
-                        const isDeleted = isStaffDeleted(row);
-                        const showTopHighlight = isTop && applyBonus;
-                        const effectiveDays = Math.max(
-                          0,
-                          (Number(row.workDays) || 0) - (Number(row.deductedDays) || 0)
-                        );
-                        return (
-                          <tr
-                            key={row._id}
-                            className={`border-b border-slate-100 transition-colors ${
-                              showTopHighlight
-                                ? "bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400"
-                                : ""
-                            } ${isDeleted ? "bg-slate-100 opacity-75" : "hover:bg-blue-50/40"}`}
-                          >
-                            <td className="p-2 pl-3 border-r border-slate-100 font-semibold text-xs whitespace-nowrap">
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={
-                                    isDeleted ? "line-through text-slate-400" : "text-slate-800"
-                                  }
-                                >
-                                  {row.name}
-                                </span>
-                                {isTop && (
-                                  <Star
-                                    className={`w-3.5 h-3.5 ${
-                                      applyBonus ? "text-yellow-500 fill-yellow-500" : "text-slate-400"
-                                    }`}
-                                  />
-                                )}
-                                {isDeleted && (
-                                  <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
-                                    Đã nghỉ
-                                  </Badge>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-1.5 border-r border-slate-100">
-                              <Input
-                                type="number"
-                                className={`h-7 w-12 mx-auto text-center text-sm font-bold px-1 rounded-md transition-all ${
-                                  Number(row.workDays) > 0
-                                    ? "bg-blue-50 border-blue-400 text-blue-700 shadow-sm"
-                                    : "border-slate-300"
-                                } ${isDeleted ? "opacity-60" : ""}`}
-                                value={row.workDays}
-                                onChange={(e) => handleWorkDaysChange(row._id, e.target.value)}
-                                disabled={isDeleted && selectedBoardId !== "NEW"}
-                              />
-                            </td>
-                            <td className="p-1.5 border-r border-slate-100">
-                              <Input
-                                type="text"
-                                className={`h-7 w-14 mx-auto text-center text-xs px-1 text-red-600 font-semibold rounded-md border-slate-300 focus-visible:ring-red-400 tabular-nums ${
-                                  isDeleted ? "opacity-60" : ""
-                                }`}
-                                value={
-                                  row.deductedDays
-                                    ? Number(row.deductedDays).toLocaleString("vi-VN")
-                                    : ""
-                                }
-                                onChange={(e) => handleDeductedDaysChange(row._id, e.target.value)}
-                                disabled={isDeleted && selectedBoardId !== "NEW"}
-                              />
-                            </td>
-                            <td className="p-2 border-r border-slate-100 text-center">
-                              <span
-                                className={`font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
-                                  effectiveDays > 0
-                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                    : "text-slate-400"
-                                }`}
-                              >
-                                {effectiveDays}
-                              </span>
-                            </td>
-                            <td className="p-1 border-r border-slate-100 text-center">
-                              <button
-                                onClick={() => !isDeleted && setTopPerformerId(isTop ? "" : row._id)}
-                                className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${
-                                  isTop
-                                    ? applyBonus
-                                      ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110"
-                                      : "bg-slate-300 text-white scale-110"
-                                    : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105"
-                                } ${isDeleted ? "cursor-not-allowed opacity-50" : ""}`}
-                                disabled={isDeleted}
-                                title={
-                                  applyBonus
-                                    ? "Chọn làm TOP 1 (+500K)"
-                                    : "Chỉ đánh dấu, không cộng thưởng"
-                                }
-                              >
-                                ★
-                              </button>
-                            </td>
-                            <td className="p-2 border-r border-slate-100 text-right text-slate-600 text-[11px] whitespace-nowrap tabular-nums">
-                              {calc ? formatVND(calc.baseTip) : "-"}
-                            </td>
-                            <td className="p-2 border-r border-slate-100 text-right text-red-600 text-[11px] whitespace-nowrap tabular-nums font-semibold">
-                              {calc && calc.penaltyAmount > 0
-                                ? `-${formatVND(calc.penaltyAmount)}`
-                                : "-"}
-                            </td>
-                            <td className="p-2 border-r border-slate-100 text-right text-orange-600 text-[11px] whitespace-nowrap tabular-nums font-medium">
-                              {calc && calc.fundDeduction > 0
-                                ? `-${formatVND(calc.fundDeduction)}`
-                                : "-"}
-                            </td>
-                            <td className="p-2 pr-3 text-right whitespace-nowrap">
-                              <span className="font-bold text-emerald-700 text-sm tabular-nums bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                                {calc ? formatVND(calc.finalTip) : "-"}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* BẢNG BOH */}
-              <div className="flex-1">
-                <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-2.5 border-b-2 border-emerald-200 flex justify-between items-center">
-                  <h3 className="font-bold text-emerald-800 text-xs pl-1 flex items-center gap-1.5 uppercase tracking-wide">
-                    <Users className="w-4 h-4" /> Back Of House (BOH)
-                  </h3>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-300 shadow-sm">
-                    Giữ Nguyên
-                  </span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
-                      <tr>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[110px] pl-3 font-bold uppercase tracking-wide text-[10px]">
-                          Nhân viên
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[55px] text-center font-bold uppercase tracking-wide text-[10px]">
-                          Công
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[65px] text-center text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
-                          Trừ công
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[55px] text-center font-bold uppercase tracking-wide text-[10px] text-emerald-700">
-                          Thực tế
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r w-[45px] text-center font-bold uppercase tracking-wide text-[10px]">
-                          TOP
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r text-right font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
-                          Cơ Bản
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 border-r text-right text-red-600 font-bold uppercase tracking-wide text-[10px] whitespace-nowrap">
-                          Tiền phạt
-                        </th>
-                        <th className="p-2 border-b-2 border-slate-300 text-right font-bold pr-3 uppercase tracking-wide text-[10px] whitespace-nowrap text-emerald-700">
-                          Thực Nhận
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bohStaff.map((row) => {
-                        const calc = calculations.details.find((d) => d._id === row._id);
-                        const isTop = topPerformerId === row._id;
-                        const isDeleted = isStaffDeleted(row);
-                        const showTopHighlight = isTop && applyBonus;
-                        const effectiveDays = Math.max(
-                          0,
-                          (Number(row.workDays) || 0) - (Number(row.deductedDays) || 0)
-                        );
-                        return (
-                          <tr
-                            key={row._id}
-                            className={`border-b border-slate-100 transition-colors ${
-                              showTopHighlight
-                                ? "bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-l-yellow-400"
-                                : ""
-                            } ${isDeleted ? "bg-slate-100 opacity-75" : "hover:bg-emerald-50/40"}`}
-                          >
-                            <td className="p-2 pl-3 border-r border-slate-100 font-semibold text-xs whitespace-nowrap">
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={
-                                    isDeleted ? "line-through text-slate-400" : "text-slate-800"
-                                  }
-                                >
-                                  {row.name}
-                                </span>
-                                {isTop && (
-                                  <Star
-                                    className={`w-3.5 h-3.5 ${
-                                      applyBonus ? "text-yellow-500 fill-yellow-500" : "text-slate-400"
-                                    }`}
-                                  />
-                                )}
-                                {isDeleted && (
-                                  <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
-                                    Đã nghỉ
-                                  </Badge>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-1.5 border-r border-slate-100">
-                              <Input
-                                type="number"
-                                className={`h-7 w-12 mx-auto text-center text-sm font-bold px-1 rounded-md transition-all ${
-                                  Number(row.workDays) > 0
-                                    ? "bg-emerald-50 border-emerald-400 text-emerald-700 shadow-sm"
-                                    : "border-slate-300"
-                                } ${isDeleted ? "opacity-60" : ""}`}
-                                value={row.workDays}
-                                onChange={(e) => handleWorkDaysChange(row._id, e.target.value)}
-                                disabled={isDeleted && selectedBoardId !== "NEW"}
-                              />
-                            </td>
-                            <td className="p-1.5 border-r border-slate-100">
-                              <Input
-                                type="text"
-                                className={`h-7 w-14 mx-auto text-center text-xs px-1 text-red-600 font-semibold rounded-md border-slate-300 focus-visible:ring-red-400 tabular-nums ${
-                                  isDeleted ? "opacity-60" : ""
-                                }`}
-                                value={
-                                  row.deductedDays
-                                    ? Number(row.deductedDays).toLocaleString("vi-VN")
-                                    : ""
-                                }
-                                onChange={(e) => handleDeductedDaysChange(row._id, e.target.value)}
-                                disabled={isDeleted && selectedBoardId !== "NEW"}
-                              />
-                            </td>
-                            <td className="p-2 border-r border-slate-100 text-center">
-                              <span
-                                className={`font-bold text-xs tabular-nums px-1.5 py-0.5 rounded ${
-                                  effectiveDays > 0
-                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                    : "text-slate-400"
-                                }`}
-                              >
-                                {effectiveDays}
-                              </span>
-                            </td>
-                            <td className="p-1 border-r border-slate-100 text-center">
-                              <button
-                                onClick={() => !isDeleted && setTopPerformerId(isTop ? "" : row._id)}
-                                className={`h-7 w-7 rounded-full inline-flex items-center justify-center text-sm transition-all ${
-                                  isTop
-                                    ? applyBonus
-                                      ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md scale-110"
-                                      : "bg-slate-300 text-white scale-110"
-                                    : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:scale-105"
-                                } ${isDeleted ? "cursor-not-allowed opacity-50" : ""}`}
-                                disabled={isDeleted}
-                                title={
-                                  applyBonus
-                                    ? "Chọn làm TOP 1 (+500K)"
-                                    : "Chỉ đánh dấu, không cộng thưởng"
-                                }
-                              >
-                                ★
-                              </button>
-                            </td>
-                            <td className="p-2 border-r border-slate-100 text-right text-slate-600 text-[11px] whitespace-nowrap tabular-nums">
-                              {calc ? formatVND(calc.baseTip) : "-"}
-                            </td>
-                            <td className="p-2 border-r border-slate-100 text-right text-red-600 text-[11px] whitespace-nowrap tabular-nums font-semibold">
-                              {calc && calc.penaltyAmount > 0
-                                ? `-${formatVND(calc.penaltyAmount)}`
-                                : "-"}
-                            </td>
-                            <td className="p-2 pr-3 text-right whitespace-nowrap">
-                              <span className="font-bold text-emerald-700 text-sm tabular-nums bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                                {calc ? formatVND(calc.finalTip) : "-"}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            {/* KẾT THÚC VÙNG CHỤP ẢNH */}
           </TabsContent>
 
           {/* TAB 2: QUẢN LÝ NHÂN SỰ */}
@@ -1017,4 +1115,4 @@ export default function TipManagement() {
       </div>
     </div>
   );
-}
+}   
