@@ -1,4 +1,13 @@
-import { LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
+import {
+  LoaderCircle,
+  Plus,
+  Save,
+  Trash2,
+  User,
+  ChevronDown,
+  ChevronRight,
+  Inbox,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   fetchData,
@@ -9,28 +18,39 @@ import {
 import DatePickerField from "../ui/date-picker-field";
 import {
   CARD_CLASS,
-  INPUT_CLASS,
-  MONTHS,
-  dateWeekday,        // ← THÊM
+  dateWeekday,
   formatDate,
   getEmployeeId,
   getPayPeriod,
-  getPayPeriodDates,  // ← THÊM
+  getPayPeriodDates,
   isInPeriod,
+  matchesAttendanceFilters,
 } from "../types/attendance";
-import type { Attendance } from "../types/attendance";
+import type { Attendance, Employee } from "../types/attendance";
 
 const API = "/attendance";
+
+/** Danh sách gợi ý ghi chú */
+const NOTE_PRESETS = [
+  "Đi training",
+  "Đi training + tăng ca đêm",
+  "Họp trưa",
+  "Về sớm",
+  "Tiệc trưa",
+  "OFF - Học training ( 14h-16h)",
+  "Họp",
+  "Tăng ca đêm",
+];
 
 type Props = {
   month: number;
   year: number;
-  now: Date;
   loading: boolean;
   attendances: Attendance[];
+  employees: Employee[];
   yearAttendances: Attendance[];
-  onChangeMonth: (v: number) => void;
-  onChangeYear: (v: number) => void;
+  departmentFilter: string[];
+  search: string;
   onSaved: () => void;
 };
 
@@ -44,7 +64,7 @@ type DraftEntry = {
   note: string;
 };
 
-/** Gọi API qua fetch-util — tự thêm prefix + parse + throw chuẩn */
+/** Gọi API qua fetch-util */
 async function callApi(
   url: string,
   method: "GET" | "POST" | "PUT" | "DELETE",
@@ -65,10 +85,6 @@ async function callApi(
 const genTempId = () =>
   `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-/**
- * Đếm số ngày OFF thực tế trong kỳ công.
- * Ưu tiên: dateOverrides > weeklySchedule theo thứ.
- */
 function countOffDays(
   attendance: Attendance,
   periodDates: string[],
@@ -76,19 +92,16 @@ function countOffDays(
   const schedule = attendance.workSchedule;
   if (!schedule) return 0;
 
-  // Xác định các thứ OFF cố định trong tuần
   const offWeekdays = new Set<number>();
   Object.entries(schedule.weeklySchedule || {}).forEach(([day, config]) => {
     if (config?.status === "OFF") offWeekdays.add(Number(day));
   });
 
   return periodDates.filter((date) => {
-    // 1. Override ngày cụ thể có ưu tiên cao nhất
     const override = schedule.dateOverrides?.[date];
     const overrideStatus = override?.status as string | undefined;
     if (overrideStatus === "OFF") return true;
     if (overrideStatus && overrideStatus !== "OFF") return false;
-    // 2. Không có override → theo lịch tuần
     return offWeekdays.has(dateWeekday(date));
   }).length;
 }
@@ -96,17 +109,16 @@ function countOffDays(
 export default function OvertimeTab({
   month,
   year,
-  now,
   loading,
   attendances,
+  employees,
   yearAttendances,
-  onChangeMonth,
-  onChangeYear,
+  departmentFilter,
+  search,
   onSaved,
 }: Props) {
   const period = getPayPeriod(month, year);
 
-  // Danh sách ngày trong kỳ — dùng cho việc đếm OFF
   const periodDates = useMemo(
     () => getPayPeriodDates(month, year),
     [month, year],
@@ -115,9 +127,12 @@ export default function OvertimeTab({
   /* ============ STATE ============ */
   const [drafts, setDrafts] = useState<DraftEntry[]>([]);
   const [saving, setSaving] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  // Quản lý trạng thái mở/đóng của từng Card nhân viên
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   /* ============ DERIVED ============ */
   const periodEmployees = useMemo(() => {
@@ -136,7 +151,6 @@ export default function OvertimeTab({
     );
   }, [yearAttendances, period.start, period.end, year, month]);
 
-  /* Build drafts từ data thật */
   useEffect(() => {
     if (loading) return;
     const next: DraftEntry[] = [];
@@ -184,11 +198,33 @@ export default function OvertimeTab({
 
   const visibleAttendances = useMemo(
     () =>
-      [...periodEmployees].sort((a, b) =>
-        a.employeeName.localeCompare(b.employeeName, "vi"),
-      ),
-    [periodEmployees],
+      periodEmployees
+        .filter((attendance) =>
+          matchesAttendanceFilters(
+            attendance,
+            departmentFilter,
+            search,
+            employees.find(
+              (employee) => employee._id === getEmployeeId(attendance.employee),
+            ),
+          ),
+        )
+        .sort((a, b) => a.employeeName.localeCompare(b.employeeName, "vi")),
+    [periodEmployees, employees, departmentFilter, search],
   );
+
+  /* ============ TOGGLE EXPAND ============ */
+  const toggleExpand = (attendanceId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(attendanceId)) {
+        next.delete(attendanceId);
+      } else {
+        next.add(attendanceId);
+      }
+      return next;
+    });
+  };
 
   /* ============ HANDLERS ============ */
   const addRow = (attendanceId: string) => {
@@ -202,6 +238,8 @@ export default function OvertimeTab({
         note: "",
       },
     ]);
+    // Tự động mở rộng khi thêm dòng
+    setExpandedIds((prev) => new Set(prev).add(attendanceId));
   };
 
   const updateDraft = (tempId: string, patch: Partial<DraftEntry>) => {
@@ -295,7 +333,7 @@ export default function OvertimeTab({
         }
       }
 
-      setMessage(`Đã lưu: ${created} thêm mới, ${updated} cập nhật.`);
+      setMessage(`Đã lưu tất cả: ${created} thêm mới, ${updated} cập nhật.`);
       onSaved();
     } catch (err) {
       setErrorMessage(
@@ -303,6 +341,74 @@ export default function OvertimeTab({
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveEmployee = async (attendanceId: string, employeeName: string) => {
+    const employeeDrafts = drafts.filter(
+      (d) => d.attendanceId === attendanceId,
+    );
+
+    const errors: string[] = [];
+    for (const d of employeeDrafts) {
+      const num = Number(d.hours);
+      if (!d.date) errors.push(`Có dòng chưa chọn ngày.`);
+      if (!Number.isFinite(num) || num === 0) {
+        errors.push(`Ngày ${d.date}: giờ OT phải khác 0.`);
+      }
+      if (num < -24 || num > 24) {
+        errors.push(`Ngày ${d.date}: giờ OT phải trong khoảng -24 đến 24.`);
+      }
+    }
+    if (errors.length > 0) {
+      setErrorMessage(`[${employeeName}] ` + errors.slice(0, 5).join("\n"));
+      return;
+    }
+
+    setSavingId(attendanceId);
+    setErrorMessage("");
+    setMessage("");
+
+    try {
+      let created = 0;
+      let updated = 0;
+
+      for (const d of employeeDrafts) {
+        const payload = {
+          date: d.date,
+          hours: Number(d.hours),
+          note: d.note,
+        };
+
+        if (d._id) {
+          await callApi(
+            `${API}/${d.attendanceId}/overtime/${d._id}`,
+            "PUT",
+            payload,
+          );
+          updated++;
+        } else {
+          await callApi(
+            `${API}/${d.attendanceId}/overtime`,
+            "POST",
+            payload,
+          );
+          created++;
+        }
+      }
+
+      setMessage(
+        `[${employeeName}] Đã lưu: ${created} thêm mới, ${updated} cập nhật.`,
+      );
+      onSaved();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? `[${employeeName}] ${err.message}`
+          : `[${employeeName}] Không thể lưu OT.`,
+      );
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -318,41 +424,7 @@ export default function OvertimeTab({
           Kỳ công từ ngày 26 tháng trước đến hết ngày 25 tháng chọn. Điền trực tiếp
           vào bảng rồi bấm "Lưu tất cả".
         </p>
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-wrap gap-3">
-            <label className="text-sm font-semibold text-slate-600">
-              Tháng thống kê
-              <select
-                className={`${INPUT_CLASS} mt-1.5 min-w-36 text-base`}
-                value={month}
-                onChange={(e) => onChangeMonth(Number(e.target.value))}
-              >
-                {MONTHS.map((n, i) => (
-                  <option key={n} value={i + 1}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-semibold text-slate-600">
-              Năm
-              <select
-                className={`${INPUT_CLASS} mt-1.5 min-w-28 text-base`}
-                value={year}
-                onChange={(e) => onChangeYear(Number(e.target.value))}
-              >
-                {Array.from(
-                  { length: 7 },
-                  (_, i) => now.getFullYear() - 3 + i,
-                ).map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
+        <div className="mt-4 flex justify-end">
           <button
             type="button"
             onClick={() => void saveAll()}
@@ -390,341 +462,453 @@ export default function OvertimeTab({
         <div className="p-10 text-center text-base text-slate-500">
           Chưa có bảng công để quản lý OT.
         </div>
+      ) : visibleAttendances.length === 0 ? (
+        <div className="p-10 text-center text-base text-slate-500">
+          Không có nhân viên phù hợp với bộ lọc.
+        </div>
       ) : (
-        <div className="overflow-x-auto">
-          {/* ============ BẢNG OT ============ */}
-          <div className="px-5 pt-5 pb-3 text-base font-bold text-slate-800">
+        <div className="p-5">
+          <div className="mb-4 text-base font-bold text-slate-800">
             Chi tiết OT và giờ về sớm
           </div>
-          <table className="w-full min-w-[1000px] text-sm">
-            <thead className="bg-slate-50 text-left text-sm text-slate-600">
-              <tr>
-                <th className="px-4 py-3 font-bold">Nhân viên</th>
-                <th className="px-4 py-3 font-bold">Phòng ban</th>
-                <th className="px-4 py-3 font-bold">Ngày</th>
-                <th className="px-4 py-3 text-right font-bold">OT (+)</th>
-                <th className="px-4 py-3 text-right font-bold">Về sớm (-)</th>
-                <th className="px-4 py-3 font-bold">Ghi chú</th>
-                <th className="px-4 py-3 text-right font-bold">Ròng</th>
-                <th className="px-4 py-3 text-center font-bold">Thêm</th>
-                <th className="px-4 py-3 text-center font-bold">Xóa</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleAttendances.map((attendance) => {
-                const rowDrafts = drafts.filter(
-                  (d) => d.attendanceId === attendance._id,
-                );
-                const isLocked = attendance.status === "LOCKED";
-                const totals = totalsByAttendance.get(attendance._id) || {
-                  positive: 0,
-                  negative: 0,
-                  net: 0,
-                };
 
-                if (rowDrafts.length === 0) {
-                  return (
-                    <tr
-                      key={attendance._id}
-                      className="border-t border-slate-100"
+          <div className="flex flex-col gap-3">
+            {visibleAttendances.map((attendance) => {
+              const rowDrafts = drafts.filter(
+                (d) => d.attendanceId === attendance._id,
+              );
+              const isLocked = attendance.status === "LOCKED";
+              const isSavingThis = savingId === attendance._id;
+              const totals = totalsByAttendance.get(attendance._id) || {
+                positive: 0,
+                negative: 0,
+                net: 0,
+              };
+              const isEmpty = rowDrafts.length === 0;
+              // Mặc định thu gọn nếu không nằm trong danh sách expanded
+              const isExpanded = expandedIds.has(attendance._id);
+
+              return (
+                <div
+                  key={attendance._id}
+                  className={`overflow-hidden rounded-xl border bg-white shadow-sm transition ${
+                    isEmpty
+                      ? "border-slate-200 opacity-60 hover:opacity-100"
+                      : "border-slate-200 hover:shadow-md"
+                  }`}
+                >
+                  {/* ============ HEADER CARD (Có thể click để mở rộng) ============ */}
+                  <div
+                    className={`flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-5 py-3 transition ${
+                      isEmpty
+                        ? "bg-slate-50/50"
+                        : "bg-slate-50/80"
+                    }`}
+                  >
+                    <div
+                      className="flex flex-1 cursor-pointer items-center gap-3"
+                      onClick={() => toggleExpand(attendance._id)}
                     >
-                      <td className="px-4 py-3 font-semibold text-slate-800">
-                        {attendance.employeeName}
-                        <div className="mt-1 text-xs text-slate-400">
-                          {attendance.employeeCode || ""}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {attendance.department || "—"}
-                      </td>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-3 italic text-slate-400"
+                      {/* Nút mở rộng */}
+                      <button
+                        type="button"
+                        className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExpand(attendance._id);
+                        }}
                       >
-                        Chưa có khoản OT
-                      </td>
-                      <td className="px-4 py-3 text-center">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                          isEmpty
+                            ? "bg-slate-200 text-slate-400"
+                            : "bg-blue-100 text-blue-600"
+                        }`}
+                      >
+                        {isEmpty ? (
+                          <Inbox className="h-5 w-5" />
+                        ) : (
+                          <User className="h-5 w-5" />
+                        )}
+                      </div>
+
+                      <div>
+                        <h3
+                          className={`font-bold ${
+                            isEmpty ? "text-slate-500" : "text-slate-800"
+                          }`}
+                        >
+                          {attendance.employeeName}
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          {attendance.employeeCode || "—"} •{" "}
+                          {attendance.department || "—"}
+                          {isEmpty && (
+                            <span className="ml-2 italic text-slate-400">
+                              — Chưa có khoản OT
+                            </span>
+                          )}
+                          {!isEmpty && !isExpanded && (
+                            <span className="ml-2 font-semibold text-slate-600">
+                              • {rowDrafts.length} dòng
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {/* Tổng kết (chỉ hiện khi có data) */}
+                      {!isEmpty && (
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className="text-xs font-semibold uppercase text-slate-400">
+                              Tổng ròng
+                            </div>
+                            <div className="text-lg font-bold text-slate-800">
+                              {(totals.net || 0).toFixed(1)}h
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1 text-xs">
+                            {totals.positive > 0 && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">
+                                +{totals.positive.toFixed(1)}h
+                              </span>
+                            )}
+                            {totals.negative > 0 && (
+                              <span className="rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-700">
+                                -{totals.negative.toFixed(1)}h
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Nút thêm dòng nhanh (khi thu gọn) */}
+                      {!isExpanded && (
                         <button
                           type="button"
                           onClick={() => addRow(attendance._id)}
                           disabled={isLocked}
-                          className="inline-flex items-center gap-1 rounded-md border border-violet-200 px-2.5 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+                          title="Thêm dòng OT"
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                          <Plus className="h-3.5 w-3.5" /> Thêm
+                          <Plus className="h-4 w-4" /> Thêm
                         </button>
-                      </td>
-                      <td className="px-4 py-3" />
-                    </tr>
-                  );
-                }
+                      )}
 
-                return rowDrafts.map((draft, idx) => {
-                  const num = Number(draft.hours) || 0;
-                  const isDeleting = deletingId === draft.tempId;
-                  const isFirstRow = idx === 0;
+                      {/* Nút Lưu riêng */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void saveEmployee(
+                            attendance._id,
+                            attendance.employeeName,
+                          )
+                        }
+                        disabled={
+                          isLocked || isSavingThis || isEmpty
+                        }
+                        title="Lưu riêng cho nhân viên này"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isSavingThis ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        {isSavingThis ? "Đang lưu..." : "Lưu"}
+                      </button>
+                    </div>
+                  </div>
 
-                  return (
-                    <tr
-                      key={draft.tempId}
-                      className="border-t border-slate-100 hover:bg-slate-50/50"
-                    >
-                      {isFirstRow ? (
-                        <td
-                          rowSpan={rowDrafts.length}
-                          className="px-4 py-3 align-top font-semibold text-slate-800"
+                  {/* ============ BODY CARD (Chỉ hiện khi mở rộng) ============ */}
+                  {isExpanded && (
+                    <div className="p-4">
+                      {rowDrafts.length === 0 ? (
+                        <div className="py-4 text-center text-sm italic text-slate-400">
+                          Chưa có khoản OT nào. Bấm "Thêm dòng OT" bên dưới.
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3">
+                          {rowDrafts.map((draft, idx) => {
+                            const num = Number(draft.hours) || 0;
+                            const isDeleting = deletingId === draft.tempId;
+
+                            return (
+                              <div
+                                key={draft.tempId}
+                                className="group relative flex flex-col gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-3 transition hover:border-blue-200 hover:bg-white sm:flex-row sm:items-center"
+                              >
+                                <div className="hidden w-6 text-center text-xs font-bold text-slate-400 sm:block">
+                                  #{idx + 1}
+                                </div>
+
+                                <div className="flex-1">
+                                  <label className="mb-1 block text-xs font-semibold text-slate-500 sm:hidden">
+                                    Ngày
+                                  </label>
+                                  <DatePickerField
+                                    value={draft.date}
+                                    onChange={(v) =>
+                                      updateDraft(draft.tempId, { date: v })
+                                    }
+                                    min={period.start}
+                                    max={period.end}
+                                    disabled={isLocked || isDeleting}
+                                  />
+                                </div>
+
+                                <div className="w-full sm:w-28">
+                                  <label className="mb-1 block text-xs font-semibold text-emerald-600 sm:hidden">
+                                    OT (+)
+                                  </label>
+                                  <div className="relative">
+                                    <input
+                                      type="number"
+                                      step="0.5"
+                                      min="0"
+                                      max="24"
+                                      placeholder="0"
+                                      value={num > 0 ? draft.hours : ""}
+                                      disabled={isLocked || isDeleting}
+                                      onChange={(e) => {
+                                        const raw = Number(e.target.value);
+                                        const value =
+                                          e.target.value === ""
+                                            ? ""
+                                            : String(Math.abs(raw) || 0);
+                                        updateDraft(draft.tempId, {
+                                          hours: value,
+                                        });
+                                      }}
+                                      className="h-10 w-full rounded-md border border-emerald-200 bg-white px-3 text-right text-sm font-semibold text-emerald-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
+                                    />
+                                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-emerald-400">
+                                      h
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="w-full sm:w-28">
+                                  <label className="mb-1 block text-xs font-semibold text-rose-600 sm:hidden">
+                                    Về sớm (-)
+                                  </label>
+                                  <div className="relative">
+                                    <input
+                                      type="number"
+                                      step="0.5"
+                                      min="0"
+                                      max="24"
+                                      placeholder="0"
+                                      value={
+                                        num < 0 ? String(Math.abs(num)) : ""
+                                      }
+                                      disabled={isLocked || isDeleting}
+                                      onChange={(e) => {
+                                        const raw = Number(e.target.value);
+                                        const value =
+                                          e.target.value === ""
+                                            ? ""
+                                            : String(-Math.abs(raw) || 0);
+                                        updateDraft(draft.tempId, {
+                                          hours: value,
+                                        });
+                                      }}
+                                      className="h-10 w-full rounded-md border border-rose-200 bg-white px-3 text-right text-sm font-semibold text-rose-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:opacity-50"
+                                    />
+                                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-rose-400">
+                                      h
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex-[2]">
+                                  <label className="mb-1 block text-xs font-semibold text-slate-500 sm:hidden">
+                                    Ghi chú
+                                  </label>
+                                  <input
+                                    type="text"
+                                    list={`note-presets-${draft.tempId}`}
+                                    placeholder="Chọn hoặc nhập ghi chú..."
+                                    value={draft.note}
+                                    disabled={isLocked || isDeleting}
+                                    onChange={(e) =>
+                                      updateDraft(draft.tempId, {
+                                        note: e.target.value,
+                                      })
+                                    }
+                                    className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
+                                  />
+                                  <datalist id={`note-presets-${draft.tempId}`}>
+                                    {NOTE_PRESETS.map((preset) => (
+                                      <option key={preset} value={preset} />
+                                    ))}
+                                  </datalist>
+                                </div>
+
+                                <div className="flex justify-end sm:block">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void removeDraftRow(draft.tempId)
+                                    }
+                                    disabled={isLocked || isDeleting}
+                                    title="Xóa dòng này"
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    {isDeleting ? (
+                                      <LoaderCircle className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-5 w-5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => addRow(attendance._id)}
+                          disabled={isLocked}
+                          className="inline-flex items-center gap-2 rounded-lg border border-dashed border-violet-300 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
                         >
+                          <Plus className="h-4 w-4" /> Thêm dòng OT
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ============ BẢNG AL / OFF ============ */}
+          <div className="mt-10 border-t border-slate-200 pt-6">
+            <div className="mb-3 text-base font-bold text-slate-800">
+              Thống kê ngày OFF & phép AL
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full min-w-[1200px] text-sm">
+                <thead className="bg-slate-50 text-left text-sm text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3 font-bold">Nhân viên</th>
+                    <th className="px-4 py-3 font-bold">Phòng ban</th>
+                    <th className="px-4 py-3 text-right font-bold">OFF định mức</th>
+                    <th className="px-4 py-3 text-right font-bold">OFF đã dùng</th>
+                    <th className="px-4 py-3 text-right font-bold">OFF còn lại</th>
+                    <th className="px-4 py-3 text-right font-bold">Ngày công chuẩn</th>
+                    <th className="px-4 py-3 text-right font-bold">AL tồn đầu tháng</th>
+                    <th className="px-4 py-3 text-right font-bold">AL phát sinh</th>
+                    <th className="px-4 py-3 text-right font-bold">AL đã dùng</th>
+                    <th className="px-4 py-3 text-right font-bold">
+                      AL còn lại chuyển tháng sau
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleAttendances.map((attendance) => {
+                    const employeeId = getEmployeeId(attendance.employee);
+                    const employeeSheets = yearAttendances.filter(
+                      (i) => getEmployeeId(i.employee) === employeeId,
+                    );
+                    const periodDays = employeeSheets.flatMap((i) =>
+                      i.dailyRecords.filter((d) =>
+                        isInPeriod(d.date, period.start, period.end),
+                      ),
+                    );
+                    const history = employeeSheets
+                      .filter((i) =>
+                        i.dailyRecords.some((d) => d.date < period.start),
+                      )
+                      .sort((a, b) => a.year - b.year || a.month - b.month);
+                    const carryIn = history.reduce((carry, item) => {
+                      const allowance =
+                        item.workSchedule?.monthlyPAllowance ?? 1;
+                      const used = item.dailyRecords.filter(
+                        (d) => d.date < period.start && d.status === "P",
+                      ).length;
+                      return Math.max(0, carry + allowance - used);
+                    }, 0);
+                    const pAllowance =
+                      attendance.workSchedule?.monthlyPAllowance ?? 1;
+                    const pUsed = periodDays.filter(
+                      (d) => d.status === "P",
+                    ).length;
+                    const alRemaining = Math.max(
+                      0,
+                      carryIn + pAllowance - pUsed,
+                    );
+
+                    const offAllowance = countOffDays(attendance, periodDates);
+                    const offUsed = periodDays.filter(
+                      (d) => d.status === "OFF",
+                    ).length;
+
+                    const standardWorkDays = periodDates.length - offAllowance;
+
+                    return (
+                      <tr
+                        key={`leave-${attendance._id}`}
+                        className="border-t border-slate-100 hover:bg-slate-50/50"
+                      >
+                        <td className="px-4 py-3 font-semibold text-slate-800">
                           {attendance.employeeName}
                           <div className="mt-1 text-xs text-slate-400">
                             {attendance.employeeCode || ""}
                           </div>
                         </td>
-                      ) : null}
-                      {isFirstRow ? (
-                        <td
-                          rowSpan={rowDrafts.length}
-                          className="px-4 py-3 align-top text-slate-600"
-                        >
+                        <td className="px-4 py-3 text-slate-600">
                           {attendance.department || "—"}
                         </td>
-                      ) : null}
-
-                      {/* Ngày — dùng DatePickerField */}
-                      <td className="px-4 py-2">
-                        <DatePickerField
-                          value={draft.date}
-                          onChange={(v) =>
-                            updateDraft(draft.tempId, { date: v })
-                          }
-                          min={period.start}
-                          max={period.end}
-                          disabled={isLocked || isDeleting}
-                        />
-                      </td>
-
-                      {/* OT (+) */}
-                      <td className="px-4 py-2 text-right">
-                        <input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          placeholder="0"
-                          value={num > 0 ? draft.hours : ""}
-                          disabled={isLocked || isDeleting}
-                          onChange={(e) => {
-                            const raw = Number(e.target.value);
-                            const value =
-                              e.target.value === ""
-                                ? ""
-                                : String(Math.abs(raw) || 0);
-                            updateDraft(draft.tempId, { hours: value });
-                          }}
-                          className="h-9 w-24 rounded-md border border-emerald-200 bg-emerald-50/50 px-2 text-right text-sm font-semibold text-emerald-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
-                        />
-                      </td>
-
-                      {/* Về sớm (-) */}
-                      <td className="px-4 py-2 text-right">
-                        <input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          placeholder="0"
-                          value={num < 0 ? String(Math.abs(num)) : ""}
-                          disabled={isLocked || isDeleting}
-                          onChange={(e) => {
-                            const raw = Number(e.target.value);
-                            const value =
-                              e.target.value === ""
-                                ? ""
-                                : String(-Math.abs(raw) || 0);
-                            updateDraft(draft.tempId, { hours: value });
-                          }}
-                          className="h-9 w-24 rounded-md border border-rose-200 bg-rose-50/50 px-2 text-right text-sm font-semibold text-rose-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100 disabled:opacity-50"
-                        />
-                      </td>
-
-                      {/* Ghi chú */}
-                      <td className="px-4 py-2">
-                        <input
-                          type="text"
-                          placeholder="Ghi chú..."
-                          value={draft.note}
-                          disabled={isLocked || isDeleting}
-                          onChange={(e) =>
-                            updateDraft(draft.tempId, {
-                              note: e.target.value,
-                            })
-                          }
-                          className="h-9 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
-                        />
-                      </td>
-
-                      {/* Ròng */}
-                      {isFirstRow ? (
-                        <td
-                          rowSpan={rowDrafts.length}
-                          className="px-4 py-3 text-right align-middle text-base font-bold text-slate-800"
-                        >
-                          <div>{(totals.net || 0).toFixed(1)}h</div>
-                          {totals.positive > 0 && (
-                            <div className="mt-1 text-xs font-normal text-emerald-700">
-                              +{totals.positive.toFixed(1)}h
-                            </div>
-                          )}
-                          {totals.negative > 0 && (
-                            <div className="text-xs font-normal text-rose-600">
-                              -{totals.negative.toFixed(1)}h
-                            </div>
-                          )}
+                        <td className="px-4 py-3 text-right text-base">
+                          {offAllowance}
                         </td>
-                      ) : null}
-
-                      {/* Thêm dòng */}
-                      {isFirstRow ? (
-                        <td
-                          rowSpan={rowDrafts.length}
-                          className="px-4 py-3 text-center align-middle"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => addRow(attendance._id)}
-                            disabled={isLocked}
-                            title="Thêm dòng OT nữa cho nhân viên này"
-                            className="inline-flex items-center gap-1 rounded-md border border-violet-200 px-2.5 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-40"
-                          >
-                            <Plus className="h-3.5 w-3.5" /> Thêm dòng
-                          </button>
+                        <td className="px-4 py-3 text-right text-base">
+                          {offUsed}
                         </td>
-                      ) : null}
-
-                      {/* Xóa từng dòng */}
-                      <td className="px-2 py-2 text-center">
-                        <button
-                          type="button"
-                          onClick={() => void removeDraftRow(draft.tempId)}
-                          disabled={isLocked || isDeleting}
-                          title="Xóa dòng này"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        <td
+                          className={`px-4 py-3 text-right text-base font-semibold ${
+                            offAllowance - offUsed < 0
+                              ? "text-rose-600"
+                              : "text-slate-800"
+                          }`}
                         >
-                          {isDeleting ? (
-                            <LoaderCircle className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                });
-              })}
-            </tbody>
-          </table>
-
-          {/* ============ BẢNG AL / OFF ============ */}
-          <div className="mt-8 border-t border-slate-200 px-5 pt-5 pb-3 text-base font-bold text-slate-800">
-            Thống kê ngày OFF & phép AL
+                          {offAllowance - offUsed}
+                        </td>
+                        <td className="px-4 py-3 text-right text-base font-semibold text-blue-700">
+                          {standardWorkDays}
+                        </td>
+                        <td className="px-4 py-3 text-right text-base">
+                          {carryIn}
+                        </td>
+                        <td className="px-4 py-3 text-right text-base">
+                          {pAllowance}
+                        </td>
+                        <td className="px-4 py-3 text-right text-base">
+                          {pUsed}
+                        </td>
+                        <td className="px-4 py-3 text-right text-base font-bold text-emerald-700">
+                          {alRemaining}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <table className="w-full min-w-[1200px] text-sm">
-            <thead className="bg-slate-50 text-left text-sm text-slate-600">
-              <tr>
-                <th className="px-4 py-3 font-bold">Nhân viên</th>
-                <th className="px-4 py-3 font-bold">Phòng ban</th>
-                <th className="px-4 py-3 text-right font-bold">OFF định mức</th>
-                <th className="px-4 py-3 text-right font-bold">OFF đã dùng</th>
-                <th className="px-4 py-3 text-right font-bold">OFF còn lại</th>
-                <th className="px-4 py-3 text-right font-bold">Ngày công chuẩn</th>
-                <th className="px-4 py-3 text-right font-bold">AL tồn đầu tháng</th>
-                <th className="px-4 py-3 text-right font-bold">AL phát sinh</th>
-                <th className="px-4 py-3 text-right font-bold">AL đã dùng</th>
-                <th className="px-4 py-3 text-right font-bold">
-                  AL còn lại chuyển tháng sau
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {periodEmployees.map((attendance) => {
-                const employeeId = getEmployeeId(attendance.employee);
-                const employeeSheets = yearAttendances.filter(
-                  (i) => getEmployeeId(i.employee) === employeeId,
-                );
-                const periodDays = employeeSheets.flatMap((i) =>
-                  i.dailyRecords.filter((d) =>
-                    isInPeriod(d.date, period.start, period.end),
-                  ),
-                );
-                const history = employeeSheets
-                  .filter((i) =>
-                    i.dailyRecords.some((d) => d.date < period.start),
-                  )
-                  .sort((a, b) => a.year - b.year || a.month - b.month);
-                const carryIn = history.reduce((carry, item) => {
-                  const allowance = item.workSchedule?.monthlyPAllowance ?? 1;
-                  const used = item.dailyRecords.filter(
-                    (d) => d.date < period.start && d.status === "P",
-                  ).length;
-                  return Math.max(0, carry + allowance - used);
-                }, 0);
-                const pAllowance =
-                  attendance.workSchedule?.monthlyPAllowance ?? 1;
-                const pUsed = periodDays.filter((d) => d.status === "P").length;
-                const alRemaining = Math.max(0, carryIn + pAllowance - pUsed);
-
-                // ✅ Đếm OFF thực tế theo lịch phân ca + dateOverrides
-                const offAllowance = countOffDays(attendance, periodDates);
-                const offUsed = periodDays.filter(
-                  (d) => d.status === "OFF",
-                ).length;
-
-                // ✅ Ngày công chuẩn = tổng ngày kỳ − OFF định mức
-                const standardWorkDays = periodDates.length - offAllowance;
-
-                return (
-                  <tr
-                    key={`leave-${attendance._id}`}
-                    className="border-t border-slate-100"
-                  >
-                    <td className="px-4 py-3 font-semibold text-slate-800">
-                      {attendance.employeeName}
-                      <div className="mt-1 text-xs text-slate-400">
-                        {attendance.employeeCode || ""}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {attendance.department || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-base">
-                      {offAllowance}
-                    </td>
-                    <td className="px-4 py-3 text-right text-base">{offUsed}</td>
-                    <td
-                      className={`px-4 py-3 text-right text-base font-semibold ${
-                        offAllowance - offUsed < 0
-                          ? "text-rose-600"
-                          : "text-slate-800"
-                      }`}
-                    >
-                      {offAllowance - offUsed}
-                    </td>
-                    <td className="px-4 py-3 text-right text-base font-semibold text-blue-700">
-                      {standardWorkDays}
-                    </td>
-                    <td className="px-4 py-3 text-right text-base">
-                      {carryIn}
-                    </td>
-                    <td className="px-4 py-3 text-right text-base">
-                      {pAllowance}
-                    </td>
-                    <td className="px-4 py-3 text-right text-base">{pUsed}</td>
-                    <td className="px-4 py-3 text-right text-base font-bold text-emerald-700">
-                      {alRemaining}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       )}
     </section>

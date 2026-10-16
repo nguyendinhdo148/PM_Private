@@ -122,6 +122,52 @@ export const getDepartment = (employee: Employee) =>
 export const getPosition = (employee: Employee) =>
   employee.workInfo?.position || employee.position || "";
 
+export const matchesEmployeeFilters = (
+  employee: Employee,
+  departmentFilter: string[],
+  search: string,
+) => {
+  const department = getDepartment(employee);
+  const keyword = search.trim().toLowerCase();
+
+  return (
+    (departmentFilter.length === 0 || departmentFilter.includes(department)) &&
+    (!keyword ||
+      getEmployeeName(employee).toLowerCase().includes(keyword) ||
+      getEmployeeCode(employee).toLowerCase().includes(keyword))
+  );
+};
+
+export const matchesAttendanceFilters = (
+  attendance: Attendance,
+  departmentFilter: string[],
+  search: string,
+  currentEmployee?: Employee,
+) => {
+  const employee =
+    currentEmployee ||
+    (typeof attendance.employee === "object" ? attendance.employee : undefined);
+  const employeeDepartment = employee ? getDepartment(employee) : "Chưa phân phòng";
+  const department =
+    employeeDepartment === "Chưa phân phòng"
+      ? attendance.department || employeeDepartment
+      : employeeDepartment;
+  const employeeName = employee
+    ? employee.name || employee.fullName || attendance.employeeName
+    : attendance.employeeName;
+  const employeeCode = employee
+    ? getEmployeeCode(employee) || attendance.employeeCode || ""
+    : attendance.employeeCode || "";
+  const keyword = search.trim().toLowerCase();
+
+  return (
+    (departmentFilter.length === 0 || departmentFilter.includes(department)) &&
+    (!keyword ||
+      employeeName.toLowerCase().includes(keyword) ||
+      employeeCode.toLowerCase().includes(keyword))
+  );
+};
+
 export const getDefaultShift = (employee?: Employee) => {
   const department = getDepartment(employee || ({} as Employee))
     .trim()

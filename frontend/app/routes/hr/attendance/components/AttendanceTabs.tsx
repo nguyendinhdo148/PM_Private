@@ -13,10 +13,10 @@ type Props = {
 };
 
 const TABS = [
-  { id: "weekly", label: "Lịch tuần", icon: CalendarDays },
   { id: "attendance", label: "Chấm công", icon: CalendarCheck },
-  { id: "summary", label: "Tổng hợp", icon: BarChart3 },
   { id: "overtime", label: "Tăng ca", icon: Clock3 },
+  { id: "weekly", label: "Lịch tuần", icon: CalendarDays },
+  { id: "summary", label: "Tổng hợp", icon: BarChart3 },
 ] satisfies { id: TabKey; label: string; icon: typeof CalendarDays }[];
 
 export default function AttendanceTabs({ activeTab, onChange }: Props) {

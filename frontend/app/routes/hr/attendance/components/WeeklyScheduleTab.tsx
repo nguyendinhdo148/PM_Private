@@ -4,8 +4,6 @@ import { Eye, Camera } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 import {
   CARD_CLASS,
-  INPUT_CLASS,
-  MONTHS,
   SHIFTS,
   dateWeekday,
   formatDate,
@@ -16,11 +14,8 @@ import type { Attendance } from "../types/attendance";
 type Props = {
   month: number;
   year: number;
-  now: Date;
   loading: boolean;
   rows: Attendance[];
-  onChangeMonth: (v: number) => void;
-  onChangeYear: (v: number) => void;
 };
 
 const toDateKey = (date: Date): string => {
@@ -38,11 +33,8 @@ const DAY_WIDTH = 80;
 export default function WeeklyScheduleTab({
   month,
   year,
-  now,
   loading,
   rows,
-  onChangeMonth,
-  onChangeYear,
 }: Props) {
   const printRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
@@ -193,39 +185,6 @@ export default function WeeklyScheduleTab({
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm font-semibold text-slate-600">
-            Tháng
-            <select
-              className={`${INPUT_CLASS} mt-1.5 min-w-36 text-base`}
-              value={month}
-              onChange={(e) => onChangeMonth(Number(e.target.value))}
-            >
-              {MONTHS.map((name, index) => (
-                <option key={name} value={index + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-sm font-semibold text-slate-600">
-            Năm
-            <select
-              className={`${INPUT_CLASS} mt-1.5 min-w-28 text-base`}
-              value={year}
-              onChange={(e) => onChangeYear(Number(e.target.value))}
-            >
-              {Array.from(
-                { length: 7 },
-                (_, index) => now.getFullYear() - 3 + index,
-              ).map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <button
             type="button"
             onClick={handleCapture}

@@ -1,40 +1,47 @@
 import { CalendarDays, Eye, LoaderCircle, Plus, Trash2 } from "lucide-react";
-import { CARD_CLASS, INPUT_CLASS, MONTHS } from "../types/attendance";
-import type { Attendance } from "../types/attendance";
+import {
+  CARD_CLASS,
+  getEmployeeId,
+  matchesAttendanceFilters,
+  MONTHS,
+} from "../types/attendance";
+import type { Attendance, Employee } from "../types/attendance";
 
 type Props = {
   summaryYear: number;
   summaryLoading: boolean;
   yearAttendances: Attendance[];
-  now: Date;
-  onChangeYear: (v: number) => void;
+  employees: Employee[];
+  departmentFilter: string[];
+  search: string;
   onViewMonth: (month: number, year: number) => void;
   onDeleteMonth: (month: number, year: number, rows: Attendance[]) => void;
   onCreateNew: () => void;
 };
 
 export default function SummaryTab({
-  summaryYear, summaryLoading, yearAttendances, now,
-  onChangeYear, onViewMonth, onDeleteMonth, onCreateNew,
+  summaryYear, summaryLoading, yearAttendances, employees,
+  departmentFilter, search,
+  onViewMonth, onDeleteMonth, onCreateNew,
 }: Props) {
-  const yearlyRows = yearAttendances.filter((i) => i.year === summaryYear);
+  const employeeById = new Map(employees.map((employee) => [employee._id, employee]));
+  const allYearRows = yearAttendances.filter((item) => item.year === summaryYear);
+  const yearlyRows = allYearRows.filter((attendance) =>
+    matchesAttendanceFilters(
+      attendance,
+      departmentFilter,
+      search,
+      employeeById.get(getEmployeeId(attendance.employee) || ""),
+    ),
+  );
 
   return (
     <section className={CARD_CLASS}>
-      <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="border-b border-slate-200 p-5">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Tổng hợp chấm công theo tháng</h2>
           <p className="mt-1.5 text-sm text-slate-500">Chọn tháng để xem chi tiết bảng chấm công tương ứng.</p>
         </div>
-        <select
-          className={INPUT_CLASS + " text-base sm:max-w-44"}
-          value={summaryYear}
-          onChange={(e) => onChangeYear(Number(e.target.value))}
-        >
-          {Array.from({ length: 7 }, (_, i) => now.getFullYear() - 3 + i).map((v) => (
-            <option key={v} value={v}>{v}</option>
-          ))}
-        </select>
       </div>
 
       {summaryLoading ? (
@@ -45,17 +52,25 @@ export default function SummaryTab({
       ) : yearlyRows.length === 0 ? (
         <div className="flex min-h-56 flex-col items-center justify-center px-6 py-12 text-center">
           <CalendarDays className="mb-3 h-12 w-12 text-slate-300" />
-          <h3 className="text-lg font-semibold text-slate-800">Chưa có bảng công trong năm {summaryYear}</h3>
-          <p className="mt-2 max-w-md text-base text-slate-500">
-            Chỉ những tháng đã tạo bảng công mới xuất hiện tại đây. Hãy vào tab Bảng chấm công để tạo bảng công cho tháng cần quản lý.
-          </p>
-          <button
-            type="button"
-            onClick={onCreateNew}
-            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-base font-semibold text-white hover:bg-blue-700"
-          >
-            <Plus className="h-5 w-5" /> Tạo bảng công
-          </button>
+          {allYearRows.length === 0 ? (
+            <>
+              <h3 className="text-lg font-semibold text-slate-800">Chưa có bảng công trong năm {summaryYear}</h3>
+              <p className="mt-2 max-w-md text-base text-slate-500">
+                Chỉ những tháng đã tạo bảng công mới xuất hiện tại đây. Hãy vào tab Bảng chấm công để tạo bảng công cho tháng cần quản lý.
+              </p>
+              <button
+                type="button"
+                onClick={onCreateNew}
+                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-base font-semibold text-white hover:bg-blue-700"
+              >
+                <Plus className="h-5 w-5" /> Tạo bảng công
+              </button>
+            </>
+          ) : (
+            <h3 className="text-lg font-semibold text-slate-800">
+              Không có nhân viên phù hợp với bộ lọc.
+            </h3>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -75,6 +90,7 @@ export default function SummaryTab({
             <tbody>
               {MONTHS.map((monthName, index) => {
                 const monthNumber = index + 1;
+                const allMonthRows = allYearRows.filter((i) => i.month === monthNumber);
                 const rows = yearlyRows.filter((i) => i.month === monthNumber);
                 if (rows.length === 0) return null;
                 const totals = rows.reduce(
@@ -108,7 +124,7 @@ export default function SummaryTab({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onDeleteMonth(monthNumber, summaryYear, rows)}
+                          onClick={() => onDeleteMonth(monthNumber, summaryYear, allMonthRows)}
                           className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-red-200 px-3.5 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" /> Xóa tháng

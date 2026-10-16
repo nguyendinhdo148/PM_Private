@@ -26,6 +26,8 @@ import {
   getEmployeeId,
   getEmployeeName,
   getList,
+  matchesAttendanceFilters,
+  matchesEmployeeFilters,
   getPayPeriodDates,
   getScheduleFromAttendance,
   unwrap,
@@ -237,33 +239,24 @@ export default function AttendancePage() {
       Array.from(
         new Set(
           employees
-            .map(getDepartment)
-            .filter((department) => department !== "Chưa phân phòng"),
+            .map(getDepartment),
         ),
-      ).sort(),
+      ).sort((a, b) => a.localeCompare(b, "vi")),
     [employees],
   );
 
   // Lọc nhân viên: khớp một trong các phòng ban được chọn.
   // Mảng rỗng nghĩa là hiển thị tất cả phòng ban.
   const filteredEmployees = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-
-    return employees.filter((employee) => {
-      const department = getDepartment(employee);
-
-      const departmentOK =
-        departmentFilter.length === 0 ||
-        departmentFilter.includes(department);
-
-      const searchOK =
-        !keyword ||
-        getEmployeeName(employee).toLowerCase().includes(keyword) ||
-        getEmployeeCode(employee).toLowerCase().includes(keyword);
-
-      return departmentOK && searchOK;
-    });
+    return employees.filter((employee) =>
+      matchesEmployeeFilters(employee, departmentFilter, search),
+    );
   }, [employees, departmentFilter, search]);
+
+  const employeeById = useMemo(
+    () => new Map(employees.map((employee) => [employee._id, employee])),
+    [employees],
+  );
 
   const attendanceMap = useMemo(() => {
     const map = new Map<string, Attendance>();
@@ -282,38 +275,33 @@ export default function AttendancePage() {
   );
 
   // Lọc dữ liệu lịch làm việc theo nhiều phòng ban và từ khóa tìm kiếm.
-  const weeklyAttendanceRows = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+  const filteredAttendances = useMemo(
+    () =>
+      attendances.filter((attendance) =>
+        matchesAttendanceFilters(
+          attendance,
+          departmentFilter,
+          search,
+          employeeById.get(getEmployeeId(attendance.employee) || ""),
+        ),
+      ),
+    [attendances, departmentFilter, search, employeeById],
+  );
 
-    return attendances
-      .filter((item) => {
-        const department =
-          item.department ||
-          (typeof item.employee === "object"
-            ? getDepartment(item.employee)
-            : "");
-
-        const departmentOK =
-          departmentFilter.length === 0 ||
-          departmentFilter.includes(department);
-
-        const searchOK =
-          !keyword ||
-          item.employeeName.toLowerCase().includes(keyword) ||
-          (item.employeeCode || "").toLowerCase().includes(keyword);
-
-        return departmentOK && searchOK;
-      })
+  const weeklyAttendanceRows = useMemo(
+    () =>
+      [...filteredAttendances]
       .sort(
         (a, b) =>
           (a.department || "").localeCompare(b.department || "", "vi") ||
           a.employeeName.localeCompare(b.employeeName, "vi"),
-      );
-  }, [attendances, departmentFilter, search]);
+      ),
+    [filteredAttendances],
+  );
 
   const summary = useMemo(
     () =>
-      attendances.reduce(
+      filteredAttendances.reduce(
         (total, attendance) => {
           const s = attendance.summary || {};
 
@@ -335,7 +323,7 @@ export default function AttendancePage() {
           ot: 0,
         },
       ),
-    [attendances],
+    [filteredAttendances],
   );
 
   /* ---- actions ---- */
@@ -738,7 +726,10 @@ export default function AttendancePage() {
         loading={loading}
         now={now}
         onChangeMonth={setMonth}
-        onChangeYear={setYear}
+        onChangeYear={(value) => {
+          setYear(value);
+          setSummaryYear(value);
+        }}
         onChangeDepartment={setDepartmentFilter}
         onChangeSearch={setSearch}
         onReset={handleResetFilter}
@@ -785,11 +776,8 @@ export default function AttendancePage() {
         <WeeklyScheduleTab
           month={month}
           year={year}
-          now={now}
           loading={loading}
           rows={weeklyAttendanceRows}
-          onChangeMonth={setMonth}
-          onChangeYear={setYear}
         />
       )}
 
@@ -798,11 +786,13 @@ export default function AttendancePage() {
           summaryYear={summaryYear}
           summaryLoading={summaryLoading}
           yearAttendances={yearAttendances}
-          now={now}
-          onChangeYear={setSummaryYear}
+          employees={employees}
+          departmentFilter={departmentFilter}
+          search={search}
           onViewMonth={(m, y) => {
             setMonth(m);
             setYear(y);
+            setSummaryYear(y);
             setActiveTab("attendance");
           }}
           onDeleteMonth={(m, y, rows) =>
@@ -811,6 +801,7 @@ export default function AttendancePage() {
           onCreateNew={() => {
             setMonth(now.getMonth() + 1);
             setYear(now.getFullYear());
+            setSummaryYear(now.getFullYear());
             setActiveTab("attendance");
           }}
         />
@@ -827,11 +818,7 @@ export default function AttendancePage() {
           employees={employees}
           filteredEmployees={filteredEmployees}
           selectedEmployeeIds={selectedEmployeeIds}
-          departmentFilter={
-            departmentFilter.length > 0
-              ? departmentFilter.join(", ")
-              : "all"
-          }
+          departmentFilter={departmentFilter}
           search={search}
           savingDay={savingDay}
           onToggleEmployee={toggleEmployee}
@@ -851,15 +838,12 @@ export default function AttendancePage() {
         <OvertimeTab
           month={month}
           year={year}
-          now={now}
           loading={loading}
           attendances={attendances}
+          employees={employees}
           yearAttendances={yearAttendances}
-          onChangeMonth={setMonth}
-          onChangeYear={(v) => {
-            setYear(v);
-            setSummaryYear(v);
-          }}
+          departmentFilter={departmentFilter}
+          search={search}
           onSaved={() => {
             void loadAttendances();
             void loadYearAttendances();
@@ -869,7 +853,7 @@ export default function AttendancePage() {
 
       {activeTab === "summary" && (
         <SummaryCards
-          attendanceCount={attendances.length}
+          attendanceCount={filteredAttendances.length}
           summary={summary}
         />
       )}
