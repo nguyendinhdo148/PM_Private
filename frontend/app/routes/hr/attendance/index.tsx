@@ -81,7 +81,7 @@ export default function AttendancePage() {
   const [overtimeNote, setOvertimeNote] = useState("");
   const [overtimeSaving, setOvertimeSaving] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<TabKey>("weekly");
+  const [activeTab, setActiveTab] = useState<TabKey>("attendance");
   const [summaryYear, setSummaryYear] = useState(now.getFullYear());
   const [yearAttendances, setYearAttendances] = useState<Attendance[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
