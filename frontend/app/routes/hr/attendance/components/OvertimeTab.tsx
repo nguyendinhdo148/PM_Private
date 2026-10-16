@@ -62,6 +62,11 @@ type DraftEntry = {
   date: string;
   hours: string;
   note: string;
+  original?: {
+    date: string;
+    hours: string;
+    note: string;
+  };
 };
 
 /** Gọi API qua fetch-util */
@@ -84,6 +89,17 @@ async function callApi(
 
 const genTempId = () =>
   `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+const isDraftChanged = (draft: DraftEntry, defaultDate: string) =>
+  draft.original
+    ? draft.date !== draft.original.date ||
+      draft.hours !== draft.original.hours ||
+      draft.note !== draft.original.note
+    : Boolean(
+        draft.hours.trim() ||
+          draft.note.trim() ||
+          draft.date !== defaultDate,
+      );
 
 function countOffDays(
   attendance: Attendance,
@@ -162,13 +178,17 @@ export default function OvertimeTab({
       for (const sheet of employeeSheets) {
         for (const entry of sheet.overtimeEntries || []) {
           if (!isInPeriod(entry.date, period.start, period.end)) continue;
+          const date = entry.date;
+          const hours = String(entry.hours);
+          const note = entry.note || "";
           next.push({
             tempId: entry._id,
             _id: entry._id,
             attendanceId: sheet._id,
-            date: entry.date,
-            hours: String(entry.hours),
-            note: entry.note || "",
+            date,
+            hours,
+            note,
+            original: { date, hours, note },
           });
         }
       }
@@ -195,6 +215,11 @@ export default function OvertimeTab({
     }
     return m;
   }, [drafts]);
+
+  const changedDrafts = useMemo(
+    () => drafts.filter((draft) => isDraftChanged(draft, period.start)),
+    [drafts, period.start],
+  );
 
   const visibleAttendances = useMemo(
     () =>
@@ -286,7 +311,7 @@ export default function OvertimeTab({
 
   const saveAll = async () => {
     const errors: string[] = [];
-    for (const d of drafts) {
+    for (const d of changedDrafts) {
       const num = Number(d.hours);
       if (!d.date) errors.push(`Có dòng chưa chọn ngày.`);
       if (!Number.isFinite(num) || num === 0) {
@@ -309,7 +334,7 @@ export default function OvertimeTab({
       let created = 0;
       let updated = 0;
 
-      for (const d of drafts) {
+      for (const d of changedDrafts) {
         const payload = {
           date: d.date,
           hours: Number(d.hours),
@@ -345,8 +370,8 @@ export default function OvertimeTab({
   };
 
   const saveEmployee = async (attendanceId: string, employeeName: string) => {
-    const employeeDrafts = drafts.filter(
-      (d) => d.attendanceId === attendanceId,
+    const employeeDrafts = changedDrafts.filter(
+      (draft) => draft.attendanceId === attendanceId,
     );
 
     const errors: string[] = [];
@@ -428,8 +453,12 @@ export default function OvertimeTab({
           <button
             type="button"
             onClick={() => void saveAll()}
-            disabled={saving || loading || drafts.length === 0}
-            className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-600 px-6 text-base font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={saving || loading || changedDrafts.length === 0}
+            className={`inline-flex h-11 items-center gap-2 rounded-lg px-6 text-base font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              changedDrafts.length > 0
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "border border-slate-200 bg-white text-slate-400"
+            }`}
           >
             {saving ? (
               <LoaderCircle className="h-5 w-5 animate-spin" />
@@ -476,6 +505,9 @@ export default function OvertimeTab({
             {visibleAttendances.map((attendance) => {
               const rowDrafts = drafts.filter(
                 (d) => d.attendanceId === attendance._id,
+              );
+              const hasChanges = rowDrafts.some((draft) =>
+                isDraftChanged(draft, period.start),
               );
               const isLocked = attendance.status === "LOCKED";
               const isSavingThis = savingId === attendance._id;
@@ -614,10 +646,14 @@ export default function OvertimeTab({
                           )
                         }
                         disabled={
-                          isLocked || isSavingThis || isEmpty
+                          isLocked || isSavingThis || isEmpty || !hasChanges
                         }
-                        title="Lưu riêng cho nhân viên này"
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={hasChanges ? "Lưu thay đổi" : "Chưa có thay đổi"}
+                        className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                          hasChanges
+                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                            : "border border-slate-200 bg-white text-slate-400"
+                        }`}
                       >
                         {isSavingThis ? (
                           <LoaderCircle className="h-4 w-4 animate-spin" />
