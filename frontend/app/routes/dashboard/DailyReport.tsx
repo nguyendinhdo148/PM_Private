@@ -100,8 +100,9 @@ const DailyReport = () => {
 
   const [otherExpenseInput, setOtherExpenseInput] = useState<string>("");
 
-  // 👇 State cho tab Báo cáo theo ngày
-  const [selectedDailyDate, setSelectedDailyDate] = useState<string>("");
+  // 👇 State cho tab Báo cáo theo ngày (đã nâng cấp thành lọc khoảng)
+  const [selectedDailyStartDate, setSelectedDailyStartDate] = useState<string>("");
+  const [selectedDailyEndDate, setSelectedDailyEndDate] = useState<string>("");
 
   const toLocalDateString = (date: Date): string => {
     if (!date || isNaN(date.getTime())) return "";
@@ -199,13 +200,15 @@ const DailyReport = () => {
     }
   }, [editingId]);
 
-  // 👇 Tự động chọn ngày mới nhất khi có data, cho tab Báo cáo theo ngày
+  // 👇 Tự động chọn khoảng ngày mới nhất khi có data, cho tab Báo cáo theo ngày
   useEffect(() => {
-    if (!selectedDailyDate && data.length > 0) {
+    if (!selectedDailyStartDate && !selectedDailyEndDate && data.length > 0) {
       const sortedDates = [...data].map(d => d.date).sort();
-      setSelectedDailyDate(sortedDates[sortedDates.length - 1]);
+      const latestDate = sortedDates[sortedDates.length - 1];
+      setSelectedDailyStartDate(latestDate);
+      setSelectedDailyEndDate(latestDate);
     }
-  }, [data, selectedDailyDate]);
+  }, [data, selectedDailyStartDate, selectedDailyEndDate]);
 
   const injectScreenshotCSS = () => {
     const style = document.createElement('style');
@@ -1437,75 +1440,92 @@ const DailyReport = () => {
     );
   };
 
-  // 👇 Data cho tab Báo cáo theo ngày
+  // 👇 Data cho tab Báo cáo theo ngày (Đã nâng cấp lọc khoảng ngày)
   const dailyReportData = useMemo(() => {
-    const selectedRow = data.find(d => d.date === selectedDailyDate);
+    const filtered = data.filter(d => {
+      if (!selectedDailyStartDate || !selectedDailyEndDate) return false;
+      return d.date >= selectedDailyStartDate && d.date <= selectedDailyEndDate;
+    });
 
-    // Doanh thu ngày đang chọn (số gốc, trước VAT)
-    const dayFood = Number(selectedRow?.foodRevenue) || 0;
-    const dayDrink = Number(selectedRow?.drinkRevenue) || 0;
-    const dayOther = Number(selectedRow?.otherRevenue) || 0;
+    const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+    const dates = sorted.map(d => d.date);
 
-    // Số khách + tiêu dùng TB/khách của ngày đó
-    const dayGuestCount = Number(selectedRow?.guestCount) || 0;
-    const dayTotalGross = selectedRow ? calculateTotalGross(selectedRow) : 0;
-    const dayAvgPerGuest = dayGuestCount > 0 ? dayTotalGross / dayGuestCount : 0;
-
+    // Tính toán dòng dữ liệu
     const rows = [
       {
         label: "Đồ ăn",
-        dayPreTax: Math.round(dayFood * VAT_MULTIPLIER),
-        monthPreTax: totals.foodRevenueDisplay,
+        key: 'food',
+        icon: UtensilsCrossed,
+        values: dates.reduce((acc, date) => {
+           const r = sorted.find(x => x.date === date);
+           acc[date] = Math.round((Number(r?.foodRevenue) || 0) * VAT_MULTIPLIER);
+           return acc;
+        }, {} as Record<string, number>),
+        monthTotal: totals.foodRevenueDisplay
       },
       {
         label: "Nước uống",
-        dayPreTax: Math.round(dayDrink * VAT_MULTIPLIER),
-        monthPreTax: totals.drinkRevenueDisplay,
+        key: 'drink',
+        icon: CupSoda,
+        values: dates.reduce((acc, date) => {
+           const r = sorted.find(x => x.date === date);
+           acc[date] = Math.round((Number(r?.drinkRevenue) || 0) * VAT_MULTIPLIER);
+           return acc;
+        }, {} as Record<string, number>),
+        monthTotal: totals.drinkRevenueDisplay
       },
       {
         label: "Khác",
-        dayPreTax: Math.round(dayOther * VAT_MULTIPLIER),
-        monthPreTax: totals.otherRevenueDisplay,
+        key: 'other',
+        icon: CircleEllipsis,
+        values: dates.reduce((acc, date) => {
+           const r = sorted.find(x => x.date === date);
+           acc[date] = Math.round((Number(r?.otherRevenue) || 0) * VAT_MULTIPLIER);
+           return acc;
+        }, {} as Record<string, number>),
+        monthTotal: totals.otherRevenueDisplay
       },
     ];
 
-    const totalRow = {
-      label: "Cộng doanh thu trước thuế ",
-      dayPreTax: Math.round((dayFood + dayDrink + dayOther) * VAT_MULTIPLIER),
-      monthPreTax: totals.preTax,
-    };
+    // Dòng tổng
+    const footerTotals = dates.reduce((acc, date) => {
+      const r = sorted.find(x => x.date === date);
+      acc[date] = {
+        preTax: Math.round(((Number(r?.foodRevenue) || 0) + (Number(r?.drinkRevenue) || 0) + (Number(r?.otherRevenue) || 0)) * VAT_MULTIPLIER),
+        gross: calculateTotalGross(r || {})
+      };
+      return acc;
+    }, {} as Record<string, { preTax: number, gross: number }>);
 
-    const beforeTaxRow = {
-      label: "TỔNG DOANH THU BAO GỒM THUẾ",
-      dayValue: dayTotalGross,
-      monthValue: totals.totalGross,
-    };
+    // Khách & TB
+    const guestValues = dates.reduce((acc, date) => {
+      const r = sorted.find(x => x.date === date);
+      acc[date] = Number(r?.guestCount) || 0;
+      return acc;
+    }, {} as Record<string, number>);
 
-    const guestRow = {
-      label: "Số khách",
-      dayValue: dayGuestCount,
-      monthValue: totals.guest,
-    };
-
-    const avgGuestRow = {
-      label: "Tiêu dùng trung bình/khách",
-      dayValue: Math.round(dayAvgPerGuest),
-      monthValue: totals.guest > 0 ? Math.round(totals.totalGross / totals.guest) : 0,
-    };
+    const avgGuestValues = dates.reduce((acc, date) => {
+      const r = sorted.find(x => x.date === date);
+      const gross = calculateTotalGross(r || {});
+      const guest = Number(r?.guestCount) || 0;
+      acc[date] = guest > 0 ? gross / guest : 0;
+      return acc;
+    }, {} as Record<string, number>);
 
     return {
+      dates,
       rows,
-      totalRow,
-      beforeTaxRow,
-      guestRow,
-      avgGuestRow,
-      hasData: !!selectedRow,
+      footerTotals,
+      guestValues,
+      avgGuestValues,
+      hasData: sorted.length > 0,
+      monthGuest: totals.guest,
+      monthAvgGuest: totals.guest > 0 ? totals.totalGross / totals.guest : 0,
+      monthPreTax: totals.preTax,
+      monthGross: totals.totalGross,
+      filteredDays: sorted.length
     };
-  }, [data, selectedDailyDate, totals.foodRevenueDisplay, totals.drinkRevenueDisplay, totals.otherRevenueDisplay, totals.preTax, totals.totalGross, totals.guest]);
-
-  const availableDates = useMemo(() => {
-    return [...data].map(d => d.date).sort();
-  }, [data]);
+  }, [data, selectedDailyStartDate, selectedDailyEndDate, totals]);
 
   return (
     <div id="report-container" className="space-y-4 p-4 sm:p-6">
@@ -2124,194 +2144,217 @@ const DailyReport = () => {
         </>
       )}
 
-      {/* ===== TAB 2: BÁO CÁO THEO NGÀY ===== */}
+      {/* ===== TAB 2: BÁO CÁO THEO NGÀY (ĐÃ NÂNG CẤP LỌC KHOẢNG) ===== */}
       {activeTab === "daily" && (
         <div className="space-y-4 pt-2">
-          {/* Chọn ngày */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">
-              Chọn ngày xem báo cáo:
-            </label>
-            <Input
-              type="date"
-              value={selectedDailyDate}
-              onChange={(e) => setSelectedDailyDate(e.target.value)}
-              className="w-full sm:w-56 border-slate-300 h-9 sm:h-10"
-            />
-            {availableDates.length > 0 && (
-              <span className="text-xs text-slate-500">
-                ({availableDates.length} ngày có dữ liệu)
-              </span>
-            )}
+          {/* Bộ lọc ngày */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-3 rounded-lg border border-slate-300 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-700 whitespace-nowrap">Từ ngày:</span>
+              <Input
+                type="date"
+                value={selectedDailyStartDate}
+                onChange={(e) => setSelectedDailyStartDate(e.target.value)}
+                className="w-full sm:w-40 border-slate-300 h-9"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-700 whitespace-nowrap">Đến ngày:</span>
+              <Input
+                type="date"
+                value={selectedDailyEndDate}
+                onChange={(e) => setSelectedDailyEndDate(e.target.value)}
+                className="w-full sm:w-40 border-slate-300 h-9"
+              />
+            </div>
+            <div className="text-xs text-slate-500 italic ml-auto">
+              {dailyReportData.hasData ? (
+                <span className="text-emerald-600 font-medium">
+                  Đang xem {dailyReportData.filteredDays} ngày
+                </span>
+              ) : (
+                "Chọn khoảng ngày để xem báo cáo"
+              )}
+            </div>
           </div>
 
-          {!selectedDailyDate || !dailyReportData.hasData ? (
+          {!dailyReportData.hasData ? (
             <Card className="border-slate-300">
               <CardContent className="py-12 text-center text-slate-500 text-sm">
                 {data.length === 0
                   ? "Chưa có dữ liệu báo cáo. Hãy thêm hoặc import doanh thu ngày."
-                  : "Không có dữ liệu cho ngày đã chọn. Vui lòng chọn ngày khác."}
+                  : "Không có dữ liệu cho khoảng thời gian đã chọn. Vui lòng chọn lại."}
               </CardContent>
             </Card>
           ) : (
             <>
-              {/* Tiêu đề ngày */}
               {/* Tiêu đề */}
-<div className="flex items-center gap-3 text-xl sm:text-2xl">
-  <CalendarDays className="w-8 h-8 sm:w-10 sm:h-10 text-slate-800 shrink-0" strokeWidth={2.2} />
-  <div className="flex flex-col leading-tight">
-    <span className="font-black text-slate-900 uppercase tracking-wide text-2xl sm:text-3xl">
-      BÁO CÁO DOANH THU NHÀ HÀNG Maxim Saigon
-    </span>
-    <span className="text-slate-500 font-medium text-base sm:text-lg">
-      Ngày {formatDateDisplay(selectedDailyDate)} ({data.find(d => d.date === selectedDailyDate)?.dayOfWeek})
-    </span>
-  </div>
-</div>
+              <div className="flex items-center gap-3 text-xl sm:text-2xl mb-2">
+                <CalendarDays className="w-8 h-8 sm:w-10 sm:h-10 text-slate-800 shrink-0" strokeWidth={2.2} />
+                <div className="flex flex-col leading-tight">
+                  <span className="font-black text-slate-900 uppercase tracking-wide text-2xl sm:text-3xl">
+                    BÁO CÁO DOANH THU NHÀ HÀNG Maxim Saigon
+                  </span>
+                  <span className="text-slate-500 font-medium text-base sm:text-lg">
+                    Từ {formatDateDisplay(selectedDailyStartDate)} đến {formatDateDisplay(selectedDailyEndDate)}
+                  </span>
+                </div>
+              </div>
 
-{/* Bảng form báo cáo */}
+              {/* Bảng form báo cáo */}
+              <div className="w-full overflow-x-auto">
+                <Table className="border-collapse border border-[#B8D3E8] tabular-nums w-auto min-w-full text-xl sm:text-2xl">
+                  <TableHeader>
+                    <TableRow className="bg-[#204878] hover:bg-[#204878]">
+                      <TableHead className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-4 py-4 text-xl sm:text-2xl min-w-[300px] sticky left-0 z-20 bg-[#204878]">
+                        Nội dung báo cáo
+                      </TableHead>
+                      {/* Render động các cột ngày */}
+                      {dailyReportData.dates.map((dateStr) => (
+                        <TableHead key={dateStr} className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-4 py-2 text-lg sm:text-xl min-w-[160px]">
+                          Trong ngày<br />
+                          <span className="text-sm font-normal text-blue-100">
+                            ({formatDateDisplay(dateStr)})
+                          </span>
+                        </TableHead>
+                      ))}
+                      <TableHead className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-4 py-4 text-xl sm:text-2xl min-w-[180px] bg-[#1a3a63]">
+                        Lũy kế tháng
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-<div className="w-full overflow-x-auto">
-  <Table className="border-collapse border border-[#B8D3E8] tabular-nums w-auto min-w-[1000px] text-xl sm:text-2xl">
-    <TableHeader>
-      <TableRow className="bg-[#204878] hover:bg-[#204878]">
-        <TableHead className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-7 py-4 text-xl sm:text-2xl min-w-[380px]">
-          Nội dung báo cáo
-        </TableHead>
-        <TableHead className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-7 py-4 text-xl sm:text-2xl min-w-[300px]">
-          Trong ngày<br />
-          <span className="text-base sm:text-lg font-bold text-white">
-            ({formatDateDisplay(selectedDailyDate)})
-          </span>
-        </TableHead>
-        <TableHead className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-7 py-4 text-xl sm:text-2xl min-w-[340px]">
-          Lũy kế tháng<br />
-          <span className="text-base sm:text-lg font-bold text-white">
-            (đến {formatDateDisplay(selectedDailyDate)})
-          </span>
-        </TableHead>
-      </TableRow>
-    </TableHeader>
+                  <TableBody>
+                    {/* Số lượt khách */}
+                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-[#F1F7FC]">
+                        <div className="flex items-center gap-4">
+                          <Users className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>Số lượt khách</span>
+                        </div>
+                      </TableCell>
+                      {dailyReportData.dates.map(dateStr => (
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl">
+                          {dailyReportData.guestValues[dateStr] || "0"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#168653] font-bold text-xl sm:text-2xl bg-[#E8F5E9]">
+                        {dailyReportData.monthGuest || "0"}
+                      </TableCell>
+                    </TableRow>
 
-    <TableBody>
-      {/* Số lượt khách */}
-      <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
-        <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-6 py-4 whitespace-nowrap text-left text-xl sm:text-2xl">
-          <div className="flex items-center gap-4">
-            <Users className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-            <span>Số lượt khách</span>
-          </div>
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl">
-          {dailyReportData.guestRow.dayValue || "0"}
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#168653] font-bold text-xl sm:text-2xl">
-          {dailyReportData.guestRow.monthValue || "0"}
-        </TableCell>
-      </TableRow>
+                    {/* Chi tiêu bình quân/lượt khách */}
+                    <TableRow className="bg-white hover:bg-white">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-white">
+                        <div className="flex items-center gap-4">
+                          <Coins className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>Chi tiêu bình quân/lượt khách</span>
+                        </div>
+                      </TableCell>
+                      {dailyReportData.dates.map(dateStr => (
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#1761D2] font-bold text-xl sm:text-2xl whitespace-nowrap">
+                          {formatCurrency(dailyReportData.avgGuestValues[dateStr]) || "0 ₫"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#168653] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
+                        {formatCurrency(dailyReportData.monthAvgGuest) || "0 ₫"}
+                      </TableCell>
+                    </TableRow>
 
-      {/* Chi tiêu bình quân/lượt khách */}
-      <TableRow className="bg-white hover:bg-white">
-        <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-6 py-4 whitespace-nowrap text-left text-xl sm:text-2xl">
-          <div className="flex items-center gap-4">
-            <Coins className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-            <span>Chi tiêu bình quân/lượt khách</span>
-          </div>
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#1761D2] font-bold text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.avgGuestRow.dayValue) || "0 ₫"}
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#168653] font-bold text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.avgGuestRow.monthValue) || "0 ₫"}
-        </TableCell>
-      </TableRow>
+                    {/* Doanh thu đồ ăn */}
+                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-[#F1F7FC]">
+                        <div className="flex items-center gap-4">
+                          <UtensilsCrossed className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>Doanh thu đồ ăn</span>
+                        </div>
+                      </TableCell>
+                      {dailyReportData.dates.map(dateStr => (
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
+                          {formatCurrency(dailyReportData.rows[0].values[dateStr]) || "0 ₫"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
+                        {formatCurrency(dailyReportData.rows[0].monthTotal) || "0 ₫"}
+                      </TableCell>
+                    </TableRow>
 
-      {/* Doanh thu đồ ăn */}
-      <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
-        <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-6 py-4 whitespace-nowrap text-left text-xl sm:text-2xl">
-          <div className="flex items-center gap-4">
-            <UtensilsCrossed className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-            <span>Doanh thu đồ ăn</span>
-          </div>
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.rows[0]?.dayPreTax) || "0 ₫"}
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.rows[0]?.monthPreTax) || "0 ₫"}
-        </TableCell>
-      </TableRow>
+                    {/* Doanh thu nước uống */}
+                    <TableRow className="bg-white hover:bg-white">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-white">
+                        <div className="flex items-center gap-4">
+                          <CupSoda className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>Doanh thu nước uống</span>
+                        </div>
+                      </TableCell>
+                      {dailyReportData.dates.map(dateStr => (
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
+                          {formatCurrency(dailyReportData.rows[1].values[dateStr]) || "0 ₫"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
+                        {formatCurrency(dailyReportData.rows[1].monthTotal) || "0 ₫"}
+                      </TableCell>
+                    </TableRow>
 
-      {/* Doanh thu nước uống */}
-      <TableRow className="bg-white hover:bg-white">
-        <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-6 py-4 whitespace-nowrap text-left text-xl sm:text-2xl">
-          <div className="flex items-center gap-4">
-            <CupSoda className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-            <span>Doanh thu nước uống</span>
-          </div>
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.rows[1]?.dayPreTax) || "0 ₫"}
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.rows[1]?.monthPreTax) || "0 ₫"}
-        </TableCell>
-      </TableRow>
+                    {/* Doanh thu khác */}
+                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-[#F1F7FC]">
+                        <div className="flex items-center gap-4">
+                          <CircleEllipsis className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>Doanh thu khác</span>
+                        </div>
+                      </TableCell>
+                      {dailyReportData.dates.map(dateStr => (
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
+                          {formatCurrency(dailyReportData.rows[2].values[dateStr]) || "0 ₫"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
+                        {formatCurrency(dailyReportData.rows[2].monthTotal) || "0 ₫"}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
 
-      {/* Doanh thu khác */}
-      <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
-        <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-6 py-4 whitespace-nowrap text-left text-xl sm:text-2xl">
-          <div className="flex items-center gap-4">
-            <CircleEllipsis className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-            <span>Doanh thu khác</span>
-          </div>
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.rows[2]?.dayPreTax) || "0 ₫"}
-        </TableCell>
-        <TableCell className="border border-[#C7DCEC] text-center px-6 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.rows[2]?.monthPreTax) || "0 ₫"}
-        </TableCell>
-      </TableRow>
-    </TableBody>
+                  <TableFooter>
+                    {/* Tổng doanh thu trước thuế */}
+                    <TableRow className="bg-[#204878] hover:bg-[#204878]">
+                      <TableCell className="border border-[#8FB4D5] text-left font-black text-white px-4 py-4 whitespace-nowrap text-xl sm:text-2xl sticky left-0 z-20 bg-[#204878]">
+                        <div className="flex items-center gap-4">
+                          <Calculator className="w-8 h-8 sm:w-9 sm:h-9 text-white shrink-0" strokeWidth={1.8} />
+                          <span>Tổng doanh thu trước thuế</span>
+                        </div>
+                      </TableCell>
+                      {dailyReportData.dates.map(dateStr => (
+                        <TableCell key={dateStr} className="border border-[#8FB4D5] text-center font-black text-[#FFC35A] px-4 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap">
+                          {formatCurrency(dailyReportData.footerTotals[dateStr]?.preTax) || "0 ₫"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="border border-[#8FB4D5] text-center font-black text-[#FFC35A] px-4 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap bg-[#1a3a63]">
+                        {formatCurrency(dailyReportData.monthPreTax) || "0 ₫"}
+                      </TableCell>
+                    </TableRow>
 
-    <TableFooter>
-      {/* Tổng doanh thu trước thuế */}
-      <TableRow className="bg-[#204878] hover:bg-[#204878]">
-        <TableCell className="border border-[#8FB4D5] text-left font-black text-white px-6 py-4 whitespace-nowrap text-xl sm:text-2xl">
-          <div className="flex items-center gap-4">
-            <Calculator className="w-8 h-8 sm:w-9 sm:h-9 text-white shrink-0" strokeWidth={1.8} />
-            <span>Tổng doanh thu trước thuế</span>
-          </div>
-        </TableCell>
-        <TableCell className="border border-[#8FB4D5] text-center font-black text-[#FFC35A] px-6 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.totalRow.dayPreTax) || "0 ₫"}
-        </TableCell>
-        <TableCell className="border border-[#8FB4D5] text-center font-black text-[#FFC35A] px-6 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.totalRow.monthPreTax) || "0 ₫"}
-        </TableCell>
-      </TableRow>
-
-      {/* Tổng doanh thu bao gồm thuế */}
-      <TableRow className="bg-[#17365D] hover:bg-[#17365D]">
-        <TableCell className="border border-[#8FB4D5] text-left font-black text-white px-6 py-4 whitespace-nowrap text-xl sm:text-2xl">
-          <div className="flex items-center gap-4">
-            <ReceiptText className="w-8 h-8 sm:w-9 sm:h-9 text-white shrink-0" strokeWidth={1.8} />
-            <span>Tổng doanh thu bao gồm thuế</span>
-          </div>
-        </TableCell>
-        <TableCell className="border border-[#8FB4D5] text-center font-black text-[#68F0B0] px-6 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.beforeTaxRow.dayValue) || "0 ₫"}
-        </TableCell>
-        <TableCell className="border border-[#8FB4D5] text-center font-black text-[#68F0B0] px-6 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap">
-          {formatCurrency(dailyReportData.beforeTaxRow.monthValue) || "0 ₫"}
-        </TableCell>
-      </TableRow>
-    </TableFooter>
-  </Table>
-</div>
-
-             
+                    {/* Tổng doanh thu bao gồm thuế */}
+                    <TableRow className="bg-[#17365D] hover:bg-[#17365D]">
+                      <TableCell className="border border-[#8FB4D5] text-left font-black text-white px-4 py-4 whitespace-nowrap text-xl sm:text-2xl sticky left-0 z-20 bg-[#17365D]">
+                        <div className="flex items-center gap-4">
+                          <ReceiptText className="w-8 h-8 sm:w-9 sm:h-9 text-white shrink-0" strokeWidth={1.8} />
+                          <span>Tổng doanh thu bao gồm thuế</span>
+                        </div>
+                      </TableCell>
+                      {dailyReportData.dates.map(dateStr => (
+                        <TableCell key={dateStr} className="border border-[#8FB4D5] text-center font-black text-[#68F0B0] px-4 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap">
+                          {formatCurrency(dailyReportData.footerTotals[dateStr]?.gross) || "0 ₫"}
+                        </TableCell>
+                      ))}
+                      <TableCell className="border border-[#8FB4D5] text-center font-black text-[#68F0B0] px-4 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap bg-[#132c4e]">
+                        {formatCurrency(dailyReportData.monthGross) || "0 ₫"}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </div>
 
               {/* ===== ĐỊNH PHÍ NGÀY (giống bên tab Chi tiết) ===== */}
               <div className="space-y-2 pt-4">
