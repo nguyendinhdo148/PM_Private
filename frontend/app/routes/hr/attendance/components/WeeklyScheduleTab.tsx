@@ -1,5 +1,4 @@
-
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Eye, Camera } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 import {
@@ -30,6 +29,13 @@ const NAME_WIDTH = 190;
 const POSITION_WIDTH = 130;
 const DAY_WIDTH = 80;
 
+type WeekRange = {
+  index: number;
+  start: string;
+  end: string;
+  days: string[];
+};
+
 export default function WeeklyScheduleTab({
   month,
   year,
@@ -39,6 +45,7 @@ export default function WeeklyScheduleTab({
   const printRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const [capturing, setCapturing] = useState(false);
+  const [weekFilter, setWeekFilter] = useState<"all" | number>("all");
 
   // Kỳ công: ngày 26 tháng trước đến ngày 25 tháng chọn.
   const startDate = new Date(year, month - 2, 26);
@@ -53,6 +60,44 @@ export default function WeeklyScheduleTab({
   ) {
     monthlyDays.push(toDateKey(date));
   }
+
+  // Chia kỳ công thành các tuần, mỗi tuần bắt đầu Thứ Hai.
+  const weeks = useMemo<WeekRange[]>(() => {
+    const result: WeekRange[] = [];
+    let current: string[] = [];
+
+    monthlyDays.forEach((day) => {
+      const weekday = dateWeekday(day); // 0 = CN, 1 = T2, ...
+      // Bắt đầu tuần mới khi gặp Thứ Hai (trừ ngày đầu tiên của kỳ công)
+      if (weekday === 1 && current.length > 0) {
+        result.push({
+          index: result.length,
+          start: current[0],
+          end: current[current.length - 1],
+          days: current,
+        });
+        current = [];
+      }
+      current.push(day);
+    });
+
+    if (current.length > 0) {
+      result.push({
+        index: result.length,
+        start: current[0],
+        end: current[current.length - 1],
+        days: current,
+      });
+    }
+
+    return result;
+  }, [monthlyDays.join("|")]);
+
+  // Ngày hiển thị theo bộ lọc tuần.
+  const visibleDays: string[] = useMemo(() => {
+    if (weekFilter === "all") return monthlyDays;
+    return weeks[weekFilter]?.days ?? monthlyDays;
+  }, [weekFilter, weeks, monthlyDays.join("|")]);
 
   const weekdayNames = [
     "CHỦ NHẬT",
@@ -147,8 +192,13 @@ export default function WeeklyScheduleTab({
         },
       });
 
+      const suffix =
+        weekFilter === "all"
+          ? `${month}-${year}`
+          : `tuan-${weekFilter + 1}-${month}-${year}`;
+
       const link = document.createElement("a");
-      link.download = `lich-lam-viec-${month}-${year}.png`;
+      link.download = `lich-lam-viec-${suffix}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (error) {
@@ -168,6 +218,15 @@ export default function WeeklyScheduleTab({
   const stickyEmployeeCell =
     "weekly-sticky-cell sticky z-20 border border-slate-300 bg-white";
 
+  const visibleLabel =
+    weekFilter === "all"
+      ? `KỲ CÔNG: ${formatDate(monthlyDays[0])} – ${formatDate(
+          monthlyDays[monthlyDays.length - 1],
+        )}`
+      : `TUẦN ${weekFilter + 1}: ${formatDate(
+          visibleDays[0],
+        )} – ${formatDate(visibleDays[visibleDays.length - 1])}`;
+
   return (
     <section
       className={`${CARD_CLASS} weekly-print-area overflow-hidden`}
@@ -185,6 +244,28 @@ export default function WeeklyScheduleTab({
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
+          {/* Lọc theo tuần */}
+          <label className="flex flex-col text-sm font-medium text-slate-600">
+            <span className="mb-1">Lọc theo tuần</span>
+            <select
+              value={weekFilter === "all" ? "all" : String(weekFilter)}
+              onChange={(e) =>
+                setWeekFilter(
+                  e.target.value === "all" ? "all" : Number(e.target.value),
+                )
+              }
+              className="h-11 min-w-[220px] rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            >
+              <option value="all">Cả tháng</option>
+              {weeks.map((week) => (
+                <option key={week.index} value={week.index}>
+                  Tuần {week.index + 1} ({formatDate(week.start).slice(0, 5)} –{" "}
+                  {formatDate(week.end).slice(0, 5)})
+                </option>
+              ))}
+            </select>
+          </label>
+
           <button
             type="button"
             onClick={handleCapture}
@@ -218,8 +299,7 @@ export default function WeeklyScheduleTab({
             </h2>
 
             <p className="mt-2 text-lg font-semibold text-slate-700">
-              KỲ CÔNG: {formatDate(monthlyDays[0])} –{" "}
-              {formatDate(monthlyDays[monthlyDays.length - 1])}
+              {visibleLabel}
             </p>
           </div>
 
@@ -246,7 +326,7 @@ export default function WeeklyScheduleTab({
                   <col style={{ width: NAME_WIDTH }} />
                   <col style={{ width: POSITION_WIDTH }} />
 
-                  {monthlyDays.map((day) => (
+                  {visibleDays.map((day) => (
                     <col
                       key={day}
                       style={{ width: DAY_WIDTH }}
@@ -292,7 +372,7 @@ export default function WeeklyScheduleTab({
                       CHỨC VỤ
                     </th>
 
-                    {monthlyDays.map((day) => (
+                    {visibleDays.map((day) => (
                       <th
                         key={day}
                         className={stickyDayHeader}
@@ -307,7 +387,7 @@ export default function WeeklyScheduleTab({
                   </tr>
 
                   <tr>
-                    {monthlyDays.map((day) => {
+                    {visibleDays.map((day) => {
                       const weekday = dateWeekday(day);
 
                       return (
@@ -366,7 +446,7 @@ export default function WeeklyScheduleTab({
                           ""}
                       </td>
 
-                      {monthlyDays.map((day) => {
+                      {visibleDays.map((day) => {
                         const record = attendance.dailyRecords?.find(
                           (item) => item.date === day,
                         );
