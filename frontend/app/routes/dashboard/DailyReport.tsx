@@ -1504,11 +1504,11 @@ const DailyReport = () => {
       return acc;
     }, {} as Record<string, number>);
 
-    const avgGuestValues = dates.reduce((acc, date) => {
+        const avgGuestValues = dates.reduce((acc, date) => {
       const r = sorted.find(x => x.date === date);
       const gross = calculateTotalGross(r || {});
       const guest = Number(r?.guestCount) || 0;
-      acc[date] = guest > 0 ? gross / guest : 0;
+      acc[date] = guest > 0 ? Math.round(gross / guest) : 0; // <-- Thêm Math.round()
       return acc;
     }, {} as Record<string, number>);
 
@@ -1520,7 +1520,7 @@ const DailyReport = () => {
       avgGuestValues,
       hasData: sorted.length > 0,
       monthGuest: totals.guest,
-      monthAvgGuest: totals.guest > 0 ? totals.totalGross / totals.guest : 0,
+            monthAvgGuest: totals.guest > 0 ? Math.round(totals.totalGross / totals.guest) : 0, // <-- Thêm Math.round()
       monthPreTax: totals.preTax,
       monthGross: totals.totalGross,
       filteredDays: sorted.length
@@ -2253,12 +2253,12 @@ const DailyReport = () => {
                       </TableCell>
                       {dailyReportData.dates.map(dateStr => (
                         <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#1761D2] font-bold text-xl sm:text-2xl whitespace-nowrap">
-                          {formatCurrency(dailyReportData.avgGuestValues[dateStr]) || "0 ₫"}
-                        </TableCell>
+  {formatAvgGuest(dailyReportData.avgGuestValues[dateStr]) || "0 ₫"}
+</TableCell>
                       ))}
                       <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#168653] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
-                        {formatCurrency(dailyReportData.monthAvgGuest) || "0 ₫"}
-                      </TableCell>
+  {formatAvgGuest(dailyReportData.monthAvgGuest) || "0 ₫"}
+</TableCell>
                     </TableRow>
 
                     {/* Doanh thu đồ ăn */}
