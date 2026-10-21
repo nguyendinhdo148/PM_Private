@@ -74,10 +74,15 @@ export const createCommissionBill = async (req, res) => {
 // [READ ALL] Lấy danh sách toàn bộ lịch sử Bill (Hỗ trợ lọc)
 export const getAllCommissionBills = async (req, res) => {
   try {
-    const { month } = req.query; 
+    const { month, from, to } = req.query;
     let query = {};
     
-    if (month) {
+    if (from || to) {
+      const dateRange = {};
+      if (from) dateRange.$gte = from;
+      if (to) dateRange.$lte = to;
+      query.date = dateRange;
+    } else if (month) {
       query.date = { $regex: `^${month}` }; 
     }
 

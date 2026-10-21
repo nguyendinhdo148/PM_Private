@@ -9,6 +9,7 @@ import { Select as SelectUI, SelectContent, SelectItem, SelectTrigger, SelectVal
 import { Save, GlassWater, Search, Calendar, RefreshCcw, Minus, Plus, Trash2, User, FileText, Wine, Edit3, XCircle, CheckCircle2, PlusCircle, ArrowUpDown, X, ChevronDown, ChevronUp, ReceiptText } from "lucide-react";
 import { fetchData, postData, updateData, deleteData } from "@/lib/fetch-util";
 
+// ===== DÁN LẠI MẢNG wineData CỦA BẠN VÀO ĐÂY =====
 const wineData = [
   {"id": "W22", "name": "RƯỢU MAKER'S MARK", "price": 2000000, "unit": "CHAI/BOTTLE", "code": "MXRINK80"},
   {"id": "W49", "name": "RƯỢU JOHNNIE WALKER BLUE LABEL", "price": 8000000, "unit": "CHAI/BOTTLE", "code": "MXRINK68"},
@@ -186,6 +187,7 @@ const wineData = [
   {"id": "W104", "name": "RƯỢU CHAMPAGNE G.H Mumm Grand Cordon", "price": 2800000, "unit": "CHAI/BOTTLE", "code": "MXRINK144"},
   {"id": "W67", "name": "RƯỢU Chateau Rouget, Pomerol, Bordeaux Blend", "price": 4500000, "unit": "CHAI/BOTTLE", "code": "MXRINK114"}
 ];
+// ==================================================
 
 const resolveUnit = (item: any) => {
   const staticWine = wineData.find(w => w.id === item.wineId);
@@ -197,18 +199,25 @@ const resolveUnit = (item: any) => {
 const isGlassUnit = (unit?: string) => !!unit && /ly|glass/i.test(unit);
 const isBottleUnit = (unit?: string) => !!unit && /chai|bottle/i.test(unit);
 
+const formatDateVN = (d: string) => d ? d.split("-").reverse().join("/") : "—";
+
 export default function WineCommissionPage() {
   const monthPickerRef = useRef<HTMLInputElement>(null);
 
   const [masterStaff, setMasterStaff] = useState<any[]>([]);
   const [bills, setBills] = useState<any[]>([]);
-  
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+
+  // ===== LỌC THEO KHOẢNG NGÀY =====
+  const [dateFrom, setDateFrom] = useState(() => {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    return `${year}-${month}`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   });
+  const [dateTo, setDateTo] = useState(() => {
+    const now = new Date();
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+  });
+
   const [isLoading, setIsLoading] = useState(false);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
@@ -226,15 +235,22 @@ export default function WineCommissionPage() {
   const [customWinePrice, setCustomWinePrice] = useState("");
   const [customWineUnit, setCustomWineUnit] = useState<"CHAI/BOTTLE" | "LY/GLASS" | "KHÁC">("CHAI/BOTTLE");
 
-  // State để lưu trạng thái đóng/mở chi tiết của từng nhân viên
   const [expandedStaff, setExpandedStaff] = useState<Record<string, boolean>>({});
+
+  // Tự đảo nếu from > to
+  useEffect(() => {
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      setDateFrom(dateTo);
+      setDateTo(dateFrom);
+    }
+  }, [dateFrom, dateTo]);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
       const [staffRes, billsRes]: [any, any] = await Promise.all([
         fetchData("/staff"),
-        fetchData(`/wine-commission?month=${selectedMonth}`)
+        fetchData(`/wine-commission?from=${dateFrom}&to=${dateTo}`)
       ]);
       setMasterStaff((staffRes.data || staffRes || []).filter((s: any) => s.department === "FOH"));
       setBills(billsRes.data || billsRes || []);
@@ -242,7 +258,7 @@ export default function WineCommissionPage() {
     finally { setIsLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, [selectedMonth]);
+  useEffect(() => { loadData(); }, [dateFrom, dateTo]);
 
   const currentCalculations = useMemo(() => {
     let total = 0; let hasVip = false;
@@ -277,7 +293,7 @@ export default function WineCommissionPage() {
         unit: wine.unit || "CHAI/BOTTLE",
       }]);
     }
-    setWineSearch(""); 
+    setWineSearch("");
     setShowWineDropdown(false);
     setShowAddCustom(false);
   };
@@ -327,14 +343,15 @@ export default function WineCommissionPage() {
     }
   };
 
-  const handleDeleteMonth = async () => {
-    if (!window.confirm(`NGUY HIỂM: Bạn có chắc muốn xóa TOÀN BỘ bill của tháng ${selectedMonth}?`)) return;
+  // ===== XÓA THEO KHOẢNG NGÀY =====
+  const handleDeleteRange = async () => {
+    if (!window.confirm(`NGUY HIỂM: Bạn có chắc muốn xóa TOÀN BỘ bill từ ${formatDateVN(dateFrom)} đến ${formatDateVN(dateTo)}?`)) return;
     try {
-      await deleteData(`/wine-commission/month/${selectedMonth}`);
+      await deleteData(`/wine-commission/range?from=${dateFrom}&to=${dateTo}`);
       loadData();
-      alert("Đã xóa toàn bộ bill trong tháng!");
+      alert("Đã xóa toàn bộ bill trong khoảng!");
     } catch (error) {
-      alert("Lỗi khi xóa tháng!");
+      alert("Lỗi khi xóa khoảng!");
     }
   };
 
@@ -366,12 +383,11 @@ export default function WineCommissionPage() {
     setShowAddCustom(false);
   };
 
-  // === TÍNH TOÁN TỔNG HỢP CHI TIẾT ===
   const staffSummary = useMemo(() => {
-    const map: Record<string, { 
-      comm: number; 
-      bottles: number; 
-      glasses: number; 
+    const map: Record<string, {
+      comm: number;
+      bottles: number;
+      glasses: number;
       other: number;
       totalRevenue: number;
       itemDetails: Record<string, { name: string; unit: string; price: number; quantity: number; total: number }>;
@@ -381,7 +397,7 @@ export default function WineCommissionPage() {
       if (!map[b.staffName]) {
         map[b.staffName] = { comm: 0, bottles: 0, glasses: 0, other: 0, totalRevenue: 0, itemDetails: {} };
       }
-      
+
       map[b.staffName].comm += b.commissionEarned;
       map[b.staffName].totalRevenue += b.totalBillAmount;
 
@@ -391,7 +407,6 @@ export default function WineCommissionPage() {
         else if (isBottleUnit(u)) map[b.staffName].bottles += i.quantity;
         else map[b.staffName].other += i.quantity;
 
-        // Gom nhóm theo mã món để tính tổng số lượng bán ra của món đó
         const key = i.wineId;
         if (!map[b.staffName].itemDetails[key]) {
           map[b.staffName].itemDetails[key] = {
@@ -408,10 +423,10 @@ export default function WineCommissionPage() {
     });
 
     const list = Object.entries(map)
-      .map(([name, data]) => ({ 
-        name, 
+      .map(([name, data]) => ({
+        name,
         ...data,
-        detailsArray: Object.values(data.itemDetails).sort((a, b) => b.total - a.total) 
+        detailsArray: Object.values(data.itemDetails).sort((a, b) => b.total - a.total)
       }))
       .filter(i => i.comm > 0)
       .sort((a, b) => b.comm - a.comm);
@@ -447,9 +462,9 @@ export default function WineCommissionPage() {
   return (
     <div className="h-full overflow-auto bg-slate-50 p-2 sm:p-6 text-sm font-sans">
       <div className="max-w-[1400px] mx-auto space-y-4 pb-10">
-        
+
         {/* TOP HEADER */}
-        <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-3 rounded-xl shadow-xs border border-slate-200">
+        <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-3 rounded-xl shadow-xs border border-slate-200 gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
               <GlassWater className="w-5 h-5"/>
@@ -459,39 +474,56 @@ export default function WineCommissionPage() {
               <p className="text-xs text-slate-500 font-medium">Quản lý & Thống kê Commission FOH</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-5 mt-5 sm:mt-0">
-            <div className="relative bg-slate-100 px-4 py-2 rounded-lg flex items-center gap-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition w-48 overflow-hidden group">
+
+          <div className="flex items-center gap-3 flex-wrap justify-center">
+            {/* Picker TỪ NGÀY */}
+            <div className="relative bg-slate-100 px-3 py-2 rounded-lg flex items-center gap-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition overflow-hidden group">
               <Calendar className="w-4 h-4 text-slate-500 z-10 pointer-events-none group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-semibold text-blue-700 z-10 pointer-events-none">
-                {selectedMonth
-                  ? `Tháng ${selectedMonth.split("-")[1]} / ${selectedMonth.split("-")[0]}`
-                  : "Chọn tháng"}
+              <span className="text-[11px] font-bold text-slate-500 uppercase z-10 pointer-events-none">Từ</span>
+              <span className="text-sm font-semibold text-blue-700 z-10 pointer-events-none whitespace-nowrap">
+                {formatDateVN(dateFrom)}
               </span>
-              <input 
-                type="month" 
-                value={selectedMonth} 
-                onChange={(e) => setSelectedMonth(e.target.value)} 
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
               />
             </div>
 
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={loadData} 
+            <span className="text-slate-400 font-bold">→</span>
+
+            {/* Picker ĐẾN NGÀY */}
+            <div className="relative bg-slate-100 px-3 py-2 rounded-lg flex items-center gap-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition overflow-hidden group">
+              <Calendar className="w-4 h-4 text-slate-500 z-10 pointer-events-none group-hover:text-blue-600 transition-colors" />
+              <span className="text-[11px] font-bold text-slate-500 uppercase z-10 pointer-events-none">Đến</span>
+              <span className="text-sm font-semibold text-blue-700 z-10 pointer-events-none whitespace-nowrap">
+                {formatDateVN(dateTo)}
+              </span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={loadData}
               className="h-9 w-9 text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
             >
               <RefreshCcw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}/>
             </Button>
 
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              onClick={handleDeleteMonth} 
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteRange}
               className="h-9 font-semibold shadow-sm"
             >
-              <Trash2 className="w-4 h-4 mr-1.5"/> Xóa Tháng
+              <Trash2 className="w-4 h-4 mr-1.5"/> Xóa Khoảng
             </Button>
           </div>
         </div>
@@ -508,7 +540,7 @@ export default function WineCommissionPage() {
 
           <TabsContent value="manage" className="space-y-4 m-0">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              
+
               {/* FORM NHẬP BILL */}
               <div className="lg:col-span-4 flex flex-col gap-4">
                 <Card className={`shadow-md border-0 ring-1 ${editId ? 'ring-amber-400 bg-amber-50/10' : 'ring-slate-200 bg-white'} transition-all`}>
@@ -522,7 +554,7 @@ export default function WineCommissionPage() {
                       </Button>
                     )}
                   </CardHeader>
-                  
+
                   <CardContent className="p-4 space-y-5">
                     {/* Thông tin cơ bản */}
                     <div className="space-y-3">
@@ -556,22 +588,22 @@ export default function WineCommissionPage() {
                       </label>
                       <div className="relative w-full shadow-sm rounded-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
-                        <Input 
-                          placeholder="Gõ tên rượu (Bấm để thêm ngay vào bill)..." 
-                          value={wineSearch} 
-                          onFocus={() => setShowWineDropdown(true)} 
-                          onBlur={() => setTimeout(() => setShowWineDropdown(false), 200)} 
-                          onChange={e => setWineSearch(e.target.value)} 
-                          className="h-10 pl-9 text-sm font-medium border-blue-200 bg-white focus:border-blue-500 focus:ring-blue-500/30 transition-all placeholder:text-slate-400" 
+                        <Input
+                          placeholder="Gõ tên rượu (Bấm để thêm ngay vào bill)..."
+                          value={wineSearch}
+                          onFocus={() => setShowWineDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowWineDropdown(false), 200)}
+                          onChange={e => setWineSearch(e.target.value)}
+                          className="h-10 pl-9 text-sm font-medium border-blue-200 bg-white focus:border-blue-500 focus:ring-blue-500/30 transition-all placeholder:text-slate-400"
                         />
-                        
+
                         {showWineDropdown && (
                           <div className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 max-h-64 overflow-y-auto overscroll-contain">
                             <div className="divide-y divide-slate-100">
                               {filteredWines.map(w => (
-                                <div 
-                                  key={w.id} 
-                                  onMouseDown={(e) => { e.preventDefault(); handleSelectWine(w); }} 
+                                <div
+                                  key={w.id}
+                                  onMouseDown={(e) => { e.preventDefault(); handleSelectWine(w); }}
                                   className="p-2.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center gap-2 group transition-colors"
                                 >
                                   <div className="flex-1 min-w-0">
@@ -590,7 +622,7 @@ export default function WineCommissionPage() {
                                 </div>
                               )}
                             </div>
-                            
+
                             <div className="p-2 bg-amber-50 border-t-2 border-amber-200 sticky bottom-0">
                               <button
                                 onMouseDown={(e) => { e.preventDefault(); setShowAddCustom(true); if (wineSearch.trim()) setCustomWineName(wineSearch.trim()); setShowWineDropdown(false); }}
@@ -617,7 +649,7 @@ export default function WineCommissionPage() {
                               <X className="w-4 h-4"/>
                             </button>
                           </div>
-                          
+
                           <div className="space-y-2.5">
                             <div>
                               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Tên món *</label>
@@ -653,7 +685,7 @@ export default function WineCommissionPage() {
                                 </SelectUI>
                               </div>
                             </div>
-                            
+
                             {customWineName.trim() && customWinePrice && (
                               <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 text-xs">
                                 <div className="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Xem trước:</div>
@@ -682,7 +714,7 @@ export default function WineCommissionPage() {
                           <span>Sản phẩm</span>
                           <span className="w-24 text-center">Số lượng</span>
                         </div>
-                        
+
                         <div className="p-1.5 flex-1 min-h-[120px] max-h-[220px] overflow-y-auto bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]">
                           {billItems.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-slate-400 py-6 gap-2">
@@ -707,17 +739,17 @@ export default function WineCommissionPage() {
                                         x {formatVND(item.price)} • <span className="text-blue-600 font-bold">{getUnitLabel(displayUnit)}</span>
                                       </span>
                                     </div>
-                                    
+
                                     <div className="flex items-center bg-slate-100 rounded-md p-1 border border-slate-200 shadow-inner group-hover:bg-white group-hover:border-blue-200 transition-colors">
-                                      <button 
-                                        onClick={() => handleChangeItemQty(idx, -1)} 
+                                      <button
+                                        onClick={() => handleChangeItemQty(idx, -1)}
                                         className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 active:scale-95 transition-all text-slate-600"
                                       >
                                         <Minus className="w-3 h-3 stroke-[3]"/>
                                       </button>
                                       <span className="w-7 text-center font-bold text-slate-700">{item.quantity}</span>
-                                      <button 
-                                        onClick={() => handleChangeItemQty(idx, 1)} 
+                                      <button
+                                        onClick={() => handleChangeItemQty(idx, 1)}
                                         className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm border border-slate-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200 active:scale-95 transition-all text-slate-600"
                                       >
                                         <Plus className="w-3 h-3 stroke-[3]"/>
@@ -763,16 +795,19 @@ export default function WineCommissionPage() {
               {/* LỊCH SỬ CHI TIẾT */}
               <div className="lg:col-span-8 flex flex-col">
                 <Card className="shadow-md border-0 ring-1 ring-slate-200 bg-white overflow-hidden rounded-xl">
-                  <div className="bg-slate-50/80 px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-widest flex justify-between border-b border-slate-100 items-center">
-                    <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-blue-500"/> LỊCH SỬ THÁNG {selectedMonth}</span>
+                  <div className="bg-slate-50/80 px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-widest flex justify-between border-b border-slate-100 items-center gap-2 flex-wrap">
+                    <span className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-500"/>
+                      LỊCH SỬ: {formatDateVN(dateFrom)} → {formatDateVN(dateTo)}
+                    </span>
                     <Badge variant="outline" className="bg-white border-slate-200 font-bold">{bills.length} BILL ĐÃ NHẬP</Badge>
                   </div>
-                  
+
                   <div className="w-full overflow-x-auto">
                     <Table>
                       <TableHeader className="bg-slate-50/90 backdrop-blur-md sticky top-0 z-10 shadow-xs">
                         <TableRow className="border-b-slate-200">
-                          <TableHead 
+                          <TableHead
                             className="w-[90px] p-3 text-[10px] font-bold uppercase text-slate-500 cursor-pointer hover:bg-slate-200 transition-colors"
                             onClick={toggleSortOrder}
                           >
@@ -793,12 +828,12 @@ export default function WineCommissionPage() {
                             <TableCell colSpan={6} className="text-center py-20 text-slate-400 bg-slate-50/30">
                               <div className="flex flex-col items-center gap-3">
                                 <FileText className="w-8 h-8 opacity-20"/>
-                                <span className="font-semibold text-sm">Tháng này chưa có dữ liệu.</span>
+                                <span className="font-semibold text-sm">Khoảng ngày này chưa có dữ liệu.</span>
                                 <span className="text-xs opacity-70">Hãy nhập bill mới ở form bên trái.</span>
                               </div>
                             </TableCell>
                           </TableRow>
-                        ) : 
+                        ) :
                           sortedBills.map(b => (
                             <TableRow key={b._id} className={`hover:bg-slate-50 group border-b-slate-100 transition-colors ${editId === b._id ? 'bg-amber-50/50 hover:bg-amber-50' : ''}`}>
                               <TableCell className="p-3 text-[11px] font-medium text-slate-600">{b.date.split('-')[2]}/{b.date.split('-')[1]}</TableCell>
@@ -847,7 +882,7 @@ export default function WineCommissionPage() {
           </TabsContent>
 
           {/* ========================================= */}
-          {/* TAB TỔNG HỢP COMMISSION (ĐÃ NÂNG CẤP)      */}
+          {/* TAB TỔNG HỢP COMMISSION                    */}
           {/* ========================================= */}
           <TabsContent value="summary" className="m-0 pt-2">
             <Card className="shadow-xl border-0 ring-1 ring-slate-200 max-w-[1000px] mx-auto overflow-hidden rounded-2xl bg-white">
@@ -859,19 +894,19 @@ export default function WineCommissionPage() {
                   <div>
                     <h3 className="font-black text-lg tracking-wider uppercase text-white drop-shadow-md">TỔNG HỢP HOA HỒNG</h3>
                     <p className="text-[11px] text-blue-200 font-medium uppercase tracking-widest mt-0.5 opacity-80">
-                      Báo Cáo Tháng {selectedMonth}
+                      Báo Cáo {formatDateVN(dateFrom)} → {formatDateVN(dateTo)}
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="md:text-right bg-black/20 p-3 rounded-xl border border-white/10 backdrop-blur-md">
-                  <span className="text-[10px] block opacity-70 uppercase font-black tracking-widest text-indigo-200">TỔNG CHI THƯỞNG THÁNG NÀY:</span>
+                  <span className="text-[10px] block opacity-70 uppercase font-black tracking-widest text-indigo-200">TỔNG CHI THƯỞNG KỲ NÀY:</span>
                   <span className="text-3xl font-black text-amber-400 drop-shadow-lg tracking-tighter">
                     {formatVND(staffSummary.totalAllComm)}
                   </span>
                 </div>
               </div>
-              
+
               <Table>
                 <TableHeader className="bg-slate-50 border-b border-slate-200">
                   <TableRow>
@@ -889,7 +924,7 @@ export default function WineCommissionPage() {
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-24 text-slate-400 bg-slate-50/50">
                         <Wine className="w-10 h-10 mx-auto mb-3 opacity-20"/>
-                        <span className="font-bold">Không có nhân sự nào nhận hoa hồng tháng này.</span>
+                        <span className="font-bold">Không có nhân sự nào nhận hoa hồng trong kỳ này.</span>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -932,9 +967,9 @@ export default function WineCommissionPage() {
                               {formatVND(item.comm)}
                             </TableCell>
                             <TableCell className="text-center py-4">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => toggleExpand(item.name)}
                                 className={`h-8 px-2 text-[11px] font-bold border transition-colors ${isExpanded ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                               >
@@ -943,7 +978,6 @@ export default function WineCommissionPage() {
                             </TableCell>
                           </TableRow>
 
-                          {/* Dòng hiển thị chi tiết khi expand */}
                           {isExpanded && (
                             <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b-2 border-slate-200">
                               <TableCell colSpan={7} className="p-0">
