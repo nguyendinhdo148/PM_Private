@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select as SelectUI, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, GlassWater, Search, Calendar, RefreshCcw, Minus, Plus, Trash2, User, FileText, Wine, Edit3, XCircle, CheckCircle2, PlusCircle, ArrowUpDown, X, ChevronDown, ChevronUp, ReceiptText } from "lucide-react";
+import { Save, GlassWater, Search, Calendar, RefreshCcw, Minus, Plus, Trash2, User, FileText, Wine, Edit3, XCircle, CheckCircle2, PlusCircle, ArrowUpDown, X, ChevronDown, ChevronUp, ReceiptText, Camera } from "lucide-react";
 import { fetchData, postData, updateData, deleteData } from "@/lib/fetch-util";
+import html2canvas from 'html2canvas-pro';
 
 // ===== DÁN LẠI MẢNG wineData CỦA BẠN VÀO ĐÂY =====
 const wineData = [
@@ -202,7 +203,8 @@ const isBottleUnit = (unit?: string) => !!unit && /chai|bottle/i.test(unit);
 const formatDateVN = (d: string) => d ? d.split("-").reverse().join("/") : "—";
 
 export default function WineCommissionPage() {
-  const monthPickerRef = useRef<HTMLInputElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const [masterStaff, setMasterStaff] = useState<any[]>([]);
   const [bills, setBills] = useState<any[]>([]);
@@ -383,6 +385,7 @@ export default function WineCommissionPage() {
     setShowAddCustom(false);
   };
 
+  // === TÍNH TOÁN TỔNG HỢP CHI TIẾT ===
   const staffSummary = useMemo(() => {
     const map: Record<string, {
       comm: number;
@@ -390,7 +393,14 @@ export default function WineCommissionPage() {
       glasses: number;
       other: number;
       totalRevenue: number;
-      itemDetails: Record<string, { name: string; unit: string; price: number; quantity: number; total: number }>;
+      itemDetails: Record<string, {
+        name: string;
+        unit: string;
+        price: number;
+        quantity: number;
+        total: number;
+        bills: Array<{ billId: string; date: string; customerName: string; quantity: number; }>;
+      }>;
     }> = {};
 
     bills.forEach(b => {
@@ -414,11 +424,26 @@ export default function WineCommissionPage() {
             unit: u,
             price: i.price,
             quantity: 0,
-            total: 0
+            total: 0,
+            bills: []
           };
         }
-        map[b.staffName].itemDetails[key].quantity += i.quantity;
-        map[b.staffName].itemDetails[key].total += (i.price * i.quantity);
+        
+        const detail = map[b.staffName].itemDetails[key];
+        detail.quantity += i.quantity;
+        detail.total += (i.price * i.quantity);
+
+        const existingBillIdx = detail.bills.findIndex(bi => bi.billId === b._id);
+        if (existingBillIdx >= 0) {
+          detail.bills[existingBillIdx].quantity += i.quantity;
+        } else {
+          detail.bills.push({
+            billId: b._id,
+            date: b.date,
+            customerName: b.customerName || "Khách lẻ",
+            quantity: i.quantity
+          });
+        }
       });
     });
 
@@ -459,9 +484,43 @@ export default function WineCommissionPage() {
     return unit || "—";
   };
 
+  // ===== HÀM CHỤP ẢNH BẢNG TỔNG HỢP =====
+  const handleCaptureSummary = async () => {
+    if (!summaryRef.current) return;
+    setIsCapturing(true);
+    await new Promise(r => setTimeout(r, 100));
+
+    try {
+      const captureWidth = Math.ceil(summaryRef.current.getBoundingClientRect().width);
+
+      const canvas = await html2canvas(summaryRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        width: captureWidth,
+        windowWidth: window.innerWidth,
+        windowHeight: summaryRef.current.scrollHeight,
+      });
+
+      const image = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = image;
+      link.download = `Tong_Hop_Hoa_Hong_${formatDateVN(dateFrom).replace(/\//g, '-')}_${formatDateVN(dateTo).replace(/\//g, '-')}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Lỗi khi chụp ảnh:", error);
+      alert("❌ Có lỗi xảy ra khi chụp ảnh!");
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
   return (
     <div className="h-full overflow-auto bg-slate-50 p-2 sm:p-6 text-sm font-sans">
-      <div className="max-w-[1400px] mx-auto space-y-4 pb-10">
+      <div className="w-full max-w-[1400px] mx-auto space-y-3 pb-4">
 
         {/* TOP HEADER */}
         <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-3 rounded-xl shadow-xs border border-slate-200 gap-3">
@@ -476,7 +535,6 @@ export default function WineCommissionPage() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap justify-center">
-            {/* Picker TỪ NGÀY */}
             <div className="relative bg-slate-100 px-3 py-2 rounded-lg flex items-center gap-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition overflow-hidden group">
               <Calendar className="w-4 h-4 text-slate-500 z-10 pointer-events-none group-hover:text-blue-600 transition-colors" />
               <span className="text-[11px] font-bold text-slate-500 uppercase z-10 pointer-events-none">Từ</span>
@@ -493,7 +551,6 @@ export default function WineCommissionPage() {
 
             <span className="text-slate-400 font-bold">→</span>
 
-            {/* Picker ĐẾN NGÀY */}
             <div className="relative bg-slate-100 px-3 py-2 rounded-lg flex items-center gap-2 border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition overflow-hidden group">
               <Calendar className="w-4 h-4 text-slate-500 z-10 pointer-events-none group-hover:text-blue-600 transition-colors" />
               <span className="text-[11px] font-bold text-slate-500 uppercase z-10 pointer-events-none">Đến</span>
@@ -556,7 +613,6 @@ export default function WineCommissionPage() {
                   </CardHeader>
 
                   <CardContent className="p-4 space-y-5">
-                    {/* Thông tin cơ bản */}
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
@@ -581,7 +637,6 @@ export default function WineCommissionPage() {
                       </div>
                     </div>
 
-                    {/* Tìm & Thêm Rượu */}
                     <div className="bg-blue-50/40 p-3.5 rounded-xl border border-blue-100 space-y-2.5 relative">
                       <label className="text-[11px] font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                         <Wine className="w-3.5 h-3.5"/> Chọn Rượu Của Khách
@@ -635,7 +690,6 @@ export default function WineCommissionPage() {
                         )}
                       </div>
 
-                      {/* Form thêm món mới thủ công */}
                       {showAddCustom && (
                         <div className="bg-white border-2 border-amber-300 rounded-xl p-3.5 space-y-3 shadow-md">
                           <div className="flex items-center justify-between pb-2 border-b border-amber-200">
@@ -708,7 +762,6 @@ export default function WineCommissionPage() {
                         </div>
                       )}
 
-                      {/* Giỏ Hàng */}
                       <div className="mt-3 bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden flex flex-col">
                         <div className="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 flex justify-between border-b border-slate-100 uppercase tracking-widest">
                           <span>Sản phẩm</span>
@@ -764,7 +817,6 @@ export default function WineCommissionPage() {
                       </div>
                     </div>
 
-                    {/* TỔNG KẾT FORM */}
                     <div className="bg-linear-to-br from-slate-900 to-indigo-950 text-white p-4 rounded-xl shadow-lg border border-indigo-800">
                       <div className="flex justify-between text-xs opacity-80 mb-2 border-b border-indigo-800/50 pb-2">
                         <span className="font-medium tracking-wide uppercase">Tổng Tiền Rượu:</span>
@@ -885,146 +937,175 @@ export default function WineCommissionPage() {
           {/* TAB TỔNG HỢP COMMISSION                    */}
           {/* ========================================= */}
           <TabsContent value="summary" className="m-0 pt-2">
-            <Card className="shadow-xl border-0 ring-1 ring-slate-200 max-w-[1000px] mx-auto overflow-hidden rounded-2xl bg-white">
-              <div className="p-5 bg-linear-to-r from-blue-900 to-indigo-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex justify-end mb-3">
+              <Button 
+                onClick={handleCaptureSummary}
+                disabled={isCapturing || staffSummary.list.length === 0}
+                className="bg-sky-600 hover:bg-sky-500 text-white shadow-sm gap-2"
+              >
+                <Camera className="w-4 h-4" />
+                {isCapturing ? "Đang chụp..." : "Chụp ảnh bảng"}
+              </Button>
+            </div>
+
+            <Card ref={summaryRef} className="shadow-xl border-0 ring-1 ring-slate-200 w-full min-w-0 rounded-xl bg-white overflow-hidden">
+              <div className="p-3 sm:p-4 bg-linear-to-r from-blue-900 to-indigo-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
+                  <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm border border-white/10">
                     <CheckCircle2 className="w-6 h-6 text-blue-200" />
                   </div>
                   <div>
+                    {/* Tăng nhẹ font size để nét hơn khi chụp */}
                     <h3 className="font-black text-lg tracking-wider uppercase text-white drop-shadow-md">TỔNG HỢP HOA HỒNG</h3>
-                    <p className="text-[11px] text-blue-200 font-medium uppercase tracking-widest mt-0.5 opacity-80">
+                    <p className="text-xs text-blue-200 font-medium uppercase tracking-widest mt-0.5 opacity-80">
                       Báo Cáo {formatDateVN(dateFrom)} → {formatDateVN(dateTo)}
                     </p>
                   </div>
                 </div>
 
-                <div className="md:text-right bg-black/20 p-3 rounded-xl border border-white/10 backdrop-blur-md">
-                  <span className="text-[10px] block opacity-70 uppercase font-black tracking-widest text-indigo-200">TỔNG CHI THƯỞNG KỲ NÀY:</span>
-                  <span className="text-3xl font-black text-amber-400 drop-shadow-lg tracking-tighter">
+                <div className="md:text-right bg-black/20 p-2 rounded-lg border border-white/10 backdrop-blur-md">
+                  <span className="text-[11px] block opacity-70 uppercase font-black tracking-widest text-indigo-200">TỔNG CHI THƯỞNG KỲ NÀY:</span>
+                  <span className="text-2xl font-black text-amber-400 drop-shadow-lg tracking-tighter">
                     {formatVND(staffSummary.totalAllComm)}
                   </span>
                 </div>
               </div>
 
-              <Table>
-                <TableHeader className="bg-slate-50 border-b border-slate-200">
-                  <TableRow>
-                    <TableHead className="font-black text-slate-500 uppercase tracking-widest text-xs py-4 pl-6 w-[250px]">Thành Viên FOH</TableHead>
-                    <TableHead className="text-center font-black text-slate-500 uppercase tracking-widest text-xs py-4 w-[90px]">Chai</TableHead>
-                    <TableHead className="text-center font-black text-slate-500 uppercase tracking-widest text-xs py-4 w-[90px]">Ly (Glass)</TableHead>
-                    <TableHead className="text-center font-black text-slate-500 uppercase tracking-widest text-xs py-4 w-[90px]">Khác</TableHead>
-                    <TableHead className="text-right font-black text-slate-500 uppercase tracking-widest text-xs py-4">Doanh Thu</TableHead>
-                    <TableHead className="text-right font-black text-blue-700 uppercase tracking-widest text-xs py-4 pr-6">Hoa Hồng</TableHead>
-                    <TableHead className="text-center font-black text-slate-500 uppercase tracking-widest text-xs py-4 w-[100px]">Hành động</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {staffSummary.list.length === 0 ? (
+              <div className="w-full">
+                <Table className="w-full">
+                  <TableHeader className="bg-slate-50 border-b border-slate-200">
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-24 text-slate-400 bg-slate-50/50">
-                        <Wine className="w-10 h-10 mx-auto mb-3 opacity-20"/>
-                        <span className="font-bold">Không có nhân sự nào nhận hoa hồng trong kỳ này.</span>
-                      </TableCell>
+                      <TableHead className="font-black text-slate-500 uppercase tracking-widest text-[11px] py-2.5 pl-4 w-[210px]">Thành Viên FOH</TableHead>
+                      <TableHead className="text-center font-black text-slate-500 uppercase tracking-widest text-[11px] py-2.5 w-[75px]">Chai</TableHead>
+                      <TableHead className="text-center font-black text-slate-500 uppercase tracking-widest text-[11px] py-2.5 w-[75px]">Ly (Glass)</TableHead>
+                      <TableHead className="text-center font-black text-slate-500 uppercase tracking-widest text-[11px] py-2.5 w-[75px]">Khác</TableHead>
+                      <TableHead className="text-right font-black text-slate-500 uppercase tracking-widest text-[11px] py-2.5">Doanh Thu</TableHead>
+                      <TableHead className="text-right font-black text-blue-700 uppercase tracking-widest text-[11px] py-2.5 pr-4">Hoa Hồng</TableHead>
+                      <TableHead className="text-center font-black text-slate-500 uppercase tracking-widest text-[11px] py-2.5 w-[90px]">Hành động</TableHead>
                     </TableRow>
-                  ) : (
-                    staffSummary.list.map((item, idx) => {
-                      const isExpanded = expandedStaff[item.name];
-                      return (
-                        <React.Fragment key={idx}>
-                          <TableRow className={`hover:bg-blue-50/50 border-b border-slate-100 transition-colors ${isExpanded ? 'bg-blue-50/30' : ''}`}>
-                            <TableCell className="font-bold text-slate-800 text-sm pl-6 py-4 flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-black border border-blue-200 shrink-0">
-                                {item.name.charAt(0)}
-                              </div>
-                              {item.name}
-                            </TableCell>
-                            <TableCell className="text-center py-4">
-                              {item.bottles > 0 ? (
-                                <Badge variant="secondary" className="font-bold text-xs bg-blue-50 text-blue-700 border-blue-200 px-3 py-1 shadow-xs">
-                                  {item.bottles} chai
-                                </Badge>
-                              ) : <span className="text-slate-300 text-xs">—</span>}
-                            </TableCell>
-                            <TableCell className="text-center py-4">
-                              {item.glasses > 0 ? (
-                                <Badge variant="secondary" className="font-bold text-xs bg-amber-50 text-amber-700 border-amber-200 px-3 py-1 shadow-xs">
-                                  {item.glasses} ly
-                                </Badge>
-                              ) : <span className="text-slate-300 text-xs">—</span>}
-                            </TableCell>
-                            <TableCell className="text-center py-4">
-                              {item.other > 0 ? (
-                                <Badge variant="secondary" className="font-bold text-xs bg-slate-100 text-slate-600 border-slate-200 px-3 py-1 shadow-xs">
-                                  {item.other}
-                                </Badge>
-                              ) : <span className="text-slate-300 text-xs">—</span>}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold text-slate-600 text-xs">
-                              {formatVND(item.totalRevenue)}
-                            </TableCell>
-                            <TableCell className="text-right font-black text-emerald-600 text-lg pr-6 py-4">
-                              {formatVND(item.comm)}
-                            </TableCell>
-                            <TableCell className="text-center py-4">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleExpand(item.name)}
-                                className={`h-8 px-2 text-[11px] font-bold border transition-colors ${isExpanded ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                              >
-                                {isExpanded ? <><ChevronUp className="w-3.5 h-3.5 mr-1"/> Ẩn</> : <><ChevronDown className="w-3.5 h-3.5 mr-1"/> Chi tiết</>}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-
-                          {isExpanded && (
-                            <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b-2 border-slate-200">
-                              <TableCell colSpan={7} className="p-0">
-                                <div className="p-4 pl-16 pr-6">
-                                  <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                                    <div className="bg-slate-100/80 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
-                                      <ReceiptText className="w-4 h-4 text-slate-500" />
-                                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Danh sách RƯỢU đã bán (được tính hoa hồng)</span>
-                                    </div>
-                                    <Table>
-                                      <TableHeader>
-                                        <TableRow className="border-b-slate-200 bg-slate-50/50">
-                                          <TableHead className="text-[10px] font-bold text-slate-500 uppercase py-2 h-8">Tên món</TableHead>
-                                          <TableHead className="text-[10px] font-bold text-slate-500 uppercase py-2 h-8 text-center w-[80px]">Đơn vị</TableHead>
-                                          <TableHead className="text-[10px] font-bold text-slate-500 uppercase py-2 h-8 text-center w-[80px]">SL bán</TableHead>
-                                          <TableHead className="text-[10px] font-bold text-slate-500 uppercase py-2 h-8 text-right w-[120px]">Đơn giá</TableHead>
-                                          <TableHead className="text-[10px] font-bold text-slate-500 uppercase py-2 h-8 text-right w-[120px] pr-4">Thành tiền</TableHead>
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {item.detailsArray.map((detail, dIdx) => (
-                                          <TableRow key={dIdx} className="border-b-slate-100 last:border-0 hover:bg-slate-50">
-                                            <TableCell className="py-2 text-xs font-semibold text-slate-700">{detail.name}</TableCell>
-                                            <TableCell className="py-2 text-center">
-                                              <Badge variant="outline" className={`text-[9px] font-bold h-5 ${isGlassUnit(detail.unit) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                                                {getUnitLabel(detail.unit)}
-                                              </Badge>
-                                            </TableCell>
-                                            <TableCell className="py-2 text-center text-xs font-bold text-slate-800">{detail.quantity}</TableCell>
-                                            <TableCell className="py-2 text-right text-xs text-slate-500">{formatVND(detail.price)}</TableCell>
-                                            <TableCell className="py-2 text-right text-xs font-bold text-emerald-600 pr-4">{formatVND(detail.total)}</TableCell>
-                                          </TableRow>
-                                        ))}
-                                      </TableBody>
-                                    </Table>
-                                  </div>
+                  </TableHeader>
+                  
+                  <TableBody>
+                    {staffSummary.list.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-10 text-slate-400 bg-slate-50/50">
+                          <Wine className="w-10 h-10 mx-auto mb-3 opacity-20"/>
+                          <span className="font-bold">Không có nhân sự nào nhận hoa hồng trong kỳ này.</span>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      staffSummary.list.map((item, idx) => {
+                        const isExpanded = expandedStaff[item.name];
+                        return (
+                          <React.Fragment key={idx}>
+                            <TableRow className={`hover:bg-blue-50/50 border-b border-slate-100 transition-colors ${isExpanded ? 'bg-blue-50/30' : ''}`}>
+                              <TableCell className="font-bold text-slate-800 text-sm pl-4 py-2.5">
+                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-black border border-blue-200 shrink-0">
+                                  {item.name.charAt(0)}
                                 </div>
+                                {item.name}
+                              </TableCell>
+                              <TableCell className="text-center py-2.5">
+                                {item.bottles > 0 ? (
+                                  <Badge variant="secondary" className="font-bold text-xs bg-blue-50 text-blue-700 border-blue-200 px-3 py-1 shadow-xs">
+                                    {item.bottles} chai
+                                  </Badge>
+                                ) : <span className="text-slate-300 text-xs">—</span>}
+                              </TableCell>
+                              <TableCell className="text-center py-2.5">
+                                {item.glasses > 0 ? (
+                                  <Badge variant="secondary" className="font-bold text-xs bg-amber-50 text-amber-700 border-amber-200 px-3 py-1 shadow-xs">
+                                    {item.glasses} ly
+                                  </Badge>
+                                ) : <span className="text-slate-300 text-xs">—</span>}
+                              </TableCell>
+                              <TableCell className="text-center py-2.5">
+                                {item.other > 0 ? (
+                                  <Badge variant="secondary" className="font-bold text-xs bg-slate-100 text-slate-600 border-slate-200 px-3 py-1 shadow-xs">
+                                    {item.other}
+                                  </Badge>
+                                ) : <span className="text-slate-300 text-xs">—</span>}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-slate-600 text-sm">
+                                {formatVND(item.totalRevenue)}
+                              </TableCell>
+                              <TableCell className="text-right font-black text-emerald-600 text-base pr-4 py-2.5">
+                                {formatVND(item.comm)}
+                              </TableCell>
+                              <TableCell className="text-center py-2.5">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => toggleExpand(item.name)}
+                                  className={`h-8 px-2 text-[11px] font-bold border transition-colors ${isExpanded ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                  {isExpanded ? <><ChevronUp className="w-3.5 h-3.5 mr-1"/> Ẩn</> : <><ChevronDown className="w-3.5 h-3.5 mr-1"/> Chi tiết</>}
+                                </Button>
                               </TableCell>
                             </TableRow>
-                          )}
-                        </React.Fragment>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-              <div className="bg-slate-50 p-4 border-t border-slate-200 text-center font-medium text-slate-400 text-xs">
+
+                            {isExpanded && (
+                              <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b-2 border-slate-200">
+                                <TableCell colSpan={7} className="p-0">
+                                  <div className="px-3 py-2 pl-10 pr-4">
+                                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                                      <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 flex items-center gap-2">
+                                        <ReceiptText className="w-4 h-4 text-slate-500" />
+                                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Danh sách RƯỢU đã bán (chi tiết từng bill)</span>
+                                      </div>
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow className="border-b-slate-200 bg-slate-50/50">
+                                            <TableHead className="text-[11px] font-bold text-slate-500 uppercase py-2 h-8">Tên món</TableHead>
+                                            <TableHead className="text-[11px] font-bold text-slate-500 uppercase py-2 h-8 text-center w-[80px]">Đơn vị</TableHead>
+                                            <TableHead className="text-[11px] font-bold text-slate-500 uppercase py-2 h-8 text-center w-[80px]">Tổng SL</TableHead>
+                                            <TableHead className="text-[11px] font-bold text-slate-500 uppercase py-2 h-8 text-right w-[120px]">Đơn giá</TableHead>
+                                            <TableHead className="text-[11px] font-bold text-slate-500 uppercase py-2 h-8 text-right w-[120px] pr-4">Thành tiền</TableHead>
+                                            <TableHead className="text-[11px] font-bold text-slate-500 uppercase py-2 h-8">Nguồn (Bill / Ngày / Khách)</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {item.detailsArray.map((detail, dIdx) => (
+                                            <TableRow key={dIdx} className="border-b-slate-100 last:border-0 hover:bg-slate-50">
+                                              <TableCell className="py-2 text-[13px] font-semibold text-slate-700">{detail.name}</TableCell>
+                                              <TableCell className="py-2 text-center">
+                                                <Badge variant="outline" className={`text-[10px] font-bold h-5 ${isGlassUnit(detail.unit) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                                                  {getUnitLabel(detail.unit)}
+                                                </Badge>
+                                              </TableCell>
+                                              <TableCell className="py-2 text-center text-[13px] font-bold text-slate-800">{detail.quantity}</TableCell>
+                                              <TableCell className="py-2 text-right text-[13px] text-slate-500">{formatVND(detail.price)}</TableCell>
+                                              <TableCell className="py-2 text-right text-[13px] font-bold text-emerald-600 pr-4">{formatVND(detail.total)}</TableCell>
+                                              <TableCell className="py-2">
+                                                <div className="flex flex-wrap gap-1.5">
+                                                  {detail.bills.map((b, bIdx) => (
+                                                    <Badge key={bIdx} variant="secondary" className="bg-slate-100 text-slate-600 text-[10px] font-medium border-slate-200 flex items-center gap-1 px-2 py-1 whitespace-normal">
+                                                      <span className="text-blue-600 font-bold">{b.quantity}x</span>
+                                                      <span>{formatDateVN(b.date)}</span>
+                                                      <span className="text-slate-400">•</span>
+                                                      {/* Bỏ truncate, cho phép xuống dòng để không bị dấu ... */}
+                                                      <span className="whitespace-normal">{b.customerName}</span>
+                                                    </Badge>
+                                                  ))}
+                                                </div>
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="bg-slate-50 px-3 py-2 border-t border-slate-200 text-center font-medium text-slate-400 text-[10px]">
                 Hệ thống chỉ hiển thị những nhân viên FOH có phát sinh hoa hồng. Bấm "Chi tiết" để xem danh sách món từng người đã bán.
               </div>
             </Card>
