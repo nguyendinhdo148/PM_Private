@@ -10,11 +10,43 @@ import { fetchData, updateData, postData, deleteData } from "@/lib/fetch-util";
 import * as XLSX from "xlsx";
 import html2canvas from 'html2canvas-pro';
 
+export interface SessionRevenue {
+  cash: number;
+  transfer: number;
+  card: number;
+  debt: number;
+  founderPoints: number;
+  foodRevenue: number;
+  drinkRevenue: number;
+  otherRevenue: number;
+  guestCount: number;
+  billCount: number;
+  note?: string;
+}
+
+const EMPTY_SESSION: SessionRevenue = {
+  cash: 0,
+  transfer: 0,
+  card: 0,
+  debt: 0,
+  founderPoints: 0,
+  foodRevenue: 0,
+  drinkRevenue: 0,
+  otherRevenue: 0,
+  guestCount: 0,
+  billCount: 0,
+  note: "",
+};
+
 export interface DailyRevenue {
   _id?: string;
   reportId: string;
   date: string;
   dayOfWeek: string;
+
+  lunch: SessionRevenue;
+  dinner: SessionRevenue;
+
   cash: number;
   transfer: number;
   card: number;
@@ -52,6 +84,27 @@ export interface ApiResponse<T = any> {
 }
 
 const VAT_MULTIPLIER = 1.05;
+
+const sumSessionToTotals = (row: DailyRevenue): DailyRevenue => {
+  const l = row.lunch || EMPTY_SESSION;
+  const d = row.dinner || EMPTY_SESSION;
+  const s = (a: any, b: any) => (Number(a) || 0) + (Number(b) || 0);
+
+  return {
+    ...row,
+    cash: s(l.cash, d.cash),
+    transfer: s(l.transfer, d.transfer),
+    card: s(l.card, d.card),
+    debt: s(l.debt, d.debt),
+    founderPoints: s(l.founderPoints, d.founderPoints),
+    foodRevenue: s(l.foodRevenue, d.foodRevenue),
+    drinkRevenue: s(l.drinkRevenue, d.drinkRevenue),
+    otherRevenue: s(l.otherRevenue, d.otherRevenue),
+    guestCount: s(l.guestCount, d.guestCount),
+    billCount: s(l.billCount, d.billCount),
+    note: [l.note, d.note].filter(Boolean).join(" | "),
+  };
+};
 
 const DailyReport = () => {
   const { reportId } = useParams<{ reportId: string }>();
@@ -100,7 +153,6 @@ const DailyReport = () => {
 
   const [otherExpenseInput, setOtherExpenseInput] = useState<string>("");
 
-  // 👇 State cho tab Báo cáo theo ngày (đã nâng cấp thành lọc khoảng)
   const [selectedDailyStartDate, setSelectedDailyStartDate] = useState<string>("");
   const [selectedDailyEndDate, setSelectedDailyEndDate] = useState<string>("");
 
@@ -145,16 +197,35 @@ const DailyReport = () => {
     return String(dateObj);
   };
 
+  const normalizeRow = (item: any): DailyRevenue => {
+    const base: DailyRevenue = {
+      ...item,
+      date: convertUTCToLocalDate(item.date),
+      lunch: item.lunch ?? { ...EMPTY_SESSION },
+      dinner: item.dinner ?? {
+        cash: Number(item.cash) || 0,
+        transfer: Number(item.transfer) || 0,
+        card: Number(item.card) || 0,
+        debt: Number(item.debt) || 0,
+        founderPoints: Number(item.founderPoints) || 0,
+        foodRevenue: Number(item.foodRevenue) || 0,
+        drinkRevenue: Number(item.drinkRevenue) || 0,
+        otherRevenue: Number(item.otherRevenue) || 0,
+        guestCount: Number(item.guestCount) || 0,
+        billCount: Number(item.billCount) || 0,
+        note: item.note || "",
+      },
+    };
+    return base;
+  };
+
   useEffect(() => {
     if (reportId) {
       const fetchRevenues = async () => {
         try {
           const result = (await fetchData(`/daily-revenues?reportId=${reportId}`)) as ApiResponse<DailyRevenue[]>;
           if (result.success) {
-            const formattedData = result.data.map(item => ({
-              ...item,
-              date: convertUTCToLocalDate(item.date)
-            }));
+            const formattedData = result.data.map(normalizeRow);
             setData(formattedData);
           }
         } catch (error) {
@@ -200,7 +271,6 @@ const DailyReport = () => {
     }
   }, [editingId]);
 
-  // 👇 Tự động chọn khoảng ngày mới nhất khi có data, cho tab Báo cáo theo ngày
   useEffect(() => {
     if (!selectedDailyStartDate && !selectedDailyEndDate && data.length > 0) {
       const sortedDates = [...data].map(d => d.date).sort();
@@ -310,6 +380,27 @@ const DailyReport = () => {
     );
   };
 
+  const recalcTotals = (row: DailyRevenue): DailyRevenue => {
+    const summed = sumSessionToTotals(row);
+    summed.totalGross = calculateTotalGross(summed);
+    summed.preTaxRevenue = calculatePreTaxRevenue(summed);
+    return summed;
+  };
+
+  const sessionGross = (s?: SessionRevenue) => {
+    if (!s) return 0;
+    return (Number(s.cash) || 0) + (Number(s.transfer) || 0) + (Number(s.card) || 0) + (Number(s.debt) || 0) + (Number(s.founderPoints) || 0);
+  };
+  const sessionPreTax = (s?: SessionRevenue) => {
+    if (!s) return 0;
+    return Math.round(((Number(s.foodRevenue) || 0) + (Number(s.drinkRevenue) || 0) + (Number(s.otherRevenue) || 0)) * VAT_MULTIPLIER);
+  };
+  const sessionAvg = (s?: SessionRevenue) => {
+    if (!s) return 0;
+    const g = Number(s.guestCount) || 0;
+    return g > 0 ? Math.round(sessionGross(s) / g) : 0;
+  };
+
   const getWeekInfo = (dateStr: string) => {
     const parts = dateStr.split('-');
     const year = parseInt(parts[0]);
@@ -404,14 +495,30 @@ const DailyReport = () => {
     if (!row._id) return;
     setSavingRowId(row._id);
     try {
-      const payload = { ...row };
-      payload.totalGross = calculateTotalGross(payload);
-      payload.preTaxRevenue = calculatePreTaxRevenue(payload);
+      const computed = recalcTotals(row);
+
+      const payload = {
+        lunch: computed.lunch,
+        dinner: computed.dinner,
+        note: computed.note,
+        cash: computed.cash,
+        transfer: computed.transfer,
+        card: computed.card,
+        debt: computed.debt,
+        founderPoints: computed.founderPoints,
+        foodRevenue: computed.foodRevenue,
+        drinkRevenue: computed.drinkRevenue,
+        otherRevenue: computed.otherRevenue,
+        guestCount: computed.guestCount,
+        billCount: computed.billCount,
+        preTaxRevenue: computed.preTaxRevenue,
+        totalGross: computed.totalGross,
+      };
 
       const result = (await updateData(`/daily-revenues/${row._id}`, payload)) as ApiResponse<DailyRevenue>;
       if (result.success) {
         setData(prev => prev.map(item =>
-          item._id === row._id ? { ...result.data, date: convertUTCToLocalDate(result.data.date) } : item
+          item._id === row._id ? normalizeRow(result.data) : item
         ));
         const toast = document.createElement('div');
         toast.className = 'fixed bottom-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm';
@@ -437,15 +544,33 @@ const DailyReport = () => {
           if (typeof rawValue === 'string' && field !== 'date' && field !== 'note' && field !== 'dayOfWeek') {
             processedValue = parseNumberFromString(rawValue);
           }
-          const updated = { ...item, [field]: processedValue };
-          updated.totalGross = calculateTotalGross(updated);
-          updated.preTaxRevenue = calculatePreTaxRevenue(updated);
-          return updated;
+          const updated = { ...item, [field]: processedValue } as DailyRevenue;
+          const recalc = recalcTotals(updated);
+          return recalc;
         }
         return item;
       });
       return newData;
     });
+  };
+
+  const updateSessionField = (
+    rowId: string,
+    session: "lunch" | "dinner",
+    field: keyof SessionRevenue,
+    rawValue: any
+  ) => {
+    setData(prev => prev.map(item => {
+      if (item._id !== rowId) return item;
+      const processed = (typeof rawValue === "string" && field !== "note")
+        ? parseNumberFromString(rawValue)
+        : rawValue;
+      const updated: DailyRevenue = {
+        ...item,
+        [session]: { ...item[session], [field]: processed },
+      };
+      return recalcTotals(updated);
+    }));
   };
 
   const handleRevenueInput = (rowId: string, field: keyof DailyRevenue, rawValue: string) => {
@@ -579,7 +704,15 @@ const DailyReport = () => {
         const finalDayOfWeek = dayOfWeek || getDayOfWeekFromDate(dateObj);
 
         importedData.push({
-          reportId, date: dateStrFormatted, dayOfWeek: finalDayOfWeek,
+          reportId,
+          date: dateStrFormatted,
+          dayOfWeek: finalDayOfWeek,
+          lunch: { ...EMPTY_SESSION },
+          dinner: {
+            cash, transfer, card, debt, founderPoints,
+            foodRevenue, drinkRevenue, otherRevenue,
+            guestCount, billCount, note,
+          },
           founderPoints, cash, transfer, card, debt,
           foodRevenue, drinkRevenue, otherRevenue,
           preTaxRevenue, totalGross, guestCount, billCount, note,
@@ -602,10 +735,7 @@ const DailyReport = () => {
       }) as ApiResponse<DailyRevenue[]>;
 
       if (result.success) {
-        const formattedResult = result.data.map(item => ({
-          ...item,
-          date: convertUTCToLocalDate(item.date)
-        }));
+        const formattedResult = result.data.map(normalizeRow);
         setData(prev => [...prev, ...formattedResult]);
         const skippedCount = result.skippedDates?.length || 0;
         alert(
@@ -668,6 +798,8 @@ const DailyReport = () => {
       reportId: reportId,
       date: nextDateStr,
       dayOfWeek: currentDayOfWeek,
+      lunch: { ...EMPTY_SESSION },
+      dinner: { ...EMPTY_SESSION },
       cash: 0, transfer: 0, card: 0, debt: 0, founderPoints: 0,
       foodRevenue: 0, drinkRevenue: 0, otherRevenue: 0,
       preTaxRevenue: 0, totalGross: 0, guestCount: 0, billCount: 0,
@@ -677,10 +809,7 @@ const DailyReport = () => {
     try {
       const result = (await postData("/daily-revenues", newRow)) as ApiResponse<DailyRevenue>;
       if (result.success) {
-        const formattedResult = {
-          ...result.data,
-          date: convertUTCToLocalDate(result.data.date)
-        };
+        const formattedResult = normalizeRow(result.data);
         setData([...data, formattedResult]);
         if (result.data._id) setEditingId(result.data._id);
       } else {
@@ -1440,7 +1569,226 @@ const DailyReport = () => {
     );
   };
 
-  // 👇 Data cho tab Báo cáo theo ngày (Đã nâng cấp lọc khoảng ngày)
+  const renderSessionRow = (
+    row: DailyRevenue,
+    sessionKey: "lunch" | "dinner",
+    label: string
+  ) => {
+    const session = row[sessionKey] || EMPTY_SESSION;
+    const isLunch = sessionKey === "lunch";
+    const sPreTax = sessionPreTax(session);
+    const sGross = sessionGross(session);
+    const sAvg = sessionAvg(session);
+
+    const cellInput = (
+      field: keyof SessionRevenue,
+      align: "left" | "right" | "center" = "right",
+      extraClass = ""
+    ) => {
+      if (isScreenshotMode) {
+        const display =
+          field === "foodRevenue" || field === "drinkRevenue" || field === "otherRevenue"
+            ? formatCurrencyNoUnit(Math.round((Number(session[field]) || 0) * VAT_MULTIPLIER)) || "0"
+            : field === "note"
+            ? ""
+            : formatCurrencyNoUnit(Number(session[field]) || 0) || "0";
+        return (
+          <div
+            className={`w-full h-6 sm:h-7 flex items-center px-1 text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap ${
+              align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start"
+            } ${extraClass}`}
+          >
+            {display}
+          </div>
+        );
+      }
+      return (
+        <Input
+          type="text"
+          defaultValue={formatCurrencyNoUnit(Number(session[field]) || 0)}
+          onFocus={() => row._id && setEditingId(row._id)}
+          onBlur={(e) => {
+            if (row._id) updateSessionField(row._id, sessionKey, field, e.target.value);
+          }}
+          className={`w-full h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums ${
+            align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
+          } ${extraClass}`}
+        />
+      );
+    };
+
+    return (
+      <TableRow
+        className={isLunch ? "bg-amber-50/40 hover:bg-amber-50/70" : "bg-sky-50/40 hover:bg-sky-50/70"}
+      >
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-center text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
+          {isLunch ? formatDateDisplay(row.date) : ""}
+        </TableCell>
+        <TableCell
+          className={`border border-slate-400 p-0.5 sm:p-1 text-center text-[10px] sm:text-[13px] font-bold whitespace-nowrap ${
+            isLunch ? "text-amber-700" : "text-sky-700"
+          }`}
+        >
+          {isLunch ? `${row.dayOfWeek} · Trưa` : `${row.dayOfWeek} · Tối`}
+        </TableCell>
+
+        {!renderCompact ? (
+          <>
+            {!hideCashColumns && (
+              <>
+                <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">{cellInput("cash")}</TableCell>
+                <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">{cellInput("transfer")}</TableCell>
+                <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">{cellInput("card")}</TableCell>
+                <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">{cellInput("debt")}</TableCell>
+              </>
+            )}
+            {renderFounder && (
+              <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">{cellInput("founderPoints")}</TableCell>
+            )}
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap" style={{ width: 160, minWidth: 160 }}>{cellInput("foodRevenue")}</TableCell>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap" style={{ width: 160, minWidth: 160 }}>{cellInput("drinkRevenue")}</TableCell>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap" style={{ width: 160, minWidth: 160 }}>{cellInput("otherRevenue")}</TableCell>
+          </>
+        ) : (
+          <>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap" style={{ width: 160, minWidth: 160 }}>{cellInput("foodRevenue")}</TableCell>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap" style={{ width: 160, minWidth: 160 }}>{cellInput("drinkRevenue")}</TableCell>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap" style={{ width: 160, minWidth: 160 }}>{cellInput("otherRevenue")}</TableCell>
+          </>
+        )}
+
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap bg-orange-50 text-right font-bold text-orange-700 text-[10px] sm:text-[13px] tabular-nums">
+          {formatCurrencyNoUnit(sPreTax) || "0"}
+        </TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[10px] sm:text-[13px] tabular-nums">
+          {formatCurrency(sGross) || "0 ₫"}
+        </TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">{cellInput("guestCount", "center")}</TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30 text-[10px] sm:text-[13px] tabular-nums">
+          {formatAvgGuest(sAvg) || "0 ₫"}
+        </TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">{cellInput("billCount", "center")}</TableCell>
+
+        {renderNote && (
+          <TableCell className="border border-slate-400 p-0.5 sm:p-1 min-w-[220px] align-top note-cell">
+            {isScreenshotMode ? (
+              <div className="w-full min-w-[220px] max-w-[400px] p-0.5 sm:p-1 text-[10px] sm:text-[13px] whitespace-pre-wrap break-words leading-relaxed">
+                {session.note || ""}
+              </div>
+            ) : (
+              <textarea
+                defaultValue={session.note || ""}
+                rows={1}
+                onFocus={() => row._id && setEditingId(row._id)}
+                onBlur={(e) => {
+                  if (row._id) updateSessionField(row._id, sessionKey, "note", e.target.value);
+                }}
+                onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
+                className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+              />
+            )}
+          </TableCell>
+        )}
+        {renderActions && (
+          <>
+            <TableCell className="border border-slate-400 px-1 py-1"></TableCell>
+            <TableCell className="border border-slate-400 px-1 py-1"></TableCell>
+          </>
+        )}
+      </TableRow>
+    );
+  };
+
+  const renderTotalDayRow = (row: DailyRevenue) => {
+    const totalGross = calculateTotalGross(row);
+    const preTaxDisplay = calculatePreTaxRevenue(row);
+    const avgGuest = Number(row.guestCount || 0) > 0 ? totalGross / Number(row.guestCount) : 0;
+    const isSaving = savingRowId === row._id;
+
+    return (
+      <TableRow className="bg-slate-100 hover:bg-slate-100 border-b-2 border-slate-500">
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-center text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
+          {formatDateDisplay(row.date)}
+        </TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-center text-[10px] sm:text-[13px] font-black whitespace-nowrap text-slate-800">
+          TỔNG
+        </TableCell>
+
+        {!renderCompact ? (
+          <>
+            {!hideCashColumns && (
+              <>
+                <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(row.cash) || "0"}</TableCell>
+                <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(row.transfer) || "0"}</TableCell>
+                <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(row.card) || "0"}</TableCell>
+                <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(row.debt) || "0"}</TableCell>
+              </>
+            )}
+            {renderFounder && (
+              <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(row.founderPoints) || "0"}</TableCell>
+            )}
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(Math.round((Number(row.foodRevenue) || 0) * VAT_MULTIPLIER)) || "0"}</TableCell>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(Math.round((Number(row.drinkRevenue) || 0) * VAT_MULTIPLIER)) || "0"}</TableCell>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(Math.round((Number(row.otherRevenue) || 0) * VAT_MULTIPLIER)) || "0"}</TableCell>
+          </>
+        ) : (
+          <>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(Math.round((Number(row.foodRevenue) || 0) * VAT_MULTIPLIER)) || "0"}</TableCell>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(Math.round((Number(row.drinkRevenue) || 0) * VAT_MULTIPLIER)) || "0"}</TableCell>
+            <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{formatCurrencyNoUnit(Math.round((Number(row.otherRevenue) || 0) * VAT_MULTIPLIER)) || "0"}</TableCell>
+          </>
+        )}
+
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-bold text-orange-700 whitespace-nowrap bg-orange-50 text-[10px] sm:text-[13px] tabular-nums">
+          {formatCurrencyNoUnit(preTaxDisplay) || "0"}
+        </TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[10px] sm:text-[13px] tabular-nums">
+          {formatCurrency(totalGross) || "0 ₫"}
+        </TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-center text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{row.guestCount || "0"}</TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30 text-[10px] sm:text-[13px] tabular-nums">
+          {formatAvgGuest(avgGuest) || "0 ₫"}
+        </TableCell>
+        <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-center text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{row.billCount || "0"}</TableCell>
+
+        {renderNote && (
+          <TableCell className="border border-slate-400 p-0.5 sm:p-1 min-w-[220px] align-top note-cell text-[10px] sm:text-[12px] italic text-slate-600 whitespace-pre-wrap break-words">
+            {row.note || ""}
+          </TableCell>
+        )}
+        {renderActions && (
+          <>
+            <TableCell className="border border-slate-400 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
+              <div className="flex items-center justify-center">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => handleSaveRow(row)}
+                  disabled={isSaving}
+                  className="text-emerald-600 hover:bg-emerald-100 h-5 w-5 sm:h-7 sm:w-7"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 animate-spin" />
+                  ) : (
+                    <Save className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                  )}
+                </Button>
+              </div>
+            </TableCell>
+            <TableCell className="border border-slate-400 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
+              <div className="flex items-center justify-center">
+                <Button size="icon" variant="ghost" onClick={() => row._id && handleDeleteRow(row._id)} className="text-red-500 hover:bg-red-100 h-5 w-5 sm:h-7 sm:w-7">
+                  <Trash2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                </Button>
+              </div>
+            </TableCell>
+          </>
+        )}
+      </TableRow>
+    );
+  };
+
+  // 👇 THÊM: dữ liệu cho tab Báo cáo theo ngày (Gộp 3 dòng vào 1 ô)
   const dailyReportData = useMemo(() => {
     const filtered = data.filter(d => {
       if (!selectedDailyStartDate || !selectedDailyEndDate) return false;
@@ -1450,80 +1798,158 @@ const DailyReport = () => {
     const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
     const dates = sorted.map(d => d.date);
 
-    // Tính toán dòng dữ liệu
-    const rows = [
-      {
-        label: "Đồ ăn",
-        key: 'food',
-        icon: UtensilsCrossed,
-        values: dates.reduce((acc, date) => {
-           const r = sorted.find(x => x.date === date);
-           acc[date] = Math.round((Number(r?.foodRevenue) || 0) * VAT_MULTIPLIER);
-           return acc;
-        }, {} as Record<string, number>),
-        monthTotal: totals.foodRevenueDisplay
-      },
-      {
-        label: "Nước uống",
-        key: 'drink',
-        icon: CupSoda,
-        values: dates.reduce((acc, date) => {
-           const r = sorted.find(x => x.date === date);
-           acc[date] = Math.round((Number(r?.drinkRevenue) || 0) * VAT_MULTIPLIER);
-           return acc;
-        }, {} as Record<string, number>),
-        monthTotal: totals.drinkRevenueDisplay
-      },
-      {
-        label: "Khác",
-        key: 'other',
-        icon: CircleEllipsis,
-        values: dates.reduce((acc, date) => {
-           const r = sorted.find(x => x.date === date);
-           acc[date] = Math.round((Number(r?.otherRevenue) || 0) * VAT_MULTIPLIER);
-           return acc;
-        }, {} as Record<string, number>),
-        monthTotal: totals.otherRevenueDisplay
-      },
-    ];
+    const getRow = (date: string) => sorted.find(x => x.date === date);
 
-    // Dòng tổng
+    const buildGroupedRows = (
+      label: string,
+      icon: any,
+      valueGetter: (r: DailyRevenue | undefined, session: "lunch" | "dinner" | "total") => number,
+      formatter: (n: number) => string,
+      monthTotalLunch: number,
+      monthTotalDinner: number,
+      monthTotalAll: number
+    ) => {
+      return {
+        label,
+        icon,
+        formatter,
+        values: dates.reduce((acc, date) => {
+          const r = getRow(date);
+          acc[date] = {
+            lunch: valueGetter(r, "lunch"),
+            total: valueGetter(r, "total"),
+            dinner: valueGetter(r, "dinner"),
+          };
+          return acc;
+        }, {} as Record<string, { lunch: number; total: number; dinner: number }>),
+        monthTotal: {
+          lunch: monthTotalLunch,
+          total: monthTotalAll,
+          dinner: monthTotalDinner,
+        }
+      };
+    };
+
+    const monthLunchGross = data.reduce((s, r) => s + sessionGross(r.lunch), 0);
+    const monthDinnerGross = data.reduce((s, r) => s + sessionGross(r.dinner), 0);
+    const monthLunchPreTax = data.reduce((s, r) => s + sessionPreTax(r.lunch), 0);
+    const monthDinnerPreTax = data.reduce((s, r) => s + sessionPreTax(r.dinner), 0);
+    const monthLunchFood = data.reduce((s, r) => s + Math.round((Number(r.lunch?.foodRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthDinnerFood = data.reduce((s, r) => s + Math.round((Number(r.dinner?.foodRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthLunchDrink = data.reduce((s, r) => s + Math.round((Number(r.lunch?.drinkRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthDinnerDrink = data.reduce((s, r) => s + Math.round((Number(r.dinner?.drinkRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthLunchOther = data.reduce((s, r) => s + Math.round((Number(r.lunch?.otherRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthDinnerOther = data.reduce((s, r) => s + Math.round((Number(r.dinner?.otherRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthLunchGuest = data.reduce((s, r) => s + (Number(r.lunch?.guestCount) || 0), 0);
+    const monthDinnerGuest = data.reduce((s, r) => s + (Number(r.dinner?.guestCount) || 0), 0);
+
+    const guestRows = buildGroupedRows(
+      "Số lượt khách",
+      Users,
+      (r, s) => {
+        if (!r) return 0;
+        if (s === "lunch") return Number(r.lunch?.guestCount) || 0;
+        if (s === "dinner") return Number(r.dinner?.guestCount) || 0;
+        return Number(r.guestCount) || 0;
+      },
+      (n) => String(n || 0),
+      monthLunchGuest,
+      monthDinnerGuest,
+      totals.guest
+    );
+
+    const avgRows = buildGroupedRows(
+      "Chi tiêu bình quân/lượt khách",
+      Coins,
+      (r, s) => {
+        if (!r) return 0;
+        if (s === "lunch") return sessionAvg(r.lunch);
+        if (s === "dinner") return sessionAvg(r.dinner);
+        const g = Number(r.guestCount) || 0;
+        return g > 0 ? Math.round(calculateTotalGross(r) / g) : 0;
+      },
+      (n) => formatAvgGuest(n) || "0 ₫",
+      monthLunchGuest > 0 ? Math.round(monthLunchGross / monthLunchGuest) : 0,
+      monthDinnerGuest > 0 ? Math.round(monthDinnerGross / monthDinnerGuest) : 0,
+      totals.guest > 0 ? Math.round(totals.totalGross / totals.guest) : 0
+    );
+
+    const foodRows = buildGroupedRows(
+      "Doanh thu đồ ăn",
+      UtensilsCrossed,
+      (r, s) => {
+        if (!r) return 0;
+        if (s === "lunch") return Math.round((Number(r.lunch?.foodRevenue) || 0) * VAT_MULTIPLIER);
+        if (s === "dinner") return Math.round((Number(r.dinner?.foodRevenue) || 0) * VAT_MULTIPLIER);
+        return Math.round((Number(r.foodRevenue) || 0) * VAT_MULTIPLIER);
+      },
+      (n) => formatCurrency(n) || "0 ₫",
+      monthLunchFood,
+      monthDinnerFood,
+      totals.foodRevenueDisplay
+    );
+
+    const drinkRows = buildGroupedRows(
+      "Doanh thu nước uống",
+      CupSoda,
+      (r, s) => {
+        if (!r) return 0;
+        if (s === "lunch") return Math.round((Number(r.lunch?.drinkRevenue) || 0) * VAT_MULTIPLIER);
+        if (s === "dinner") return Math.round((Number(r.dinner?.drinkRevenue) || 0) * VAT_MULTIPLIER);
+        return Math.round((Number(r.drinkRevenue) || 0) * VAT_MULTIPLIER);
+      },
+      (n) => formatCurrency(n) || "0 ₫",
+      monthLunchDrink,
+      monthDinnerDrink,
+      totals.drinkRevenueDisplay
+    );
+
+    const otherRows = buildGroupedRows(
+      "Doanh thu khác",
+      CircleEllipsis,
+      (r, s) => {
+        if (!r) return 0;
+        if (s === "lunch") return Math.round((Number(r.lunch?.otherRevenue) || 0) * VAT_MULTIPLIER);
+        if (s === "dinner") return Math.round((Number(r.dinner?.otherRevenue) || 0) * VAT_MULTIPLIER);
+        return Math.round((Number(r.otherRevenue) || 0) * VAT_MULTIPLIER);
+      },
+      (n) => formatCurrency(n) || "0 ₫",
+      monthLunchOther,
+      monthDinnerOther,
+      totals.otherRevenueDisplay
+    );
+
     const footerTotals = dates.reduce((acc, date) => {
-      const r = sorted.find(x => x.date === date);
+      const r = getRow(date);
       acc[date] = {
+        lunchPreTax: sessionPreTax(r?.lunch),
+        dinnerPreTax: sessionPreTax(r?.dinner),
         preTax: Math.round(((Number(r?.foodRevenue) || 0) + (Number(r?.drinkRevenue) || 0) + (Number(r?.otherRevenue) || 0)) * VAT_MULTIPLIER),
-        gross: calculateTotalGross(r || {})
+        lunchGross: sessionGross(r?.lunch),
+        dinnerGross: sessionGross(r?.dinner),
+        gross: calculateTotalGross(r || {}),
       };
       return acc;
-    }, {} as Record<string, { preTax: number, gross: number }>);
-
-    // Khách & TB
-    const guestValues = dates.reduce((acc, date) => {
-      const r = sorted.find(x => x.date === date);
-      acc[date] = Number(r?.guestCount) || 0;
-      return acc;
-    }, {} as Record<string, number>);
-
-        const avgGuestValues = dates.reduce((acc, date) => {
-      const r = sorted.find(x => x.date === date);
-      const gross = calculateTotalGross(r || {});
-      const guest = Number(r?.guestCount) || 0;
-      acc[date] = guest > 0 ? Math.round(gross / guest) : 0; // <-- Thêm Math.round()
-      return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, { lunchPreTax: number; dinnerPreTax: number; preTax: number; lunchGross: number; dinnerGross: number; gross: number }>);
 
     return {
       dates,
-      rows,
+      guestRows,
+      avgRows,
+      foodRows,
+      drinkRows,
+      otherRows,
       footerTotals,
-      guestValues,
-      avgGuestValues,
       hasData: sorted.length > 0,
       monthGuest: totals.guest,
-            monthAvgGuest: totals.guest > 0 ? Math.round(totals.totalGross / totals.guest) : 0, // <-- Thêm Math.round()
+      monthAvgGuest: totals.guest > 0 ? Math.round(totals.totalGross / totals.guest) : 0,
       monthPreTax: totals.preTax,
       monthGross: totals.totalGross,
-      filteredDays: sorted.length
+      monthLunchPreTax,
+      monthDinnerPreTax,
+      monthLunchGross,
+      monthDinnerGross,
+      filteredDays: sorted.length,
     };
   }, [data, selectedDailyStartDate, selectedDailyEndDate, totals]);
 
@@ -1682,7 +2108,7 @@ const DailyReport = () => {
                 <TableHeader>
                   <TableRow className="bg-slate-200">
                     <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[100px] w-[100px]">Ngày</TableHead>
-                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[80px] w-[80px]">Thứ</TableHead>
+                    <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[120px] w-[120px]">Thứ / Buổi</TableHead>
                     {!renderCompact ? (
                       <>
                         {!hideCashColumns && (
@@ -1775,227 +2201,12 @@ const DailyReport = () => {
                         </TableRow>
 
                         {isSelectedWeek && group.records.map((row: DailyRevenue) => {
-                          const isEditing = editingId === row._id;
-                          const totalGross = calculateTotalGross(row);
-                          const avgGuest = Number(row.guestCount || 0) > 0 ? totalGross / Number(row.guestCount) : 0;
-                          const isSaving = savingRowId === row._id;
-                          const preTaxDisplay = calculatePreTaxRevenue(row);
-                          const hasNewCols = hasNewColumns(row);
-
                           return (
-                            <TableRow
-                              key={row._id}
-                              ref={isEditing ? editRowRef : null}
-                              className={isEditing ? "bg-emerald-50/60 outline-2 outline-emerald-400 -outline-offset-2 relative z-10" : "hover:bg-slate-50 transition-colors"}
-                            >
-                              <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
-                                {isScreenshotMode ? (
-                                  <div className="w-full min-w-[100px] h-6 sm:h-7 text-[10px] sm:text-[13px] text-center flex items-center justify-center font-medium tabular-nums">
-                                    {formatDateDisplay(row.date)}
-                                  </div>
-                                ) : (
-                                  <Input type="date" defaultValue={row.date}
-                                    onFocus={() => row._id && setEditingId(row._id)}
-                                    onBlur={(e) => updateLocalRow(row._id!, "date", e.target.value)}
-                                    className="w-full min-w-[100px] h-6 sm:h-7 text-[10px] sm:text-[13px] border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 p-0.5 sm:p-1 tabular-nums" />
-                                )}
-                              </TableCell>
-
-                              <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap bg-slate-50">
-                                <div className="w-full min-w-[80px] h-6 sm:h-7 text-[10px] sm:text-[13px] font-bold text-slate-700 text-center flex items-center justify-center">
-                                  {row.dayOfWeek}
-                                </div>
-                              </TableCell>
-
-                              {!renderCompact ? (
-                                <>
-                                  {!hideCashColumns && (
-                                    <>
-                                      <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
-                                        {isScreenshotMode ? (
-                                          <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
-                                            {formatCurrencyNoUnit(row.cash) || "0"}
-                                          </div>
-                                        ) : (
-                                          <Input type="text"
-                                            defaultValue={formatCurrencyNoUnit(row.cash)}
-                                            onFocus={() => row._id && setEditingId(row._id)}
-                                            onBlur={(e) => handleNumberFieldInput(row._id!, "cash", e.target.value)}
-                                            className="w-full min-w-[110px] text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
-                                          />
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
-                                        {isScreenshotMode ? (
-                                          <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
-                                            {formatCurrencyNoUnit(row.transfer) || "0"}
-                                          </div>
-                                        ) : (
-                                          <Input type="text"
-                                            defaultValue={formatCurrencyNoUnit(row.transfer)}
-                                            onFocus={() => row._id && setEditingId(row._id)}
-                                            onBlur={(e) => handleNumberFieldInput(row._id!, "transfer", e.target.value)}
-                                            className="w-full min-w-[120px] text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
-                                          />
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
-                                        {isScreenshotMode ? (
-                                          <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
-                                            {formatCurrencyNoUnit(row.card) || "0"}
-                                          </div>
-                                        ) : (
-                                          <Input type="text"
-                                            defaultValue={formatCurrencyNoUnit(row.card)}
-                                            onFocus={() => row._id && setEditingId(row._id)}
-                                            onBlur={(e) => handleNumberFieldInput(row._id!, "card", e.target.value)}
-                                            className="w-full min-w-[110px] text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
-                                          />
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
-                                        {isScreenshotMode ? (
-                                          <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
-                                            {formatCurrencyNoUnit(row.debt) || "0"}
-                                          </div>
-                                        ) : (
-                                          <Input type="text"
-                                            defaultValue={formatCurrencyNoUnit(row.debt)}
-                                            onFocus={() => row._id && setEditingId(row._id)}
-                                            onBlur={(e) => handleNumberFieldInput(row._id!, "debt", e.target.value)}
-                                            className="w-full min-w-[110px] text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
-                                          />
-                                        )}
-                                      </TableCell>
-                                    </>
-                                  )}
-                                  {renderFounder && (
-                                    <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
-                                      {isScreenshotMode ? (
-                                        <div className="w-full h-6 sm:h-7 flex items-center justify-end px-1 text-right text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
-                                          {formatCurrencyNoUnit(row.founderPoints) || "0"}
-                                        </div>
-                                      ) : (
-                                        <Input type="text"
-                                          defaultValue={formatCurrencyNoUnit(row.founderPoints)}
-                                          onFocus={() => row._id && setEditingId(row._id)}
-                                          onBlur={(e) => handleNumberFieldInput(row._id!, "founderPoints", e.target.value)}
-                                          className="w-full min-w-[110px] text-right h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
-                                        />
-                                      )}
-                                    </TableCell>
-                                  )}
-                                  {renderRevenueCell(row, "foodRevenue", hasNewCols)}
-                                  {renderRevenueCell(row, "drinkRevenue", hasNewCols)}
-                                  {renderRevenueCell(row, "otherRevenue", hasNewCols)}
-                                </>
-                              ) : (
-                                <>
-                                  {renderRevenueCell(row, "foodRevenue", hasNewCols)}
-                                  {renderRevenueCell(row, "drinkRevenue", hasNewCols)}
-                                  {renderRevenueCell(row, "otherRevenue", hasNewCols)}
-                                </>
-                              )}
-
-                              <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap bg-orange-50">
-                                <div className="w-full text-right h-6 sm:h-7 flex items-center justify-end px-1 font-bold text-orange-700 text-[10px] sm:text-[13px] tabular-nums whitespace-nowrap overflow-visible">
-                                  {formatCurrencyNoUnit(preTaxDisplay) || "0"}
-                                </div>
-                              </TableCell>
-
-                              <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[10px] sm:text-[13px] tabular-nums">
-                                {formatCurrency(totalGross) || "0 ₫"}
-                              </TableCell>
-
-                              <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
-                                {isScreenshotMode ? (
-                                  <div className="w-full h-6 sm:h-7 flex items-center justify-center text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
-                                    {row.guestCount || "0"}
-                                  </div>
-                                ) : (
-                                  <Input type="text"
-                                    defaultValue={row.guestCount || ""}
-                                    onFocus={() => row._id && setEditingId(row._id)}
-                                    onBlur={(e) => handleNumberFieldInput(row._id!, "guestCount", e.target.value)}
-                                    className="w-full min-w-[90px] text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
-                                  />
-                                )}
-                              </TableCell>
-
-                              <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30 text-[10px] sm:text-[13px] tabular-nums">
-                                {formatAvgGuest(avgGuest) || "0 ₫"}
-                              </TableCell>
-
-                              <TableCell className="border border-slate-400 p-0.5 sm:p-1 whitespace-nowrap">
-                                {isScreenshotMode ? (
-                                  <div className="w-full h-6 sm:h-7 flex items-center justify-center text-[10px] sm:text-[13px] font-medium tabular-nums whitespace-nowrap">
-                                    {row.billCount || "0"}
-                                  </div>
-                                ) : (
-                                  <Input type="text"
-                                    defaultValue={row.billCount || ""}
-                                    onFocus={() => row._id && setEditingId(row._id)}
-                                    onBlur={(e) => handleNumberFieldInput(row._id!, "billCount", e.target.value)}
-                                    className="w-full min-w-[90px] text-center h-6 sm:h-7 border-transparent bg-transparent hover:border-slate-400 focus-visible:ring-emerald-500 text-[10px] sm:text-[13px] font-medium p-0.5 sm:p-1 tabular-nums"
-                                  />
-                                )}
-                              </TableCell>
-
-                              {renderNote && (
-                                <TableCell className="border border-slate-400 p-0.5 sm:p-1 min-w-[220px] align-top note-cell">
-                                  {isScreenshotMode ? (
-                                    <div className="w-full min-w-[220px] max-w-[400px] p-0.5 sm:p-1 text-[10px] sm:text-[13px] whitespace-pre-wrap break-words leading-relaxed">
-                                      {row.note || ""}
-                                    </div>
-                                  ) : (
-                                    <textarea
-                                      ref={(el) => {
-                                        if (el) {
-                                          autoResizeTextarea(el);
-                                        }
-                                      }}
-                                      defaultValue={row.note || ""}
-                                      rows={1}
-                                      onFocus={() => row._id && setEditingId(row._id)}
-                                      onBlur={(e) => updateLocalRow(row._id!, "note", e.target.value)}
-                                      onKeyDown={(e) => handleTextareaKeyDown(e, row)}
-                                      onInput={(e) => autoResizeTextarea(e.target as HTMLTextAreaElement)}
-                                      className="w-full min-w-[220px] overflow-hidden resize-none rounded-md border border-transparent bg-transparent p-0.5 sm:p-1 text-[10px] sm:text-[13px] hover:border-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
-                                    />
-                                  )}
-                                </TableCell>
-                              )}
-
-                              {renderActions && (
-                                <>
-                                  <TableCell className="border border-slate-400 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
-                                    <div className="flex items-center justify-center">
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSaveRow(row)}
-                                        disabled={isSaving}
-                                        className="text-emerald-600 hover:bg-emerald-100 h-5 w-5 sm:h-7 sm:w-7"
-                                      >
-                                        {isSaving ? (
-                                          <Loader2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 animate-spin" />
-                                        ) : (
-                                          <Save className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-                                        )}
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-
-                                  <TableCell className="border border-slate-400 text-center whitespace-nowrap px-0.5 sm:px-2 py-0.5 sm:py-1.5">
-                                    <div className="flex items-center justify-center">
-                                      <Button size="icon" variant="ghost" onClick={()=>row._id && handleDeleteRow(row._id)} className="text-red-500 hover:bg-red-100 h-5 w-5 sm:h-7 sm:w-7">
-                                        <Trash2 className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5"/>
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </>
-                              )}
-                            </TableRow>
+                            <React.Fragment key={row._id}>
+                              {renderSessionRow(row, "lunch", "Trưa")}
+                              {renderSessionRow(row, "dinner", "Tối")}
+                              {renderTotalDayRow(row)}
+                            </React.Fragment>
                           );
                         })}
                       </React.Fragment>
@@ -2144,10 +2355,13 @@ const DailyReport = () => {
         </>
       )}
 
-      {/* ===== TAB 2: BÁO CÁO THEO NGÀY (ĐÃ NÂNG CẤP LỌC KHOẢNG) ===== */}
+      {/* ===== TAB 2: BÁO CÁO THEO NGÀY (Đã sửa layout Trưa | Tổng | Tối) ===== */}
+            {/* ===== TAB 2: BÁO CÁO THEO NGÀY ===== */}
+            {/* ===== TAB 2: BÁO CÁO THEO NGÀY ===== */}
+            {/* ===== TAB 2: BÁO CÁO THEO NGÀY ===== */}
+            {/* ===== TAB 2: BÁO CÁO THEO NGÀY ===== */}
       {activeTab === "daily" && (
         <div className="space-y-4 pt-2">
-          {/* Bộ lọc ngày */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-3 rounded-lg border border-slate-300 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-slate-700 whitespace-nowrap">Từ ngày:</span>
@@ -2188,7 +2402,6 @@ const DailyReport = () => {
             </Card>
           ) : (
             <>
-              {/* Tiêu đề */}
               <div className="flex items-center gap-3 text-xl sm:text-2xl mb-2">
                 <CalendarDays className="w-8 h-8 sm:w-10 sm:h-10 text-slate-800 shrink-0" strokeWidth={2.2} />
                 <div className="flex flex-col leading-tight">
@@ -2201,15 +2414,13 @@ const DailyReport = () => {
                 </div>
               </div>
 
-              {/* Bảng form báo cáo */}
               <div className="w-full overflow-x-auto">
                 <Table className="border-collapse border border-[#B8D3E8] tabular-nums w-auto min-w-full text-xl sm:text-2xl">
                   <TableHeader>
                     <TableRow className="bg-[#204878] hover:bg-[#204878]">
-                      <TableHead className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-4 py-4 text-xl sm:text-2xl min-w-[300px] sticky left-0 z-20 bg-[#204878]">
+                      <TableHead className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-4 py-4 text-xl sm:text-2xl min-w-[360px] sticky left-0 z-20 bg-[#204878]">
                         Nội dung báo cáo
                       </TableHead>
-                      {/* Render động các cột ngày */}
                       {dailyReportData.dates.map((dateStr) => (
                         <TableHead key={dateStr} className="border border-[#B8D3E8] text-white font-black whitespace-nowrap text-center px-4 py-2 text-lg sm:text-xl min-w-[160px]">
                           Trong ngày<br />
@@ -2226,92 +2437,240 @@ const DailyReport = () => {
 
                   <TableBody>
                     {/* Số lượt khách */}
-                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
-                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-[#F1F7FC]">
-                        <div className="flex items-center gap-4">
-                          <Users className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-                          <span>Số lượt khách</span>
+                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC] border-b border-[#C7DCEC]">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-3 whitespace-nowrap text-left text-lg sm:text-xl sticky left-0 z-10 bg-[#F1F7FC]">
+                        <div className="flex items-center gap-3">
+                          <Users className="w-6 h-6 sm:w-7 sm:h-7 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>{dailyReportData.guestRows.label}</span>
                         </div>
                       </TableCell>
                       {dailyReportData.dates.map(dateStr => (
-                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl">
-                          {dailyReportData.guestValues[dateStr] || "0"}
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] p-0 align-middle text-[#10284A]">
+                          <div className="flex h-full w-full divide-x divide-[#C7DCEC]">
+                            <div className="flex-1 flex items-center justify-center py-2 px-2 text-[16px] sm:text-[18px] font-black bg-blue-100/30 min-w-[90px]">
+                              {dailyReportData.guestRows.formatter(dailyReportData.guestRows.values[dateStr]?.total || 0)}
+                            </div>
+                            <div className="flex flex-col w-[140px] shrink-0 justify-center divide-y divide-[#C7DCEC]/50">
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                                <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
+                                <span className="w-[80px] shrink-0 text-[#10284A] text-right pr-3 whitespace-nowrap">{dailyReportData.guestRows.formatter(dailyReportData.guestRows.values[dateStr]?.lunch || 0)}</span>
+                              </div>
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                                <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
+                                <span className="w-[80px] shrink-0 text-[#10284A] text-right pr-3 whitespace-nowrap">{dailyReportData.guestRows.formatter(dailyReportData.guestRows.values[dateStr]?.dinner || 0)}</span>
+                              </div>
+                            </div>
+                          </div>
                         </TableCell>
                       ))}
-                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#168653] font-bold text-xl sm:text-2xl bg-[#E8F5E9]">
-                        {dailyReportData.monthGuest || "0"}
+                      <TableCell className="border border-[#C7DCEC] p-0 align-middle bg-[#E8F5E9] text-[#10284A]">
+                        <div className="flex h-full w-full divide-x divide-[#C7DCEC]">
+                          <div className="flex-1 flex items-center justify-center py-2 px-2 text-[16px] sm:text-[18px] font-black text-[#168653] bg-green-200/30 min-w-[100px]">
+                            {dailyReportData.guestRows.formatter(dailyReportData.guestRows.monthTotal.total)}
+                          </div>
+                          <div className="flex flex-col w-[150px] shrink-0 justify-center divide-y divide-[#C7DCEC]/50">
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                              <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
+                              <span className="w-[90px] shrink-0 text-[#168653] text-right pr-3 whitespace-nowrap">{dailyReportData.guestRows.formatter(dailyReportData.guestRows.monthTotal.lunch)}</span>
+                            </div>
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                              <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
+                              <span className="w-[90px] shrink-0 text-[#168653] text-right pr-3 whitespace-nowrap">{dailyReportData.guestRows.formatter(dailyReportData.guestRows.monthTotal.dinner)}</span>
+                            </div>
+                          </div>
+                        </div>
                       </TableCell>
                     </TableRow>
 
-                    {/* Chi tiêu bình quân/lượt khách */}
-                    <TableRow className="bg-white hover:bg-white">
-                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-white">
-                        <div className="flex items-center gap-4">
-                          <Coins className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-                          <span>Chi tiêu bình quân/lượt khách</span>
+                    {/* Chi tiêu bình quân */}
+                    <TableRow className="bg-white hover:bg-white border-b border-[#C7DCEC]">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-3 whitespace-nowrap text-left text-lg sm:text-xl sticky left-0 z-10 bg-white">
+                        <div className="flex items-center gap-3">
+                          <Coins className="w-6 h-6 sm:w-7 sm:h-7 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>{dailyReportData.avgRows.label}</span>
                         </div>
                       </TableCell>
                       {dailyReportData.dates.map(dateStr => (
-                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#1761D2] font-bold text-xl sm:text-2xl whitespace-nowrap">
-  {formatAvgGuest(dailyReportData.avgGuestValues[dateStr]) || "0 ₫"}
-</TableCell>
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] align-middle text-center text-[#1761D2] font-black text-[16px] sm:text-[17px] whitespace-nowrap py-3 px-3">
+                          {dailyReportData.avgRows.formatter(dailyReportData.avgRows.values[dateStr]?.total || 0)}
+                        </TableCell>
                       ))}
-                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#168653] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
-  {formatAvgGuest(dailyReportData.monthAvgGuest) || "0 ₫"}
-</TableCell>
+                      <TableCell className="border border-[#C7DCEC] align-middle bg-[#E8F5E9] text-center text-[#168653] font-black text-[16px] sm:text-[17px] whitespace-nowrap py-3 px-3">
+                        {dailyReportData.avgRows.formatter(dailyReportData.avgRows.monthTotal.total)}
+                      </TableCell>
                     </TableRow>
 
                     {/* Doanh thu đồ ăn */}
-                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
-                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-[#F1F7FC]">
-                        <div className="flex items-center gap-4">
-                          <UtensilsCrossed className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-                          <span>Doanh thu đồ ăn</span>
+                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC] border-b border-[#C7DCEC]">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-3 whitespace-nowrap text-left text-lg sm:text-xl sticky left-0 z-10 bg-[#F1F7FC]">
+                        <div className="flex items-center gap-3">
+                          <UtensilsCrossed className="w-6 h-6 sm:w-7 sm:h-7 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>{dailyReportData.foodRows.label}</span>
                         </div>
                       </TableCell>
                       {dailyReportData.dates.map(dateStr => (
-                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-                          {formatCurrency(dailyReportData.rows[0].values[dateStr]) || "0 ₫"}
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] p-0 align-middle text-[#10284A]">
+                          <div className="flex h-full w-full divide-x divide-[#C7DCEC]">
+                            <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-blue-100/30 min-w-[110px] whitespace-nowrap">
+                              {dailyReportData.foodRows.formatter(dailyReportData.foodRows.values[dateStr]?.total || 0)}
+                            </div>
+                            <div className="flex flex-col w-[160px] shrink-0 justify-center divide-y divide-[#C7DCEC]/50">
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                                <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
+                                <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.foodRows.values[dateStr]?.lunch || 0)}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                                <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
+                                <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.foodRows.values[dateStr]?.dinner || 0)}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </TableCell>
                       ))}
-                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
-                        {formatCurrency(dailyReportData.rows[0].monthTotal) || "0 ₫"}
+                      <TableCell className="border border-[#C7DCEC] p-0 align-middle bg-[#E8F5E9] text-[#10284A]">
+                        <div className="flex h-full w-full divide-x divide-[#C7DCEC]">
+                          <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-green-200/30 min-w-[120px] whitespace-nowrap">
+                            {dailyReportData.foodRows.formatter(dailyReportData.foodRows.monthTotal.total)}
+                          </div>
+                          <div className="flex flex-col w-[170px] shrink-0 justify-center divide-y divide-[#C7DCEC]/50">
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                              <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
+                              <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.foodRows.monthTotal.lunch)}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                              <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
+                              <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.foodRows.monthTotal.dinner)}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </TableCell>
                     </TableRow>
 
                     {/* Doanh thu nước uống */}
-                    <TableRow className="bg-white hover:bg-white">
-                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-white">
-                        <div className="flex items-center gap-4">
-                          <CupSoda className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-                          <span>Doanh thu nước uống</span>
+                    <TableRow className="bg-white hover:bg-white border-b border-[#C7DCEC]">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-3 whitespace-nowrap text-left text-lg sm:text-xl sticky left-0 z-10 bg-white">
+                        <div className="flex items-center gap-3">
+                          <CupSoda className="w-6 h-6 sm:w-7 sm:h-7 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>{dailyReportData.drinkRows.label}</span>
                         </div>
                       </TableCell>
                       {dailyReportData.dates.map(dateStr => (
-                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-                          {formatCurrency(dailyReportData.rows[1].values[dateStr]) || "0 ₫"}
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] p-0 align-middle text-[#10284A]">
+                          <div className="flex h-full w-full divide-x divide-[#C7DCEC]">
+                            <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-blue-100/30 min-w-[110px] whitespace-nowrap">
+                              {dailyReportData.drinkRows.formatter(dailyReportData.drinkRows.values[dateStr]?.total || 0)}
+                            </div>
+                            <div className="flex flex-col w-[160px] shrink-0 justify-center divide-y divide-[#C7DCEC]/50">
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                                <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
+                                <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.drinkRows.values[dateStr]?.lunch || 0)}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                                <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
+                                <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.drinkRows.values[dateStr]?.dinner || 0)}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </TableCell>
                       ))}
-                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
-                        {formatCurrency(dailyReportData.rows[1].monthTotal) || "0 ₫"}
+                      <TableCell className="border border-[#C7DCEC] p-0 align-middle bg-[#E8F5E9] text-[#10284A]">
+                        <div className="flex h-full w-full divide-x divide-[#C7DCEC]">
+                          <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-green-200/30 min-w-[120px] whitespace-nowrap">
+                            {dailyReportData.drinkRows.formatter(dailyReportData.drinkRows.monthTotal.total)}
+                          </div>
+                          <div className="flex flex-col w-[170px] shrink-0 justify-center divide-y divide-[#C7DCEC]/50">
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                              <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
+                              <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.drinkRows.monthTotal.lunch)}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                              <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
+                              <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.drinkRows.monthTotal.dinner)}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </TableCell>
                     </TableRow>
 
                     {/* Doanh thu khác */}
-                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC]">
-                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-4 whitespace-nowrap text-left text-xl sm:text-2xl sticky left-0 z-10 bg-[#F1F7FC]">
-                        <div className="flex items-center gap-4">
-                          <CircleEllipsis className="w-8 h-8 sm:w-9 sm:h-9 text-[#10284A] shrink-0" strokeWidth={1.8} />
-                          <span>Doanh thu khác</span>
+                    <TableRow className="bg-[#F1F7FC] hover:bg-[#F1F7FC] border-b border-[#C7DCEC]">
+                      <TableCell className="border border-[#C7DCEC] font-bold text-[#10284A] px-4 py-3 whitespace-nowrap text-left text-lg sm:text-xl sticky left-0 z-10 bg-[#F1F7FC]">
+                        <div className="flex items-center gap-3">
+                          <CircleEllipsis className="w-6 h-6 sm:w-7 sm:h-7 text-[#10284A] shrink-0" strokeWidth={1.8} />
+                          <span>{dailyReportData.otherRows.label}</span>
                         </div>
                       </TableCell>
                       {dailyReportData.dates.map(dateStr => (
-                        <TableCell key={dateStr} className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap">
-                          {formatCurrency(dailyReportData.rows[2].values[dateStr]) || "0 ₫"}
+                        <TableCell key={dateStr} className="border border-[#C7DCEC] p-0 align-middle text-[#10284A]">
+                          <div className="flex h-full w-full divide-x divide-[#C7DCEC]">
+                            <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-blue-100/30 min-w-[110px] whitespace-nowrap">
+                              {dailyReportData.otherRows.formatter(dailyReportData.otherRows.values[dateStr]?.total || 0)}
+                            </div>
+                            <div className="flex flex-col w-[160px] shrink-0 justify-center divide-y divide-[#C7DCEC]/50">
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                                <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
+                                <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.otherRows.values[dateStr]?.lunch || 0)}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                                <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
+                                <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.otherRows.values[dateStr]?.dinner || 0)}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </TableCell>
                       ))}
-                      <TableCell className="border border-[#C7DCEC] text-center px-4 py-4 tabular-nums text-[#10284A] font-bold text-xl sm:text-2xl whitespace-nowrap bg-[#E8F5E9]">
-                        {formatCurrency(dailyReportData.rows[2].monthTotal) || "0 ₫"}
+                      <TableCell className="border border-[#C7DCEC] p-0 align-middle bg-[#E8F5E9] text-[#10284A]">
+                        <div className="flex h-full w-full divide-x divide-[#C7DCEC]">
+                          <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-green-200/30 min-w-[120px] whitespace-nowrap">
+                            {dailyReportData.otherRows.formatter(dailyReportData.otherRows.monthTotal.total)}
+                          </div>
+                          <div className="flex flex-col w-[170px] shrink-0 justify-center divide-y divide-[#C7DCEC]/50">
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                              <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
+                              <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.otherRows.monthTotal.lunch)}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
+                              <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
+                              <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.otherRows.monthTotal.dinner)}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </TableCell>
                     </TableRow>
                   </TableBody>
@@ -2319,44 +2678,123 @@ const DailyReport = () => {
                   <TableFooter>
                     {/* Tổng doanh thu trước thuế */}
                     <TableRow className="bg-[#204878] hover:bg-[#204878]">
-                      <TableCell className="border border-[#8FB4D5] text-left font-black text-white px-4 py-4 whitespace-nowrap text-xl sm:text-2xl sticky left-0 z-20 bg-[#204878]">
-                        <div className="flex items-center gap-4">
-                          <Calculator className="w-8 h-8 sm:w-9 sm:h-9 text-white shrink-0" strokeWidth={1.8} />
+                      <TableCell className="border border-[#8FB4D5] text-left font-black text-white px-4 py-3 whitespace-nowrap text-lg sm:text-xl sticky left-0 z-20 bg-[#204878]">
+                        <div className="flex items-center gap-3">
+                          <Calculator className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0" strokeWidth={1.8} />
                           <span>Tổng doanh thu trước thuế</span>
                         </div>
                       </TableCell>
                       {dailyReportData.dates.map(dateStr => (
-                        <TableCell key={dateStr} className="border border-[#8FB4D5] text-center font-black text-[#FFC35A] px-4 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap">
-                          {formatCurrency(dailyReportData.footerTotals[dateStr]?.preTax) || "0 ₫"}
+                        <TableCell key={dateStr} className="border border-[#8FB4D5] p-0 align-middle text-white">
+                          <div className="flex h-full w-full divide-x divide-[#8FB4D5]/50">
+                            <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-[#2a598a] text-[#FFC35A] min-w-[110px] whitespace-nowrap">
+                              {formatCurrency(dailyReportData.footerTotals[dateStr]?.preTax) || "0"}
+                            </div>
+                            <div className="flex flex-col w-[170px] shrink-0 justify-center divide-y divide-[#8FB4D5]/50">
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#FFC35A]/80">
+                                <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Trưa</span>
+                                <span className="w-[110px] shrink-0 text-[#FFC35A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.footerTotals[dateStr]?.lunchPreTax) || "0"}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#FFC35A]/80">
+                                <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Tối</span>
+                                <span className="w-[110px] shrink-0 text-[#FFC35A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.footerTotals[dateStr]?.dinnerPreTax) || "0"}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </TableCell>
                       ))}
-                      <TableCell className="border border-[#8FB4D5] text-center font-black text-[#FFC35A] px-4 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap bg-[#1a3a63]">
-                        {formatCurrency(dailyReportData.monthPreTax) || "0 ₫"}
+                      <TableCell className="border border-[#8FB4D5] p-0 align-middle bg-[#1a3a63] text-[#FFC35A]">
+                        <div className="flex h-full w-full divide-x divide-[#8FB4D5]/50">
+                          <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-[#183b66] text-[#FFD580] min-w-[120px] whitespace-nowrap">
+                            {formatCurrency(dailyReportData.monthPreTax) || "0"}
+                          </div>
+                          <div className="flex flex-col w-[180px] shrink-0 justify-center divide-y divide-[#8FB4D5]/50">
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#FFC35A]/80">
+                              <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Trưa</span>
+                              <span className="w-[120px] shrink-0 text-[#FFC35A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.monthLunchPreTax) || "0"}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#FFC35A]/80">
+                              <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Tối</span>
+                              <span className="w-[120px] shrink-0 text-[#FFC35A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.monthDinnerPreTax) || "0"}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </TableCell>
                     </TableRow>
 
                     {/* Tổng doanh thu bao gồm thuế */}
                     <TableRow className="bg-[#17365D] hover:bg-[#17365D]">
-                      <TableCell className="border border-[#8FB4D5] text-left font-black text-white px-4 py-4 whitespace-nowrap text-xl sm:text-2xl sticky left-0 z-20 bg-[#17365D]">
-                        <div className="flex items-center gap-4">
-                          <ReceiptText className="w-8 h-8 sm:w-9 sm:h-9 text-white shrink-0" strokeWidth={1.8} />
+                      <TableCell className="border border-[#8FB4D5] text-left font-black text-white px-4 py-3 whitespace-nowrap text-lg sm:text-xl sticky left-0 z-20 bg-[#17365D]">
+                        <div className="flex items-center gap-3">
+                          <ReceiptText className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0" strokeWidth={1.8} />
                           <span>Tổng doanh thu bao gồm thuế</span>
                         </div>
                       </TableCell>
                       {dailyReportData.dates.map(dateStr => (
-                        <TableCell key={dateStr} className="border border-[#8FB4D5] text-center font-black text-[#68F0B0] px-4 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap">
-                          {formatCurrency(dailyReportData.footerTotals[dateStr]?.gross) || "0 ₫"}
+                        <TableCell key={dateStr} className="border border-[#8FB4D5] p-0 align-middle text-white">
+                          <div className="flex h-full w-full divide-x divide-[#8FB4D5]/50">
+                            <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-[#22507f] text-[#68F0B0] min-w-[110px] whitespace-nowrap">
+                              {formatCurrency(dailyReportData.footerTotals[dateStr]?.gross) || "0"}
+                            </div>
+                            <div className="flex flex-col w-[170px] shrink-0 justify-center divide-y divide-[#8FB4D5]/50">
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#68F0B0]/80">
+                                <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Trưa</span>
+                                <span className="w-[110px] shrink-0 text-[#68F0B0] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.footerTotals[dateStr]?.lunchGross) || "0"}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                              <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#68F0B0]/80">
+                                <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Tối</span>
+                                <span className="w-[110px] shrink-0 text-[#68F0B0] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                  <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.footerTotals[dateStr]?.dinnerGross) || "0"}</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </TableCell>
                       ))}
-                      <TableCell className="border border-[#8FB4D5] text-center font-black text-[#68F0B0] px-4 py-4 tabular-nums text-xl sm:text-2xl whitespace-nowrap bg-[#132c4e]">
-                        {formatCurrency(dailyReportData.monthGross) || "0 ₫"}
+                      <TableCell className="border border-[#8FB4D5] p-0 align-middle bg-[#132c4e] text-[#68F0B0]">
+                        <div className="flex h-full w-full divide-x divide-[#8FB4D5]/50">
+                          <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-[#102745] text-[#A0FFC8] min-w-[120px] whitespace-nowrap">
+                            {formatCurrency(dailyReportData.monthGross) || "0"}
+                          </div>
+                          <div className="flex flex-col w-[180px] shrink-0 justify-center divide-y divide-[#8FB4D5]/50">
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#68F0B0]/80">
+                              <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Trưa</span>
+                              <span className="w-[120px] shrink-0 text-[#68F0B0] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.monthLunchGross) || "0"}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                            <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#68F0B0]/80">
+                              <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Tối</span>
+                              <span className="w-[120px] shrink-0 text-[#68F0B0] text-right pr-2 whitespace-nowrap flex justify-end items-center">
+                                <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.monthDinnerGross) || "0"}</span>
+                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </TableCell>
                     </TableRow>
                   </TableFooter>
                 </Table>
               </div>
 
-              {/* ===== ĐỊNH PHÍ NGÀY (giống bên tab Chi tiết) ===== */}
               <div className="space-y-2 pt-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">Định phí ngày</h2>
@@ -2448,9 +2886,8 @@ const DailyReport = () => {
                 </Card>
               </div>
 
-              {/* Ghi chú VAT */}
               <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-800">
-                <strong>Lưu ý:</strong> "DT trước thuế" là doanh thu gốc (chưa VAT). Cột "tháng" là tổng toàn bộ các ngày đã nhập trong tháng.
+                <strong>Lưu ý:</strong> "DT trước thuế" là doanh thu gốc (chưa VAT). Cột "tháng" là tổng toàn bộ các ngày đã nhập trong tháng. Mỗi ô dữ liệu hiển thị: <strong>Tổng (bên trái)</strong> và <em>Trưa (trên), Tối (dưới) (bên phải)</em>.
               </div>
             </>
           )}
