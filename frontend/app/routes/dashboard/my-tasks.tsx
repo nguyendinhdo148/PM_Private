@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import {
   Plus, Trash2, List, Download, CalendarDays, CalendarRange,
-  ChevronLeft, ChevronRight, Loader2, Send, Copy, Check,
+  ChevronLeft, ChevronRight, Loader2, Send, Copy, Check, FileSpreadsheet,
 } from "lucide-react";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -783,7 +783,7 @@ const MyTasks = () => {
   }, [stats, filteredData, profitAfterFixed, profitMargin, totalOfFilteredData]);
 
   // ============================================================
-  // EXPORT EXCEL
+  // EXPORT EXCEL (CƠ BẢN)
   // ============================================================
   const handleExportExcel = async () => {
     if (filteredData.length === 0) return alert("Không có dữ liệu trong khoảng thời gian này!");
@@ -891,6 +891,70 @@ const MyTasks = () => {
     if (filterMonth !== "all") fileName += `_Thang_${filterMonth.split("-")[1]}`;
 
     XLSX.writeFile(workbook, `${fileName}.xlsx`);
+  };
+
+  // ============================================================
+  // XUẤT BÁO CÁO TỔNG HỢP (DẠNG FUGU / MAXIMSAIGON)
+  // ============================================================
+  const handleExportSummaryReport = () => {
+    if (filteredData.length === 0) {
+      alert("Không có dữ liệu trong khoảng thời gian này!");
+      return;
+    }
+
+    // Lấy danh sách tháng (tăng dần)
+    const sortedMonths = [...filteredData].sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+
+    // Tiêu đề cột
+    const headers = ["STT", "NỘI DUNG", ...sortedMonths.map((m) => `THÁNG ${parseInt(m.monthKey.split("-")[1])}`)];
+
+    // Dữ liệu các dòng (chỉ đổ số cho dòng Doanh thu, các dòng khác để trống)
+    const rows: any[][] = [
+      ["", "MAXIMSAIGON BÁO CÁO DOANH THU-CHI PHÍ", ...sortedMonths.map(() => "")],
+      headers,
+      ["1", "DOANH THU ( GỒM VAT)", ...sortedMonths.map((m) => m.totalGross)],
+      ["2", "TỔNG CHI PHÍ, Trong đó:", ...sortedMonths.map(() => null)],
+      ["3", "Chi phí nhà cung cấp, chi phí vận hành", ...sortedMonths.map(() => null)],
+      ["4", "Lương+BHXH Nhân viên", ...sortedMonths.map(() => null)],
+      ["5", "Lương Anh Thành+ Phí 2% Bên Thành theo Hợp", ...sortedMonths.map(() => null)],
+      ["6", "Chi phí mặt bằng Bên Thành", ...sortedMonths.map(() => null)],
+      ["7", "Tiền điện", ...sortedMonths.map(() => null)],
+      ["8", "Tiền nước", ...sortedMonths.map(() => null)],
+      ["", "LÃI/LỖ", ...sortedMonths.map((m) => m.totalGross)], // Bằng doanh thu vì chi phí = null
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Set độ rộng cột
+    const wscols = [
+      { wch: 5 },  // STT
+      { wch: 50 }, // NỘI DUNG
+      ...sortedMonths.map(() => ({ wch: 20 })) // Các cột tháng
+    ];
+    ws["!cols"] = wscols;
+
+    // Format số (thêm dấu phẩy)
+    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = { c: C, r: R };
+        const cellRef = XLSX.utils.encode_cell(cellAddress);
+        const cell = ws[cellRef];
+        if (!cell) continue;
+
+        if (C >= 2) {
+          if (typeof cell.v === "number") {
+            cell.z = "#,##0";
+          } else if (cell.v === null) {
+            cell.v = "";
+          }
+        }
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "BaoCaoTongHop");
+    XLSX.writeFile(wb, `MaximSaigon_BaoCaoDoanhThuChiPhi_${new Date().getTime()}.xlsx`);
   };
 
   // ============================================================
@@ -1092,6 +1156,10 @@ const MyTasks = () => {
 
           <Button onClick={handleExportExcel} className="gap-2 ml-2 bg-blue-600 hover:bg-blue-700 text-white">
             <Download className="w-4 h-4" /> Xuất Excel
+          </Button>
+
+          <Button onClick={handleExportSummaryReport} className="gap-2 bg-purple-600 hover:bg-purple-700 text-white">
+            <FileSpreadsheet className="w-4 h-4" /> Xuất BC Tổng Hợp
           </Button>
         </div>
       </div>
