@@ -2657,14 +2657,14 @@ const DailyReport = () => {
                                 <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
                                 <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.foodRows.values[dateStr]?.lunch || 0)}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                               <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
                                 <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
                                 <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.foodRows.values[dateStr]?.dinner || 0)}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                             </div>
@@ -2681,14 +2681,14 @@ const DailyReport = () => {
                               <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
                               <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.foodRows.monthTotal.lunch)}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                             <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
                               <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
                               <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.foodRows.monthTotal.dinner)}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                           </div>
@@ -2715,14 +2715,14 @@ const DailyReport = () => {
                                 <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
                                 <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.drinkRows.values[dateStr]?.lunch || 0)}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                               <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
                                 <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
                                 <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.drinkRows.values[dateStr]?.dinner || 0)}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                             </div>
@@ -2739,14 +2739,14 @@ const DailyReport = () => {
                               <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
                               <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.drinkRows.monthTotal.lunch)}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                             <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
                               <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
                               <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.drinkRows.monthTotal.dinner)}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                           </div>
@@ -2773,14 +2773,14 @@ const DailyReport = () => {
                                 <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
                                 <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.otherRows.values[dateStr]?.lunch || 0)}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                               <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
                                 <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
                                 <span className="w-[100px] shrink-0 text-[#10284A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.otherRows.values[dateStr]?.dinner || 0)}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                             </div>
@@ -2797,14 +2797,14 @@ const DailyReport = () => {
                               <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Trưa</span>
                               <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.otherRows.monthTotal.lunch)}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                             <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-slate-600">
                               <span className="w-[60px] shrink-0 border-r border-[#C7DCEC] pl-2 flex items-center">Tối</span>
                               <span className="w-[110px] shrink-0 text-[#168653] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.otherRows.monthTotal.dinner)}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                           </div>
@@ -2833,14 +2833,14 @@ const DailyReport = () => {
                                 <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Trưa</span>
                                 <span className="w-[110px] shrink-0 text-[#FFC35A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.footerTotals[dateStr]?.lunchPreTax) || "0"}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                               <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#FFC35A]/80">
                                 <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Tối</span>
                                 <span className="w-[110px] shrink-0 text-[#FFC35A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.footerTotals[dateStr]?.dinnerPreTax) || "0"}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                             </div>
@@ -2857,14 +2857,14 @@ const DailyReport = () => {
                               <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Trưa</span>
                               <span className="w-[120px] shrink-0 text-[#FFC35A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.monthLunchPreTax) || "0"}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                             <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#FFC35A]/80">
                               <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Tối</span>
                               <span className="w-[120px] shrink-0 text-[#FFC35A] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.monthDinnerPreTax) || "0"}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                           </div>
@@ -2891,14 +2891,14 @@ const DailyReport = () => {
                                 <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Trưa</span>
                                 <span className="w-[110px] shrink-0 text-[#68F0B0] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.footerTotals[dateStr]?.lunchGross) || "0"}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                               <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#68F0B0]/80">
                                 <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Tối</span>
                                 <span className="w-[110px] shrink-0 text-[#68F0B0] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                   <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.footerTotals[dateStr]?.dinnerGross) || "0"}</span>
-                                  <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                  <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                                 </span>
                               </div>
                             </div>
@@ -2915,14 +2915,14 @@ const DailyReport = () => {
                               <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Trưa</span>
                               <span className="w-[120px] shrink-0 text-[#68F0B0] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.monthLunchGross) || "0"}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                             <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#68F0B0]/80">
                               <span className="w-[60px] shrink-0 border-r border-[#8FB4D5] pl-2 flex items-center">Tối</span>
                               <span className="w-[120px] shrink-0 text-[#68F0B0] text-right pr-2 whitespace-nowrap flex justify-end items-center">
                                 <span className="flex-1 min-w-0 text-right tabular-nums">{formatCurrencyNoUnit(dailyReportData.monthDinnerGross) || "0"}</span>
-                                <span className="w-[18px] shrink-0 text-left pl-1">đ</span>
+                                <span className="w-[18px] shrink-0 text-left pl-2">đ</span>
                               </span>
                             </div>
                           </div>
