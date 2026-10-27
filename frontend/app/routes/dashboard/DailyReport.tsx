@@ -537,135 +537,135 @@ const DailyReport = () => {
   };
 
   // 👇 MIGRATE: chuyển doanh thu đang nằm ở cấp TỔNG (Trưa/Tối rỗng) sang buổi TỐI
-  // const handleMigrateTotalsToDinner = async () => {
-  //   const isSessionEmpty = (s?: SessionRevenue) => {
-  //     if (!s) return true;
-  //     return (
-  //       (Number(s.cash) || 0) === 0 &&
-  //       (Number(s.transfer) || 0) === 0 &&
-  //       (Number(s.card) || 0) === 0 &&
-  //       (Number(s.debt) || 0) === 0 &&
-  //       (Number(s.founderPoints) || 0) === 0 &&
-  //       (Number(s.foodRevenue) || 0) === 0 &&
-  //       (Number(s.drinkRevenue) || 0) === 0 &&
-  //       (Number(s.otherRevenue) || 0) === 0 &&
-  //       (Number(s.guestCount) || 0) === 0 &&
-  //       (Number(s.billCount) || 0) === 0
-  //     );
-  //   };
+  const handleMigrateTotalsToDinner = async () => {
+    const isSessionEmpty = (s?: SessionRevenue) => {
+      if (!s) return true;
+      return (
+        (Number(s.cash) || 0) === 0 &&
+        (Number(s.transfer) || 0) === 0 &&
+        (Number(s.card) || 0) === 0 &&
+        (Number(s.debt) || 0) === 0 &&
+        (Number(s.founderPoints) || 0) === 0 &&
+        (Number(s.foodRevenue) || 0) === 0 &&
+        (Number(s.drinkRevenue) || 0) === 0 &&
+        (Number(s.otherRevenue) || 0) === 0 &&
+        (Number(s.guestCount) || 0) === 0 &&
+        (Number(s.billCount) || 0) === 0
+      );
+    };
 
-  //   const candidates = data.filter((row) => {
-  //     const dayHasValue =
-  //       (Number(row.cash) || 0) +
-  //         (Number(row.transfer) || 0) +
-  //         (Number(row.card) || 0) +
-  //         (Number(row.debt) || 0) +
-  //         (Number(row.founderPoints) || 0) +
-  //         (Number(row.foodRevenue) || 0) +
-  //         (Number(row.drinkRevenue) || 0) +
-  //         (Number(row.otherRevenue) || 0) +
-  //         (Number(row.guestCount) || 0) +
-  //         (Number(row.billCount) || 0) >
-  //       0;
+    const candidates = data.filter((row) => {
+      const dayHasValue =
+        (Number(row.cash) || 0) +
+          (Number(row.transfer) || 0) +
+          (Number(row.card) || 0) +
+          (Number(row.debt) || 0) +
+          (Number(row.founderPoints) || 0) +
+          (Number(row.foodRevenue) || 0) +
+          (Number(row.drinkRevenue) || 0) +
+          (Number(row.otherRevenue) || 0) +
+          (Number(row.guestCount) || 0) +
+          (Number(row.billCount) || 0) >
+        0;
 
-  //     return (
-  //       isSessionEmpty(row.lunch) &&
-  //       isSessionEmpty(row.dinner) &&
-  //       dayHasValue
-  //     );
-  //   });
+      return (
+        isSessionEmpty(row.lunch) &&
+        isSessionEmpty(row.dinner) &&
+        dayHasValue
+      );
+    });
 
-  //   if (candidates.length === 0) {
-  //     alert("Không có dòng nào cần chuyển (tất cả đã có Trưa/Tối).");
-  //     return;
-  //   }
+    if (candidates.length === 0) {
+      alert("Không có dòng nào cần chuyển (tất cả đã có Trưa/Tối).");
+      return;
+    }
 
-  //   if (
-  //     !window.confirm(
-  //       `Tìm thấy ${candidates.length} ngày có doanh thu ở cấp TỔNG nhưng Trưa/Tối đang rỗng.\n\nChuyển toàn bộ số liệu cấp ngày sang buổi TỐI cho ${candidates.length} ngày này?`
-  //     )
-  //   )
-  //     return;
+    if (
+      !window.confirm(
+        `Tìm thấy ${candidates.length} ngày có doanh thu ở cấp TỔNG nhưng Trưa/Tối đang rỗng.\n\nChuyển toàn bộ số liệu cấp ngày sang buổi TỐI cho ${candidates.length} ngày này?`
+      )
+    )
+      return;
 
-  //   const toast = document.createElement("div");
-  //   toast.className =
-  //     "fixed bottom-4 right-4 bg-sky-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm";
-  //   toast.textContent = `Đang chuyển 0/${candidates.length}...`;
-  //   document.body.appendChild(toast);
+    const toast = document.createElement("div");
+    toast.className =
+      "fixed bottom-4 right-4 bg-sky-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm";
+    toast.textContent = `Đang chuyển 0/${candidates.length}...`;
+    document.body.appendChild(toast);
 
-  //   let done = 0;
-  //   let failed = 0;
+    let done = 0;
+    let failed = 0;
 
-  //   for (const row of candidates) {
-  //     if (!row._id) continue;
-  //     try {
-  //       const dinner: SessionRevenue = {
-  //         cash: Number(row.cash) || 0,
-  //         transfer: Number(row.transfer) || 0,
-  //         card: Number(row.card) || 0,
-  //         debt: Number(row.debt) || 0,
-  //         founderPoints: Number(row.founderPoints) || 0,
-  //         foodRevenue: Number(row.foodRevenue) || 0,
-  //         drinkRevenue: Number(row.drinkRevenue) || 0,
-  //         otherRevenue: Number(row.otherRevenue) || 0,
-  //         guestCount: Number(row.guestCount) || 0,
-  //         billCount: Number(row.billCount) || 0,
-  //         note: row.note || "",
-  //       };
+    for (const row of candidates) {
+      if (!row._id) continue;
+      try {
+        const dinner: SessionRevenue = {
+          cash: Number(row.cash) || 0,
+          transfer: Number(row.transfer) || 0,
+          card: Number(row.card) || 0,
+          debt: Number(row.debt) || 0,
+          founderPoints: Number(row.founderPoints) || 0,
+          foodRevenue: Number(row.foodRevenue) || 0,
+          drinkRevenue: Number(row.drinkRevenue) || 0,
+          otherRevenue: Number(row.otherRevenue) || 0,
+          guestCount: Number(row.guestCount) || 0,
+          billCount: Number(row.billCount) || 0,
+          note: row.note || "",
+        };
 
-  //       const updated: DailyRevenue = recalcTotals({
-  //         ...row,
-  //         lunch: { ...EMPTY_SESSION },
-  //         dinner,
-  //       });
+        const updated: DailyRevenue = recalcTotals({
+          ...row,
+          lunch: { ...EMPTY_SESSION },
+          dinner,
+        });
 
-  //       const payload = {
-  //         lunch: updated.lunch,
-  //         dinner: updated.dinner,
-  //         note: updated.note,
-  //         cash: updated.cash,
-  //         transfer: updated.transfer,
-  //         card: updated.card,
-  //         debt: updated.debt,
-  //         founderPoints: updated.founderPoints,
-  //         foodRevenue: updated.foodRevenue,
-  //         drinkRevenue: updated.drinkRevenue,
-  //         otherRevenue: updated.otherRevenue,
-  //         guestCount: updated.guestCount,
-  //         billCount: updated.billCount,
-  //         preTaxRevenue: updated.preTaxRevenue,
-  //         totalGross: updated.totalGross,
-  //       };
+        const payload = {
+          lunch: updated.lunch,
+          dinner: updated.dinner,
+          note: updated.note,
+          cash: updated.cash,
+          transfer: updated.transfer,
+          card: updated.card,
+          debt: updated.debt,
+          founderPoints: updated.founderPoints,
+          foodRevenue: updated.foodRevenue,
+          drinkRevenue: updated.drinkRevenue,
+          otherRevenue: updated.otherRevenue,
+          guestCount: updated.guestCount,
+          billCount: updated.billCount,
+          preTaxRevenue: updated.preTaxRevenue,
+          totalGross: updated.totalGross,
+        };
 
-  //       const result = (await updateData(
-  //         `/daily-revenues/${row._id}`,
-  //         payload
-  //       )) as ApiResponse<DailyRevenue>;
+        const result = (await updateData(
+          `/daily-revenues/${row._id}`,
+          payload
+        )) as ApiResponse<DailyRevenue>;
 
-  //       if (result.success) {
-  //         setData((prev) =>
-  //           prev.map((it) =>
-  //             it._id === row._id ? normalizeRow(result.data) : it
-  //           )
-  //         );
-  //         done++;
-  //       } else {
-  //         failed++;
-  //       }
-  //     } catch (e) {
-  //       console.error("Lỗi migrate row", row.date, e);
-  //       failed++;
-  //     }
-  //     toast.textContent = `Đang chuyển ${done + failed}/${candidates.length}... (lỗi: ${failed})`;
-  //   }
+        if (result.success) {
+          setData((prev) =>
+            prev.map((it) =>
+              it._id === row._id ? normalizeRow(result.data) : it
+            )
+          );
+          done++;
+        } else {
+          failed++;
+        }
+      } catch (e) {
+        console.error("Lỗi migrate row", row.date, e);
+        failed++;
+      }
+      toast.textContent = `Đang chuyển ${done + failed}/${candidates.length}... (lỗi: ${failed})`;
+    }
 
-  //   toast.textContent = `✅ Đã chuyển ${done} ngày sang Tối${
-  //     failed ? `, lỗi ${failed}` : ""
-  //   }!`;
-  //   toast.className =
-  //     "fixed bottom-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm";
-  //   setTimeout(() => toast.remove(), 3500);
-  // };
+    toast.textContent = `✅ Đã chuyển ${done} ngày sang Tối${
+      failed ? `, lỗi ${failed}` : ""
+    }!`;
+    toast.className =
+      "fixed bottom-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm";
+    setTimeout(() => toast.remove(), 3500);
+  };
 
   const updateLocalRow = (rowId: string, field: keyof DailyRevenue, rawValue: any) => {
     setData(prev => {
@@ -2145,7 +2145,7 @@ const DailyReport = () => {
           </Button>
 
           {/* 👇 NÚT MIGRATE: chuyển doanh thu cấp TỔNG (Trưa/Tối rỗng) sang buổi TỐI */}
-          {/* <Button
+          <Button
             variant="outline"
             className="gap-1 sm:gap-2 border-amber-400 text-amber-700 hover:bg-amber-50 text-xs sm:text-sm px-2 sm:px-4"
             onClick={handleMigrateTotalsToDinner}
@@ -2153,7 +2153,7 @@ const DailyReport = () => {
           >
             <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline">TỔNG → Tối</span>
-          </Button> */}
+          </Button>
 
           <Button variant="outline" className="gap-1 sm:gap-2 border-slate-300 text-xs sm:text-sm px-2 sm:px-4" onClick={handleExportExcel}>
             <Download className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Xuất Excel</span>
