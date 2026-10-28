@@ -896,66 +896,174 @@ const MyTasks = () => {
   // ============================================================
   // XUẤT BÁO CÁO TỔNG HỢP (DẠNG FUGU / MAXIMSAIGON)
   // ============================================================
-  const handleExportSummaryReport = () => {
-    if (filteredData.length === 0) {
-      alert("Không có dữ liệu trong khoảng thời gian này!");
-      return;
-    }
+  // ============================================================
+// XUẤT BÁO CÁO TỔNG HỢP (DT trước thuế / DT sau thuế / Số khách)
+// ============================================================
+const handleExportSummaryReport = () => {
+  if (filteredData.length === 0) {
+    alert("Không có dữ liệu trong khoảng thời gian này!");
+    return;
+  }
 
-    // Lấy danh sách tháng (tăng dần)
-    const sortedMonths = [...filteredData].sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+  // Tháng tăng dần
+  const sortedMonths = [...filteredData].sort((a, b) =>
+    a.monthKey.localeCompare(b.monthKey)
+  );
 
-    // Tiêu đề cột
-    const headers = ["STT", "NỘI DUNG", ...sortedMonths.map((m) => `THÁNG ${parseInt(m.monthKey.split("-")[1])}`)];
+  // Tổng
+  const totalPreTax = sortedMonths.reduce((s, m) => s + (m.preTaxRevenue || 0), 0);
+  const totalGross = sortedMonths.reduce((s, m) => s + (m.totalGross || 0), 0);
+  const totalGuest = sortedMonths.reduce((s, m) => s + (m.guestCount || 0), 0);
 
-    // Dữ liệu các dòng (chỉ đổ số cho dòng Doanh thu, các dòng khác để trống)
-    const rows: any[][] = [
-      ["", "MAXIMSAIGON BÁO CÁO DOANH THU-CHI PHÍ", ...sortedMonths.map(() => "")],
-      headers,
-      ["1", "DOANH THU ( GỒM VAT)", ...sortedMonths.map((m) => m.totalGross)],
-      ["2", "TỔNG CHI PHÍ, Trong đó:", ...sortedMonths.map(() => null)],
-      ["3", "Chi phí nhà cung cấp, chi phí vận hành", ...sortedMonths.map(() => null)],
-      ["4", "Lương+BHXH Nhân viên", ...sortedMonths.map(() => null)],
-      ["5", "Lương Anh Thành+ Phí 2% Bên Thành theo Hợp", ...sortedMonths.map(() => null)],
-      ["6", "Chi phí mặt bằng Bên Thành", ...sortedMonths.map(() => null)],
-      ["7", "Tiền điện", ...sortedMonths.map(() => null)],
-      ["8", "Tiền nước", ...sortedMonths.map(() => null)],
-      ["", "LÃI/LỖ", ...sortedMonths.map((m) => m.totalGross)], // Bằng doanh thu vì chi phí = null
-    ];
+  // Khoảng thời gian
+  const firstMonth = sortedMonths[0];
+  const lastMonth = sortedMonths[sortedMonths.length - 1];
+  const rangeText =
+    firstMonth.monthKey === lastMonth.monthKey
+      ? `Tháng ${parseInt(firstMonth.monthKey.split("-")[1])}/${firstMonth.monthKey.split("-")[0]}`
+      : `Từ tháng ${parseInt(firstMonth.monthKey.split("-")[1])}/${firstMonth.monthKey.split("-")[0]} đến tháng ${parseInt(lastMonth.monthKey.split("-")[1])}/${lastMonth.monthKey.split("-")[0]}`;
 
-    const ws = XLSX.utils.aoa_to_sheet(rows);
+  // ===== BUILD AOA =====
+  const aoa: any[][] = [];
 
-    // Set độ rộng cột
-    const wscols = [
-      { wch: 5 },  // STT
-      { wch: 50 }, // NỘI DUNG
-      ...sortedMonths.map(() => ({ wch: 20 })) // Các cột tháng
-    ];
-    ws["!cols"] = wscols;
+  // Dòng 0: Tiêu đề lớn
+  aoa.push(["BÁO CÁO TỔNG HỢP DOANH THU", "", "", ""]);
+  // Dòng 1: Khoảng thời gian
+  aoa.push([rangeText, "", "", ""]);
+  // Dòng 2: trống
+  aoa.push([]);
+  // Dòng 3: header cột
+  aoa.push(["Tháng", "DT trước thuế", "DT sau thuế (VAT)", "Số khách"]);
 
-    // Format số (thêm dấu phẩy)
-    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
-    for (let R = range.s.r; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const cellAddress = { c: C, r: R };
-        const cellRef = XLSX.utils.encode_cell(cellAddress);
-        const cell = ws[cellRef];
-        if (!cell) continue;
+  // Dữ liệu từng tháng
+  sortedMonths.forEach((m) => {
+    const [y, mm] = m.monthKey.split("-");
+    aoa.push([
+      `Tháng ${parseInt(mm)}/${y}`,
+      m.preTaxRevenue || 0,
+      m.totalGross || 0,
+      m.guestCount || 0,
+    ]);
+  });
 
-        if (C >= 2) {
-          if (typeof cell.v === "number") {
-            cell.z = "#,##0";
-          } else if (cell.v === null) {
-            cell.v = "";
-          }
-        }
-      }
-    }
+  // Dòng tổng
+  aoa.push(["TỔNG CỘNG", totalPreTax, totalGross, totalGuest]);
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "BaoCaoTongHop");
-    XLSX.writeFile(wb, `MaximSaigon_BaoCaoDoanhThuChiPhi_${new Date().getTime()}.xlsx`);
+  // ===== WORKSHEET =====
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Merge ô tiêu đề + khoảng thời gian
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+  ];
+
+  // Độ rộng cột
+  ws["!cols"] = [
+    { wch: 18 }, // Tháng
+    { wch: 20 }, // DT trước thuế
+    { wch: 22 }, // DT sau thuế
+    { wch: 12 }, // Số khách
+  ];
+
+  // ===== STYLE =====
+  const headerRowIdx = 3;
+  const dataStartIdx = 4;
+  const dataEndIdx = dataStartIdx + sortedMonths.length - 1;
+  const totalRowIdx = dataEndIdx + 1;
+
+  const titleStyle = {
+    font: { bold: true, sz: 16, color: { rgb: "10284A" } },
+    alignment: { horizontal: "center", vertical: "center" },
   };
+  const subTitleStyle = {
+    font: { italic: true, sz: 11, color: { rgb: "555555" } },
+    alignment: { horizontal: "center", vertical: "center" },
+  };
+  const headerStyle = {
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 },
+    fill: { fgColor: { rgb: "204878" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top: { style: "thin", color: { rgb: "FFFFFF" } },
+      bottom: { style: "thin", color: { rgb: "FFFFFF" } },
+      left: { style: "thin", color: { rgb: "FFFFFF" } },
+      right: { style: "thin", color: { rgb: "FFFFFF" } },
+    },
+  };
+  const cellBorder = {
+    top: { style: "thin", color: { rgb: "B8D3E8" } },
+    bottom: { style: "thin", color: { rgb: "B8D3E8" } },
+    left: { style: "thin", color: { rgb: "B8D3E8" } },
+    right: { style: "thin", color: { rgb: "B8D3E8" } },
+  };
+  const labelStyle = {
+    border: cellBorder,
+    alignment: { horizontal: "left", vertical: "center" },
+    font: { bold: true, color: { rgb: "10284A" } },
+  };
+  const numberStyle = {
+    border: cellBorder,
+    alignment: { horizontal: "right", vertical: "center" },
+    numFmt: "#,##0",
+  };
+  const centerStyle = {
+    border: cellBorder,
+    alignment: { horizontal: "center", vertical: "center" },
+  };
+  const totalStyle = {
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 },
+    fill: { fgColor: { rgb: "17365D" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top: { style: "medium", color: { rgb: "FFFFFF" } },
+      bottom: { style: "medium", color: { rgb: "FFFFFF" } },
+      left: { style: "thin", color: { rgb: "FFFFFF" } },
+      right: { style: "thin", color: { rgb: "FFFFFF" } },
+    },
+  };
+  const totalNumberStyle = {
+    ...totalStyle,
+    alignment: { horizontal: "right", vertical: "center" },
+    numFmt: "#,##0",
+  };
+
+  const applyStyle = (r: number, c: number, style: any) => {
+    const addr = XLSX.utils.encode_cell({ r, c });
+    if (!ws[addr]) ws[addr] = { t: "s", v: "" };
+    ws[addr].s = style;
+  };
+
+  // Áp style
+  applyStyle(0, 0, titleStyle);
+  applyStyle(1, 0, subTitleStyle);
+  for (let c = 0; c < 4; c++) applyStyle(headerRowIdx, c, headerStyle);
+
+  for (let i = 0; i < sortedMonths.length; i++) {
+    const r = dataStartIdx + i;
+    applyStyle(r, 0, labelStyle);
+    applyStyle(r, 1, numberStyle);
+    applyStyle(r, 2, numberStyle);
+    applyStyle(r, 3, centerStyle);
+  }
+
+  applyStyle(totalRowIdx, 0, totalStyle);
+  applyStyle(totalRowIdx, 1, totalNumberStyle);
+  applyStyle(totalRowIdx, 2, totalNumberStyle);
+  applyStyle(totalRowIdx, 3, totalStyle);
+
+  // ===== GHI FILE =====
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "BaoCaoTongHop");
+
+  let fileName = "MaximSaigon_BaoCaoTongHop";
+  if (filterYear !== "all") fileName += `_${filterYear}`;
+  if (filterQuarter !== "all") fileName += `_${filterQuarter}`;
+  if (filterMonth !== "all") fileName += `_Thang_${filterMonth.split("-")[1]}`;
+  fileName += `_${new Date().getTime()}.xlsx`;
+
+  XLSX.writeFile(wb, fileName);
+};
 
   // ============================================================
   // AI HANDLER
