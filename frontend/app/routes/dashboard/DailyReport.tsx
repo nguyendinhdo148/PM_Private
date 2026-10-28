@@ -537,6 +537,8 @@ const DailyReport = () => {
   };
 
   // 👇 MIGRATE: chuyển doanh thu đang nằm ở cấp TỔNG (Trưa/Tối rỗng) sang buổi TỐI
+  //    + Phần DT trước thuế (preTaxRevenue) sẽ được đẩy NGUYÊN SỐ vào doanh thu đồ ăn (Tối),
+  //      recalcTotals sẽ tự tính lại preTaxRevenue theo công thức hiện hành.
   const handleMigrateTotalsToDinner = async () => {
     const isSessionEmpty = (s?: SessionRevenue) => {
       if (!s) return true;
@@ -582,7 +584,7 @@ const DailyReport = () => {
 
     if (
       !window.confirm(
-        `Tìm thấy ${candidates.length} ngày có doanh thu ở cấp TỔNG nhưng Trưa/Tối đang rỗng.\n\nChuyển toàn bộ số liệu cấp ngày sang buổi TỐI cho ${candidates.length} ngày này?`
+        `Tìm thấy ${candidates.length} ngày có doanh thu ở cấp TỔNG nhưng Trưa/Tối đang rỗng.\n\nChuyển toàn bộ số liệu cấp ngày sang buổi TỐI cho ${candidates.length} ngày này?\n(Phần DT trước thuế sẽ được đưa NGUYÊN SỐ vào doanh thu đồ ăn buổi Tối)`
       )
     )
       return;
@@ -599,15 +601,30 @@ const DailyReport = () => {
     for (const row of candidates) {
       if (!row._id) continue;
       try {
+        const dayFood = Number(row.foodRevenue) || 0;
+        const dayDrink = Number(row.drinkRevenue) || 0;
+        const dayOther = Number(row.otherRevenue) || 0;
+        const dayPreTax = Number(row.preTaxRevenue) || 0;
+
+        // Nếu cấp ngày chưa có food/drink/other nhưng có preTaxRevenue,
+        // thì đẩy NGUYÊN SỐ preTaxRevenue vào doanh thu đồ ăn (Tối).
+        let dinnerFood = dayFood;
+        let dinnerDrink = dayDrink;
+        let dinnerOther = dayOther;
+
+        if (dayFood === 0 && dayDrink === 0 && dayOther === 0 && dayPreTax > 0) {
+          dinnerFood = dayPreTax; // giữ đúng số, KHÔNG chia VAT
+        }
+
         const dinner: SessionRevenue = {
           cash: Number(row.cash) || 0,
           transfer: Number(row.transfer) || 0,
           card: Number(row.card) || 0,
           debt: Number(row.debt) || 0,
           founderPoints: Number(row.founderPoints) || 0,
-          foodRevenue: Number(row.foodRevenue) || 0,
-          drinkRevenue: Number(row.drinkRevenue) || 0,
-          otherRevenue: Number(row.otherRevenue) || 0,
+          foodRevenue: dinnerFood,
+          drinkRevenue: dinnerDrink,
+          otherRevenue: dinnerOther,
           guestCount: Number(row.guestCount) || 0,
           billCount: Number(row.billCount) || 0,
           note: row.note || "",
