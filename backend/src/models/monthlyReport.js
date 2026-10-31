@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const MonthlyReportSchema = new mongoose.Schema(
@@ -6,12 +7,21 @@ const MonthlyReportSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-    }, // Định dạng: "YYYY-MM" (VD: "2026-04")
+    }, // Định dạng: "YYYY-MM"
 
     title: {
       type: String,
       required: true,
-    }, // VD: "Tháng 04/2026"
+    },
+
+    // =========================
+    // DOANH THU KHÁC HÀNG THÁNG
+    // =========================
+
+    additionalRevenue: {
+      type: Number,
+      default: 0,
+    }, // Khoản thu linh tinh ngoài doanh thu ngày
 
     // =========================
     // CHI PHÍ HÀNG THÁNG
@@ -20,42 +30,42 @@ const MonthlyReportSchema = new mongoose.Schema(
     rent: {
       type: Number,
       default: 0,
-    }, // Mặt bằng
+    },
 
     electricity: {
       type: Number,
       default: 0,
-    }, // Điện
+    },
 
     water: {
       type: Number,
       default: 0,
-    }, // Nước
+    },
 
     internet: {
       type: Number,
       default: 0,
-    }, // Internet
+    },
 
     telephone: {
       type: Number,
       default: 0,
-    }, // Điện thoại
+    },
 
     garbage: {
       type: Number,
       default: 0,
-    }, // Rác
+    },
 
     employeeSalary: {
       type: Number,
       default: 0,
-    }, // Lương nhân viên
+    },
 
     otherExpense: {
       type: Number,
       default: 0,
-    }, // Khác
+    },
   },
   {
     timestamps: true,

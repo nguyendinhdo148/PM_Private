@@ -55,8 +55,10 @@ export interface DailyRevenue {
   foodRevenue: number;
   drinkRevenue: number;
   otherRevenue: number;
+  otherRevenueAfterTax: number;
   preTaxRevenue: number;
   totalGross: number;
+  grandTotal: number;
   guestCount: number;
   billCount: number;
   note?: string;
@@ -147,6 +149,10 @@ const DailyReport = () => {
     telephone: 0, garbage: 0, employeeSalary: 0, otherExpense: 0,
   });
 
+  // Khoản thu khác áp dụng một lần cho toàn bộ báo cáo tháng, không gắn với từng ngày
+  const [monthlyAdditionalRevenue, setMonthlyAdditionalRevenue] = useState<number>(0);
+  const [savingMonthlyAdditionalRevenue, setSavingMonthlyAdditionalRevenue] = useState(false);
+
   const [editingExpenseField, setEditingExpenseField] = useState<keyof MonthlyExpense | null>(null);
   const [expenseInputValue, setExpenseInputValue] = useState<string>("");
   const [savingExpense, setSavingExpense] = useState(false);
@@ -201,6 +207,14 @@ const DailyReport = () => {
     const base: DailyRevenue = {
       ...item,
       date: convertUTCToLocalDate(item.date),
+      otherRevenueAfterTax: Number(item.otherRevenueAfterTax) || 0,
+      grandTotal: Number(item.grandTotal) ||
+        (Number(item.cash) || 0) +
+        (Number(item.transfer) || 0) +
+        (Number(item.card) || 0) +
+        (Number(item.debt) || 0) +
+        (Number(item.founderPoints) || 0) +
+        (Number(item.otherRevenueAfterTax) || 0),
       lunch: item.lunch ?? { ...EMPTY_SESSION },
       dinner: item.dinner ?? {
         cash: Number(item.cash) || 0,
@@ -243,6 +257,7 @@ const DailyReport = () => {
           const result = (await fetchData(`/monthly-reports/${reportId}`)) as ApiResponse<any>;
           if (result.success && result.data) {
             const m = result.data;
+            setMonthlyAdditionalRevenue(Number(m.additionalRevenue) || 0);
             setMonthlyExpenses({
               _id: m._id,
               monthKey: m.monthKey,
@@ -362,6 +377,11 @@ const DailyReport = () => {
     return (Number(row.cash) || 0) + (Number(row.transfer) || 0) + (Number(row.card) || 0) + (Number(row.debt) || 0) + (Number(row.founderPoints) || 0);
   };
 
+  const calculateGrandTotal = (row: DailyRevenue | any) => {
+    return calculateTotalGross(row) +
+      (Number(row.otherRevenueAfterTax) || 0);
+  };
+
   const calculatePreTaxRevenue = (row: DailyRevenue | any) => {
     const food = Number(row.foodRevenue) || 0;
     const drink = Number(row.drinkRevenue) || 0;
@@ -383,6 +403,7 @@ const DailyReport = () => {
   const recalcTotals = (row: DailyRevenue): DailyRevenue => {
     const summed = sumSessionToTotals(row);
     summed.totalGross = calculateTotalGross(summed);
+    summed.grandTotal = calculateGrandTotal(summed);
     summed.preTaxRevenue = calculatePreTaxRevenue(summed);
     return summed;
   };
@@ -459,6 +480,25 @@ const DailyReport = () => {
     }
   };
 
+  const saveMonthlyAdditionalRevenue = async (rawValue: string) => {
+    if (!reportId) return;
+    const value = parseNumberFromString(rawValue);
+    setSavingMonthlyAdditionalRevenue(true);
+    try {
+      const result = (await updateData(`/monthly-reports/${reportId}`, { additionalRevenue: value })) as ApiResponse<any>;
+      if (result.success) {
+        setMonthlyAdditionalRevenue(Number(result.data?.additionalRevenue ?? value) || 0);
+      } else {
+        alert("Lỗi khi lưu khoản thu khác: " + result.message);
+      }
+    } catch (error) {
+      console.error("Lỗi lưu khoản thu khác tháng:", error);
+      alert("Không thể lưu khoản thu khác!");
+    } finally {
+      setSavingMonthlyAdditionalRevenue(false);
+    }
+  };
+
   const handleStartEditExpense = (field: keyof MonthlyExpense) => {
     setEditingExpenseField(field);
     setExpenseInputValue(formatCurrencyNoUnit(monthlyExpenses[field] as number) || "");
@@ -513,6 +553,8 @@ const DailyReport = () => {
         billCount: computed.billCount,
         preTaxRevenue: computed.preTaxRevenue,
         totalGross: computed.totalGross,
+        grandTotal: computed.grandTotal,
+        otherRevenueAfterTax: computed.otherRevenueAfterTax,
       };
 
       const result = (await updateData(`/daily-revenues/${row._id}`, payload)) as ApiResponse<DailyRevenue>;
@@ -652,6 +694,8 @@ const DailyReport = () => {
           billCount: updated.billCount,
           preTaxRevenue: updated.preTaxRevenue,
           totalGross: updated.totalGross,
+          grandTotal: updated.grandTotal,
+          otherRevenueAfterTax: updated.otherRevenueAfterTax,
         };
 
         const result = (await updateData(
@@ -849,6 +893,7 @@ const DailyReport = () => {
         const guestCount = parseNumber(row[12] || 0);
         const billCount = parseNumber(row[13] || 0);
         const note = String(row[14] || "").trim();
+        const otherRevenueAfterTax = parseNumber(row[15] || 0);
         const finalDayOfWeek = dayOfWeek || getDayOfWeekFromDate(dateObj);
 
         importedData.push({
@@ -863,7 +908,9 @@ const DailyReport = () => {
           },
           founderPoints, cash, transfer, card, debt,
           foodRevenue, drinkRevenue, otherRevenue,
-          preTaxRevenue, totalGross, guestCount, billCount, note,
+          otherRevenueAfterTax, preTaxRevenue, totalGross,
+          grandTotal: totalGross + otherRevenueAfterTax,
+          guestCount, billCount, note,
         });
 
         rowCount++;
@@ -950,7 +997,8 @@ const DailyReport = () => {
       dinner: { ...EMPTY_SESSION },
       cash: 0, transfer: 0, card: 0, debt: 0, founderPoints: 0,
       foodRevenue: 0, drinkRevenue: 0, otherRevenue: 0,
-      preTaxRevenue: 0, totalGross: 0, guestCount: 0, billCount: 0,
+      otherRevenueAfterTax: 0, preTaxRevenue: 0, totalGross: 0,
+      grandTotal: 0, guestCount: 0, billCount: 0,
       note: "",
     };
 
@@ -1025,7 +1073,8 @@ const DailyReport = () => {
             founderPoints: 0,
             foodRevenue: 0, drinkRevenue: 0, otherRevenue: 0,
             foodRevenueDisplay: 0, drinkRevenueDisplay: 0, otherRevenueDisplay: 0,
-            preTax: 0, totalGross: 0,
+            otherRevenueAfterTax: 0,
+            preTax: 0, totalGross: 0, grandTotal: 0,
             guestCount: 0, billCount: 0,
           },
         });
@@ -1049,6 +1098,8 @@ const DailyReport = () => {
 
       group.totals.preTax += Number(row.preTaxRevenue) || 0;
       group.totals.totalGross += calculateTotalGross(row);
+      group.totals.otherRevenueAfterTax += Number(row.otherRevenueAfterTax) || 0;
+      group.totals.grandTotal += calculateGrandTotal(row);
       group.totals.guestCount += Number(row.guestCount) || 0;
       group.totals.billCount += Number(row.billCount) || 0;
     });
@@ -1099,8 +1150,10 @@ const DailyReport = () => {
         drinkRevenueDisplay: acc.drinkRevenueDisplay + group.totals.drinkRevenueDisplay,
         otherRevenueDisplay: acc.otherRevenueDisplay + group.totals.otherRevenueDisplay,
 
+        otherRevenueAfterTax: acc.otherRevenueAfterTax + group.totals.otherRevenueAfterTax,
         preTax: acc.preTax + group.totals.preTax,
         totalGross: acc.totalGross + group.totals.totalGross,
+        grandTotal: acc.grandTotal + group.totals.grandTotal,
         guest: acc.guest + group.totals.guestCount,
         bill: acc.bill + group.totals.billCount,
       };
@@ -1108,12 +1161,14 @@ const DailyReport = () => {
       cash: 0, transfer: 0, card: 0, debt: 0, founderPoints: 0,
       foodRevenue: 0, drinkRevenue: 0, otherRevenue: 0,
       foodRevenueDisplay: 0, drinkRevenueDisplay: 0, otherRevenueDisplay: 0,
-      preTax: 0, totalGross: 0, guest: 0, bill: 0,
+      otherRevenueAfterTax: 0,
+      preTax: 0, totalGross: 0, grandTotal: 0, guest: 0, bill: 0,
     });
     return { totals: t, totalDays: days };
   }, [groupedData]);
 
-  const avgPerGuest = totals.guest > 0 ? totals.totalGross / totals.guest : 0;
+  const monthlyGrandTotal = totals.grandTotal + monthlyAdditionalRevenue;
+  const avgPerGuest = totals.guest > 0 ? monthlyGrandTotal / totals.guest : 0;
 
   const totalExpense = useMemo(() => {
     return (monthlyExpenses.rent || 0) + (monthlyExpenses.electricity || 0) +
@@ -1151,11 +1206,11 @@ const DailyReport = () => {
         "Doanh thu đồ uống": hasNewCols ? Math.round((row.drinkRevenue || 0) * VAT_MULTIPLIER) : "",
         "Doanh thu khác": hasNewCols ? Math.round((row.otherRevenue || 0) * VAT_MULTIPLIER) : "",
         "DT trước thuế & PPV": row.preTaxRevenue || 0,
-        "Tổng DT (VAT)": calculateTotalGross(row),
+        "Tổng DT": calculateGrandTotal(row),
         "Số khách": row.guestCount || 0,
-        "DT / Khách": row.guestCount > 0 ? Math.round(calculateTotalGross(row) / row.guestCount) : 0,
+        "DT / Khách": row.guestCount > 0 ? Math.round(calculateGrandTotal(row) / row.guestCount) : 0,
         "Số bill": row.billCount || 0,
-        "Ghi chú": row.note || ""
+        "Ghi chú": row.note || "",
       };
     });
 
@@ -1177,11 +1232,12 @@ const DailyReport = () => {
       "Doanh thu đồ uống": totals.drinkRevenueDisplay,
       "Doanh thu khác": totals.otherRevenueDisplay,
       "DT trước thuế & PPV": totals.preTax,
-      "Tổng DT (VAT)": totals.totalGross,
+      "Thu khác ngoài doanh thu (cả tháng)": monthlyAdditionalRevenue,
+      "Tổng DT": monthlyGrandTotal,
       "Số khách": totals.guest,
       "DT / Khách": Math.round(avgPerGuest),
       "Số bill": totals.bill,
-      "Ghi chú": ""
+      "Ghi chú": "",
     };
     exportData.push(totalRow);
 
@@ -1848,7 +1904,7 @@ const DailyReport = () => {
   };
 
   const renderTotalDayRow = (row: DailyRevenue) => {
-    const totalGross = calculateTotalGross(row);
+    const totalGross = calculateGrandTotal(row);
     const preTaxDisplay = calculatePreTaxRevenue(row);
     const avgGuest = Number(row.guestCount || 0) > 0 ? totalGross / Number(row.guestCount) : 0;
     const isSaving = savingRowId === row._id;
@@ -1891,7 +1947,9 @@ const DailyReport = () => {
           {formatCurrencyNoUnit(preTaxDisplay) || "0"}
         </TableCell>
         <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-extrabold text-primary whitespace-nowrap bg-primary/5 text-[10px] sm:text-[13px] tabular-nums">
-          {formatCurrency(totalGross) || "0 ₫"}
+          <div className="flex flex-col items-end gap-0.5">
+            <span>{formatCurrency(totalGross) || "0 ₫"}</span>
+          </div>
         </TableCell>
         <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-center text-[10px] sm:text-[13px] font-bold tabular-nums whitespace-nowrap">{row.guestCount || "0"}</TableCell>
         <TableCell className="border border-slate-400 p-0.5 sm:p-1 text-right font-bold text-blue-600 whitespace-nowrap bg-blue-50/30 text-[10px] sm:text-[13px] tabular-nums">
@@ -2293,7 +2351,7 @@ const DailyReport = () => {
                       </>
                     )}
                     <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[130px] w-[130px]">DT trước thuế</TableHead>
-                    <TableHead className="border border-slate-400 text-primary font-extrabold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[140px] w-[140px]">Tổng DT (VAT)</TableHead>
+                    <TableHead className="border border-slate-400 text-primary font-extrabold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[140px] w-[140px]">Tổng doanh thu</TableHead>
                     <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[90px] w-[90px]">SL Khách</TableHead>
                     <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-right px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[130px] w-[130px]">Tiêu dùng/Khách</TableHead>
                     <TableHead className="border border-slate-400 text-slate-800 font-bold whitespace-nowrap text-center px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] min-w-[90px] w-[90px]">SL Bill</TableHead>
@@ -2344,9 +2402,9 @@ const DailyReport = () => {
                             </>
                           )}
                           <TableCell className="border border-emerald-300 text-right font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-orange-600 tabular-nums">{formatCurrency(group.totals.preTax) || "0"}</TableCell>
-                          <TableCell className="border border-emerald-300 text-right font-extrabold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-primary tabular-nums">{formatCurrency(group.totals.totalGross) || "0"}</TableCell>
+                          <TableCell className="border border-emerald-300 text-right font-extrabold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-primary tabular-nums">{formatCurrency(group.totals.grandTotal) || "0"}</TableCell>
                           <TableCell className="border border-emerald-300 text-center font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{group.totals.guestCount}</TableCell>
-                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-blue-600 tabular-nums">{formatAvgGuest(group.totals.guestCount > 0 ? group.totals.totalGross / group.totals.guestCount : 0) || "0"}</TableCell>
+                          <TableCell className="border border-emerald-300 text-right font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-blue-600 tabular-nums">{formatAvgGuest(group.totals.guestCount > 0 ? group.totals.grandTotal / group.totals.guestCount : 0) || "0"}</TableCell>
                           <TableCell className="border border-emerald-300 text-center font-semibold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-1.5 text-[10px] sm:text-[13px] text-emerald-700 tabular-nums">{group.totals.billCount}</TableCell>
                           {renderNote && (
                             <TableCell className="border border-emerald-300 px-1 py-1 sm:px-2 sm:py-1.5 bg-emerald-50 note-cell"></TableCell>
@@ -2401,7 +2459,27 @@ const DailyReport = () => {
                         </>
                       )}
                       <TableCell className="border border-slate-600 text-right font-bold text-orange-300 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatCurrency(totals.preTax) || "0"}</TableCell>
-                      <TableCell className="border border-slate-600 text-right font-black text-white whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-sm bg-slate-900 tabular-nums">{formatCurrency(totals.totalGross) || "0"}</TableCell>
+                      <TableCell className="border border-slate-600 text-right font-black text-white whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-sm bg-slate-900 tabular-nums">
+                        <div className="flex flex-col items-end gap-1">
+                          {isScreenshotMode ? (
+                            <span className="text-[9px] font-semibold text-violet-300">
+                              Thu khác tháng: {formatCurrencyNoUnit(monthlyAdditionalRevenue) || "0"}
+                            </span>
+                          ) : (
+                            <Input
+                              type="text"
+                              title="Khoản thu khác của cả tháng"
+                              placeholder="Thu khác tháng"
+                              defaultValue={formatCurrencyNoUnit(monthlyAdditionalRevenue)}
+                              key={`monthly-additional-${monthlyAdditionalRevenue}`}
+                              disabled={savingMonthlyAdditionalRevenue}
+                              onBlur={(e) => saveMonthlyAdditionalRevenue(e.target.value)}
+                              className="w-24 h-5 border border-violet-300 bg-slate-700 text-right text-[9px] font-semibold px-1 py-0 text-violet-200 placeholder:text-slate-400"
+                            />
+                          )}
+                          <span>{formatCurrency(monthlyGrandTotal) || "0"}</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{totals.guest}</TableCell>
                       <TableCell className="border border-slate-600 text-right font-bold text-blue-200 whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{formatAvgGuest(avgPerGuest) || "0"}</TableCell>
                       <TableCell className="border border-slate-600 text-center font-bold whitespace-nowrap px-1 py-1 sm:px-2 sm:py-2 text-[10px] sm:text-[13px] tabular-nums">{totals.bill}</TableCell>
@@ -2923,9 +3001,43 @@ const DailyReport = () => {
                         </TableCell>
                       ))}
                       <TableCell className="border border-[#8FB4D5] p-0 align-middle bg-[#132c4e] text-[#68F0B0]">
-                        <div className="flex h-full w-full divide-x divide-[#8FB4D5]/50">
+                        {monthlyAdditionalRevenue > 0 && (
+                          <div className="mx-auto flex w-full max-w-[286px] flex-col gap-1.5 rounded-lg border border-[#8FB4D5]/35 bg-[#0F2745]/70 px-2.5 py-2 shadow-inner">
+                            <div className="grid min-h-[28px] grid-cols-[minmax(0,1fr)_132px] items-center gap-2 border-b border-[#8FB4D5]/25 pb-1.5">
+                              <span className="text-left text-[10px] sm:text-[11px] font-semibold tracking-wide text-slate-300 whitespace-nowrap">
+                                Tổng trước DT khác
+                              </span>
+                              <span className="w-[132px] text-right text-[11px] sm:text-[12px] font-bold tabular-nums text-white whitespace-nowrap">
+                                {formatCurrency(dailyReportData.monthGross) || "0"}
+                              </span>
+                            </div>
+                            <div className="grid min-h-[30px] grid-cols-[minmax(0,1fr)_132px] items-center gap-2">
+                              <span className="text-left text-[11px] sm:text-[12px] font-bold tracking-wide text-violet-200 whitespace-nowrap">
+                                DT khác
+                              </span>
+                              {isScreenshotMode ? (
+                                <span className="flex h-7 w-[132px] items-center justify-end rounded-md border border-violet-300/70 bg-[#102745] px-2 text-right text-[11px] font-semibold tabular-nums text-violet-100 whitespace-nowrap">
+                                  {formatCurrencyNoUnit(monthlyAdditionalRevenue) || "0"}
+                                </span>
+                              ) : (
+                                <Input
+                                  type="text"
+                                  title="Doanh thu khác của cả tháng"
+                                  aria-label="Doanh thu khác của cả tháng"
+                                  placeholder="0"
+                                  defaultValue={formatCurrencyNoUnit(monthlyAdditionalRevenue)}
+                                  key={`daily-monthly-additional-${monthlyAdditionalRevenue}`}
+                                  disabled={savingMonthlyAdditionalRevenue}
+                                  onBlur={(e) => saveMonthlyAdditionalRevenue(e.target.value)}
+                                  className="!w-[132px] h-7 rounded-md border border-violet-300/70 bg-[#102745] text-right text-[11px] font-semibold tabular-nums px-2 py-0 text-violet-100 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-violet-300"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        )}
+                          <div className="flex h-full w-full divide-x divide-[#8FB4D5]/50">
                           <div className="flex-1 flex items-center justify-center py-2 px-2 text-[15px] sm:text-[17px] font-black bg-[#102745] text-[#A0FFC8] min-w-[120px] whitespace-nowrap">
-                            {formatCurrency(dailyReportData.monthGross) || "0"}
+                            {formatCurrency(dailyReportData.monthGross + monthlyAdditionalRevenue) || "0"}
                           </div>
                           <div className="flex flex-col w-[180px] shrink-0 justify-center divide-y divide-[#8FB4D5]/50">
                             <div className="flex items-stretch py-1.5 text-[13px] sm:text-[14px] font-semibold text-[#68F0B0]/80">

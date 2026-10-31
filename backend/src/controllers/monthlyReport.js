@@ -80,10 +80,12 @@ export const getById = async (req, res) => {
   }
 };
 
-// [PUT] Cập nhật chi phí tháng
+
+// [PUT] Cập nhật chi phí và khoản thu khác tháng
 export const update = async (req, res) => {
   try {
     const reportId = req.params.id;
+
     const allowedFields = [
       "rent",
       "electricity",
@@ -93,6 +95,7 @@ export const update = async (req, res) => {
       "garbage",
       "employeeSalary",
       "otherExpense",
+      "additionalRevenue", // Khoản thu linh tinh chung của tháng
     ];
 
     const updateData = {};
@@ -123,11 +126,20 @@ export const update = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ success: true, data: updatedReport });
+    return res.status(200).json({
+      success: true,
+      data: updatedReport,
+    });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error("Lỗi cập nhật báo cáo tháng:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
+
 
 // [DELETE] XOÁ THÁNG LÀ XOÁ SẠCH DỮ LIỆU NGÀY BÊN TRONG
 export const remove = async (req, res) => {
