@@ -177,6 +177,105 @@ async function tryInsertLogo(
   }
 }
 
+
+/* ============================================================
+ *  EMPLOYEE AVATAR — lấy ảnh từ employee.avatar.url
+ *  Cắt giữa theo tỷ lệ 3:4 và nhúng trực tiếp vào file Excel.
+ * ============================================================ */
+
+async function tryInsertEmployeeAvatar(
+  workbook: ExcelJS.Workbook,
+  sheet: ExcelJS.Worksheet,
+  avatarUrl?: string | null
+): Promise<void> {
+  if (!avatarUrl?.trim()) return;
+
+  try {
+    const response = await fetch(avatarUrl.trim(), {
+      method: "GET",
+      mode: "cors",
+      cache: "no-cache",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Tải ảnh đại diện thất bại: HTTP ${response.status}`);
+    }
+
+    const imageBlob = await response.blob();
+    if (!imageBlob.size) {
+      throw new Error("Ảnh đại diện tải về bị rỗng");
+    }
+
+    // Dùng canvas để chuẩn hóa mọi định dạng trình duyệt đọc được
+    // (JPG, PNG, WEBP...) thành PNG tương thích với ExcelJS.
+    const bitmap = await createImageBitmap(imageBlob);
+    const targetWidth = 450;
+    const targetHeight = 600;
+    const targetRatio = targetWidth / targetHeight;
+    const sourceRatio = bitmap.width / bitmap.height;
+
+    let cropX = 0;
+    let cropY = 0;
+    let cropWidth = bitmap.width;
+    let cropHeight = bitmap.height;
+
+    if (sourceRatio > targetRatio) {
+      cropWidth = bitmap.height * targetRatio;
+      cropX = (bitmap.width - cropWidth) / 2;
+    } else {
+      cropHeight = bitmap.width / targetRatio;
+      cropY = (bitmap.height - cropHeight) / 2;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      bitmap.close();
+      throw new Error("Trình duyệt không thể xử lý ảnh đại diện");
+    }
+
+    context.drawImage(
+      bitmap,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      targetWidth,
+      targetHeight
+    );
+    bitmap.close();
+
+    const pngBlob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Không thể chuyển ảnh đại diện sang PNG"));
+      }, "image/png");
+    });
+
+    const imageBuffer = await pngBlob.arrayBuffer();
+    const imageId = workbook.addImage({
+      buffer: imageBuffer as any,
+      extension: "png",
+    });
+
+    // Khung ảnh là vùng J1:K6. Đặt ảnh 3x4 ở giữa khung.
+    sheet.getCell("J1").value = "";
+    sheet.addImage(imageId, {
+      tl: { col: 9.37, row: 1.3 } as any,
+      ext: { width: 112, height: 150 },
+      editAs: "oneCell",
+    });
+  } catch (error) {
+    // Giữ lại chữ "Ảnh 3x4" nếu URL lỗi/CORS để không mất khung ảnh.
+    console.warn("Không thể chèn ảnh đại diện vào Excel:", error);
+  }
+}
+
 /* ============================================================
  *  COMMON HEADER (dùng cho mọi form) — logo + tiêu đề + ảnh 3x4
  *  Ảnh 3x4 kéo dài từ row 1 -> row 6 (đủ không gian)
@@ -322,6 +421,15 @@ async function buildPersonalInfoFormSheet(
   ];
 
   writeCommonHeader(sheet, "BẢNG THÔNG TIN CÁ NHÂN");
+
+  // Employee lưu ảnh trong object avatar: { url, publicId }.
+  // Chèn ảnh ngay tại sheet thông tin cá nhân trước khi xuất workbook.
+  await tryInsertEmployeeAvatar(
+    workbook,
+    sheet,
+    employee.avatar?.url
+  );
+
   writeCommonHeaderBlock(sheet, employee);
 
   /* I. THÔNG TIN CÁ NHÂN */
