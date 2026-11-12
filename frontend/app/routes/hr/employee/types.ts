@@ -5,6 +5,20 @@ export type EmployeeStatus =
   | "RESIGNED"
   | "TERMINATED";
 
+export type OrganizationLevel =
+  | "DIRECTOR"
+  | "MANAGER"
+  | "DEPARTMENT_HEAD"
+  | "EMPLOYEE";
+
+export type EmployeeReference = {
+  _id: string;
+  name: string;
+  workInfo?: {
+    position?: string;
+  };
+};
+
 export type FamilyMember = {
   name?: string;
   relationship?: string;
@@ -76,6 +90,10 @@ export type Employee = {
     startDate?: string;
     position?: string;
     department?: string;
+
+    // Thông tin sơ đồ tổ chức
+    organizationLevel?: OrganizationLevel;
+    managerId?: string | EmployeeReference | null;
   };
 
   contractInfo?: {
@@ -167,6 +185,10 @@ export type EmployeeForm = {
   startDate: string;
   position: string;
   department: string;
+
+  // Thông tin sơ đồ tổ chức
+  organizationLevel: OrganizationLevel;
+  managerId: string;
 
   contractNumber: string;
   contractType: string;

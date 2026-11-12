@@ -6,15 +6,22 @@ import type {
   EmployeeForm,
   EmployeeStatus,
   FamilyMember,
+  OrganizationLevel,
   WorkExperience,
 } from "../types";
-import { GENDER_OPTIONS, MARITAL_OPTIONS, STATUS_OPTIONS } from "../constants";
+import {
+  GENDER_OPTIONS,
+  MARITAL_OPTIONS,
+  ORGANIZATION_LEVEL_OPTIONS,
+  STATUS_OPTIONS,
+} from "../constants";
 import { SectionTitle, Input, Textarea, Select, EmptyArrayState } from "./ui";
 
 export function EmployeeModal({
   form,
   setForm,
   editingEmployee,
+  employees = [],
   saving,
   onClose,
   onSubmit,
@@ -24,6 +31,7 @@ export function EmployeeModal({
     React.SetStateAction<EmployeeForm>
   >;
   editingEmployee: Employee | null;
+  employees?: Employee[];
   saving: boolean;
   onClose: () => void;
   onSubmit: (
@@ -32,6 +40,19 @@ export function EmployeeModal({
 }) {
   const [activeTab, setActiveTab] =
     useState("basic");
+  const managerReference = editingEmployee?.workInfo?.managerId;
+  const currentManagerOption =
+    managerReference && typeof managerReference !== "string"
+      ? {
+          value: managerReference._id,
+          label: `${managerReference.name}${
+            managerReference.workInfo?.position
+              ? ` - ${managerReference.workInfo.position}`
+              : ""
+          }`,
+        }
+      : null;
+
     const handleAvatarUpload = async (
   event: React.ChangeEvent<HTMLInputElement>,
 ) => {
@@ -863,6 +884,54 @@ const [uploadingAvatar, setUploadingAvatar] = useState(false);
                     placeholder="FOH / BOH..."
                   />
 
+                  <Select
+                    label="Cấp bậc tổ chức"
+                    value={form.organizationLevel}
+                    onChange={(value) =>
+                      updateField(
+                        "organizationLevel",
+                        value as OrganizationLevel,
+                      )
+                    }
+                    options={ORGANIZATION_LEVEL_OPTIONS}
+                  />
+
+                  <Select
+                    label="Quản lý trực tiếp"
+                    value={form.managerId}
+                    onChange={(value) =>
+                      updateField("managerId", value)
+                    }
+                    options={[
+                      {
+                        value: "",
+                        label: "Không có / Chưa phân công",
+                      },
+                      ...(currentManagerOption &&
+                      !employees.some(
+                        (employee) =>
+                          employee._id === currentManagerOption.value,
+                      )
+                        ? [currentManagerOption]
+                        : []),
+                      ...employees
+                        .filter(
+                          (employee) =>
+                            employee._id !== editingEmployee?._id &&
+                            employee.status !== "RESIGNED" &&
+                            employee.status !== "TERMINATED",
+                        )
+                        .map((employee) => ({
+                          value: employee._id,
+                          label: `${employee.name}${
+                            employee.workInfo?.position
+                              ? ` - ${employee.workInfo.position}`
+                              : ""
+                          }`,
+                        })),
+                    ]}
+                  />
+
                   <Input
                     label="Chức danh"
                     value={
@@ -877,6 +946,11 @@ const [uploadingAvatar, setUploadingAvatar] = useState(false);
                     placeholder="Nhân viên phục vụ..."
                   />
                 </div>
+                <p className="text-xs text-slate-500">
+                  Chọn cấp bậc và người quản lý trực tiếp để xác định vị trí
+                  nhân viên trong sơ đồ tổ chức. Không chọn quản lý nếu đây
+                  là vị trí cao nhất hoặc chưa được phân công.
+                </p>
               </div>
             )}
 
@@ -1592,4 +1666,3 @@ const [uploadingAvatar, setUploadingAvatar] = useState(false);
     </div>
   );
 }
-

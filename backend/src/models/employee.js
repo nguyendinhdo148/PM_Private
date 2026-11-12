@@ -299,6 +299,27 @@ const workInfoSchema = new mongoose.Schema(
       trim: true,
       description: "Phòng ban",
     },
+
+    // Cấp bậc trong sơ đồ tổ chức
+    organizationLevel: {
+      type: String,
+      enum: [
+        "DIRECTOR",
+        "MANAGER",
+        "DEPARTMENT_HEAD",
+        "EMPLOYEE",
+      ],
+      default: "EMPLOYEE",
+      description: "Cấp bậc tổ chức",
+    },
+
+    // Nhân viên quản lý trực tiếp
+    managerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+      default: null,
+      description: "ID người quản lý trực tiếp",
+    },
   },
   { _id: false }
 );

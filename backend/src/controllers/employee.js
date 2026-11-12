@@ -277,6 +277,7 @@ export const getEmployees = async (req, res) => {
 
     const [employees, total] = await Promise.all([
       Employee.find(filter)
+        .populate("workInfo.managerId", "name workInfo.position")
         .sort(sort)
         .skip(skip)
         .limit(perPage),

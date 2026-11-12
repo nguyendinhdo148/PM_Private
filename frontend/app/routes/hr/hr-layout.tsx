@@ -36,14 +36,14 @@ const hrMenuItems = [
   { title: "Dashboard", icon: LayoutDashboard, path: "/hr", end: true },
   { title: "Hồ sơ Nhân sự", icon: Users, path: "/hr/employee" },
   { title: "Quản lý Chấm công", icon: CalendarCheck, path: "/hr/attendance" },
-  { title: "Quản lý Tăng ca", icon: Timer, path: "/hr/overtime" },
-  { title: "Bảng lương Gross", icon: Calculator, path: "/hr/gross-salary" },
-  { title: "Khấu trừ Bảo hiểm", icon: ShieldCheck, path: "/hr/insurance" },
-  { title: "Khấu trừ Thuế (TNCN)", icon: Landmark, path: "/hr/tax" },
-  { title: "Bảng Thực lĩnh (Net)", icon: BarChart3, path: "/hr/net-salary" },
-  { title: "Tổng hợp Kỳ lương", icon: FileText, path: "/hr/payroll" },
-  { title: "Tin nhắn nội bộ", icon: MessageCircle, path: "/hr/messages" },
-  { title: "Cài đặt hệ thống", icon: Settings, path: "/hr/settings" },
+  // { title: "Quản lý Tăng ca", icon: Timer, path: "/hr/overtime" },
+  // { title: "Bảng lương Gross", icon: Calculator, path: "/hr/gross-salary" },
+  // { title: "Khấu trừ Bảo hiểm", icon: ShieldCheck, path: "/hr/insurance" },
+  // { title: "Khấu trừ Thuế (TNCN)", icon: Landmark, path: "/hr/tax" },
+  // { title: "Bảng Thực lĩnh (Net)", icon: BarChart3, path: "/hr/net-salary" },
+  // { title: "Tổng hợp Kỳ lương", icon: FileText, path: "/hr/payroll" },
+  // { title: "Tin nhắn nội bộ", icon: MessageCircle, path: "/hr/messages" },
+  // { title: "Cài đặt hệ thống", icon: Settings, path: "/hr/settings" },
 ];
 
 const STORAGE_KEY = "hr-sidebar-collapsed";

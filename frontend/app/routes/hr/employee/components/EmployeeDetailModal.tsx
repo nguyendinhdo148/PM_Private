@@ -1,7 +1,9 @@
-import { Edit, X } from "lucide-react";
+import { Edit, FileText, X } from "lucide-react";
+import { useState } from "react";
 import type { Employee } from "../types";
 import { GENDER_OPTIONS, MARITAL_OPTIONS, STATUS_OPTIONS } from "../constants";
 import { DetailSection, DetailItem } from "./ui";
+import { EmployeeTemplateModal } from "./EmployeeTemplateModal";
 
 const formatDate = (date?: string) => { if (!date) return "-"; const value = new Date(date); if (Number.isNaN(value.getTime())) return "-"; return value.toLocaleDateString("vi-VN"); };
 const formatMoney = (value?: number) => value == null || Number.isNaN(Number(value)) ? "-" : Number(value).toLocaleString("vi-VN") + " ₫";
@@ -22,7 +24,10 @@ export function EmployeeDetailModal({
   onClose: () => void;
   onEdit: () => void;
 }) {
+  const [templateOpen, setTemplateOpen] = useState(false);
+
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
         {/* HEADER */}
@@ -63,7 +68,17 @@ export function EmployeeDetailModal({
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTemplateOpen(true)}
+              title="Biểu mẫu nhân sự"
+              aria-label="Mở biểu mẫu nhân sự"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
+            >
+              <FileText className="h-4 w-4" />
+            </button>
+
             <button
               type="button"
               onClick={onEdit}
@@ -139,6 +154,16 @@ export function EmployeeDetailModal({
                 value={
                   employee.workInfo
                     ?.position
+                }
+              />
+
+              <DetailItem
+                label="Quản lý trực tiếp"
+                value={
+                  typeof employee.workInfo?.managerId === "object" &&
+                  employee.workInfo.managerId
+                    ? employee.workInfo.managerId.name
+                    : undefined
                 }
               />
 
@@ -491,6 +516,12 @@ export function EmployeeDetailModal({
         </div>
       </div>
     </div>
+    {templateOpen && (
+      <EmployeeTemplateModal
+        employee={employee}
+        onClose={() => setTemplateOpen(false)}
+      />
+    )}
+    </>
   );
 }
-

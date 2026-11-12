@@ -1,4 +1,4 @@
-import type { EmployeeForm, EmployeeStatus } from "./types";
+import type { EmployeeForm, EmployeeStatus, OrganizationLevel } from "./types";
 
 export const STATUS_OPTIONS: {
   value: EmployeeStatus;
@@ -24,6 +24,16 @@ export const STATUS_OPTIONS: {
     value: "TERMINATED",
     label: "Đã chấm dứt",
   },
+];
+
+export const ORGANIZATION_LEVEL_OPTIONS: {
+  value: OrganizationLevel;
+  label: string;
+}[] = [
+  { value: "DIRECTOR", label: "Giám đốc" },
+  { value: "MANAGER", label: "Quản lý" },
+  { value: "DEPARTMENT_HEAD", label: "Trưởng bộ phận" },
+  { value: "EMPLOYEE", label: "Nhân viên" },
 ];
 
 export const GENDER_OPTIONS = [
@@ -96,6 +106,8 @@ export const EMPTY_FORM: EmployeeForm = {
   startDate: "",
   position: "",
   department: "",
+  organizationLevel: "EMPLOYEE",
+  managerId: "",
 
   contractNumber: "",
   contractType: "",

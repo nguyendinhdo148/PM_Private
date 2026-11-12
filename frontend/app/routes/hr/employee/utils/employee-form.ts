@@ -2,6 +2,7 @@ import type {
   Employee,
   EmployeeForm,
   EmployeeStatus,
+  OrganizationLevel,
 } from "../types";
 
 import { STATUS_OPTIONS } from "../constants";
@@ -102,6 +103,8 @@ const numberOrZero = (value: string) => {
 const employeeToForm = (
   employee: Employee,
 ): EmployeeForm => {
+  const managerId = employee.workInfo?.managerId;
+
   return {
     name: employee.name || "",
     phone: employee.phone || "",
@@ -180,6 +183,14 @@ const employeeToForm = (
 
     department:
       employee.workInfo?.department || "",
+
+    organizationLevel:
+      employee.workInfo?.organizationLevel || "EMPLOYEE",
+
+    managerId:
+      typeof managerId === "string"
+        ? managerId
+        : managerId?._id || "",
 
     contractNumber:
       employee.contractInfo?.contractNumber ||
@@ -432,6 +443,12 @@ const formToPayload = (
       department:
         form.department.trim() ||
         undefined,
+
+      organizationLevel:
+        form.organizationLevel || "EMPLOYEE",
+
+      managerId:
+        form.managerId || null,
     },
 
     contractInfo: {
