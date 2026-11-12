@@ -761,7 +761,21 @@ function OrganizationEmployeeCard({
             <img
               src={employee.avatar.url}
               alt={employee.name}
-              className={`shrink-0 rounded-full object-cover ${compact ? "h-7 w-7" : "h-9 w-9"}`}
+              width={compact ? 28 : 36}
+              height={compact ? 28 : 36}
+              style={{
+                width: compact ? 28 : 36,
+                height: compact ? 28 : 36,
+                minWidth: compact ? 28 : 36,
+                maxWidth: compact ? 28 : 36,
+                minHeight: compact ? 28 : 36,
+                maxHeight: compact ? 28 : 36,
+                flex: "0 0 auto",
+                objectFit: "cover",
+                borderRadius: "50%",
+                display: "block",
+              }}
+              className="shrink-0"
             />
           ) : (
             <div
@@ -943,10 +957,40 @@ function OrganizationChart({
 
     try {
       setCapturing(true);
-      // Chờ giao diện cập nhật trước khi chụp.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      // Đợi React cập nhật giao diện, font và ảnh đại diện trước khi chụp.
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+
+      const images = Array.from(element.querySelectorAll("img"));
+      await Promise.all(
+        images.map(async (img) => {
+          if (!img.complete) {
+            await new Promise<void>((resolve) => {
+              const finish = () => resolve();
+              img.addEventListener("load", finish, { once: true });
+              img.addEventListener("error", finish, { once: true });
+            });
+          }
+          if (img.complete && img.naturalWidth > 0 && typeof img.decode === "function") {
+            try {
+              await img.decode();
+            } catch {
+              // Một số trình duyệt báo decode lỗi dù ảnh đã hiển thị; vẫn tiếp tục chụp.
+            }
+          }
+        }),
+      );
+
       const width = Math.ceil(Math.max(element.scrollWidth, element.clientWidth));
       const height = Math.ceil(Math.max(element.scrollHeight, element.clientHeight));
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+      const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+
       const canvas = await html2canvas(element, {
         backgroundColor: "#ffffff",
         scale: 2,
@@ -955,18 +999,83 @@ function OrganizationChart({
         logging: false,
         width,
         height,
-        windowWidth: Math.max(document.documentElement.clientWidth, width),
+        // Giữ viewport giống màn hình đang hiển thị, không lấy chiều rộng sơ đồ
+        // làm viewport vì sẽ khiến các breakpoint responsive bị thay đổi.
+        windowWidth: viewportWidth,
+        windowHeight: viewportHeight,
         onclone: (clonedDocument) => {
-          const clonedElement = clonedDocument.querySelector<HTMLElement>("[data-organization-capture]");
+          const clonedElement = clonedDocument.querySelector<HTMLElement>(
+            "[data-organization-capture]",
+          );
+
           if (clonedElement) {
+            // Tailwind/CSS production đôi khi không được html2canvas clone
+            // áp dụng đầy đủ. Sao chép computed style từ DOM thật sang DOM clone.
+            const copyComputedStyles = (source: Element, target: Element) => {
+              const sourceStyle = window.getComputedStyle(source);
+              const targetStyle = (target as HTMLElement | SVGElement).style;
+
+              for (let index = 0; index < sourceStyle.length; index += 1) {
+                const property = sourceStyle.item(index);
+                targetStyle.setProperty(
+                  property,
+                  sourceStyle.getPropertyValue(property),
+                  sourceStyle.getPropertyPriority(property),
+                );
+              }
+
+              const sourceChildren = Array.from(source.childNodes);
+              const targetChildren = Array.from(target.childNodes);
+              sourceChildren.forEach((sourceChild, index) => {
+                const targetChild = targetChildren[index];
+                if (
+                  sourceChild instanceof Element &&
+                  targetChild instanceof Element
+                ) {
+                  copyComputedStyles(sourceChild, targetChild);
+                }
+              });
+            };
+
+            copyComputedStyles(element, clonedElement);
+
+            // Đảm bảo vùng chụp chứa toàn bộ sơ đồ và không bị cắt chiều cao.
             clonedElement.style.width = `${width}px`;
             clonedElement.style.height = `${height}px`;
+            clonedElement.style.minHeight = `${height}px`;
             clonedElement.style.maxHeight = "none";
             clonedElement.style.overflow = "visible";
+            clonedElement.style.boxSizing = "border-box";
           }
-          clonedDocument.querySelectorAll<HTMLElement>("[data-capture-hide]").forEach((item) => {
-            item.style.display = "none";
-          });
+
+          // Ẩn các nút kéo/thả và vùng hướng dẫn chỉ dùng trên giao diện.
+          clonedDocument
+            .querySelectorAll<HTMLElement>("[data-capture-hide]")
+            .forEach((item) => {
+              item.style.display = "none";
+            });
+
+          // Khóa kích thước avatar trong DOM clone, tránh ảnh bị bung về kích thước gốc.
+          clonedDocument
+            .querySelectorAll<HTMLImageElement>("[data-organization-capture] img")
+            .forEach((img) => {
+              const sourceImage = images.find(
+                (source) => source.getAttribute("src") === img.getAttribute("src"),
+              );
+              if (sourceImage) {
+                const computed = window.getComputedStyle(sourceImage);
+                img.style.width = computed.width;
+                img.style.height = computed.height;
+                img.style.minWidth = computed.minWidth;
+                img.style.maxWidth = computed.maxWidth;
+                img.style.minHeight = computed.minHeight;
+                img.style.maxHeight = computed.maxHeight;
+                img.style.objectFit = computed.objectFit;
+                img.style.flex = computed.flex;
+                img.style.borderRadius = computed.borderRadius;
+                img.style.display = "block";
+              }
+            });
         },
       });
 
