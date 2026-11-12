@@ -121,6 +121,46 @@ export default function EmployeePage() {
     }
   }
 
+  // Cập nhật dữ liệu ngay trên giao diện sau khi API lưu thành công,
+  // tránh gọi lại API và làm nhấp nháy toàn bộ danh sách/sơ đồ.
+  const syncEmployeeInState = (updatedEmployee: Employee) => {
+    const wasInCurrentList = employees.some(
+      (item) => item._id === updatedEmployee._id,
+    );
+    const stillMatchesCurrentFilters =
+      (!departmentFilter ||
+        updatedEmployee.workInfo?.department === departmentFilter) &&
+      (!statusFilter || updatedEmployee.status === statusFilter);
+
+    setEmployees((current) => {
+      const exists = current.some((item) => item._id === updatedEmployee._id);
+      if (!exists) return current;
+
+      return stillMatchesCurrentFilters
+        ? current.map((item) =>
+            item._id === updatedEmployee._id ? updatedEmployee : item,
+          )
+        : current.filter((item) => item._id !== updatedEmployee._id);
+    });
+
+    if (wasInCurrentList && !stillMatchesCurrentFilters) {
+      setTotalEmployees((current) => Math.max(0, current - 1));
+    }
+
+    setAllEmployees((current) =>
+      current.map((item) =>
+        item._id === updatedEmployee._id ? updatedEmployee : item,
+      ),
+    );
+
+    setSelectedEmployee((current) =>
+      current?._id === updatedEmployee._id ? updatedEmployee : current,
+    );
+    setEditingEmployee((current) =>
+      current?._id === updatedEmployee._id ? updatedEmployee : current,
+    );
+  };
+
   async function loadAllEmployees() {
     try {
       setLoadingAllEmployees(true);
@@ -189,7 +229,17 @@ export default function EmployeePage() {
       };
 
       await updateEmployee(employee._id, payload);
-      await loadAllEmployees();
+
+      const updatedEmployee = {
+        ...employee,
+        ...payload,
+        workInfo: {
+          ...employee.workInfo,
+          ...payload.workInfo,
+        },
+      } as Employee;
+      syncEmployeeInState(updatedEmployee);
+
       toast.success(
         managerId
           ? `Đã chuyển ${employee.name} vào nhánh quản lý mới`
@@ -265,16 +315,29 @@ export default function EmployeePage() {
       if (editingEmployee) {
         await updateEmployee(editingEmployee._id, payload);
 
+        const updatedEmployee = {
+          ...editingEmployee,
+          ...payload,
+          workInfo: {
+            ...editingEmployee.workInfo,
+            ...(payload as any).workInfo,
+          },
+        } as Employee;
+
+        syncEmployeeInState(updatedEmployee);
         toast.success("Cập nhật nhân viên thành công");
       } else {
         await createEmployee(payload);
-
         toast.success("Thêm nhân viên thành công");
       }
 
       setModalOpen(false);
 
-      await loadEmployees();
+      // Chỉ tải lại khi tạo mới để nhận ID và dữ liệu do server sinh ra.
+      if (!editingEmployee) {
+        await loadEmployees();
+        await loadAllEmployees();
+      }
     } catch (error) {
       console.error("handleSubmit:", error);
 
@@ -300,9 +363,15 @@ export default function EmployeePage() {
     try {
       await deleteEmployee(employee._id);
 
-      toast.success("Xóa nhân viên thành công");
+      setEmployees((current) =>
+        current.filter((item) => item._id !== employee._id),
+      );
+      setAllEmployees((current) =>
+        current.filter((item) => item._id !== employee._id),
+      );
+      setTotalEmployees((current) => Math.max(0, current - 1));
 
-      await loadEmployees();
+      toast.success("Xóa nhân viên thành công");
     } catch (error) {
       console.error("handleDelete:", error);
 
@@ -321,9 +390,10 @@ export default function EmployeePage() {
     try {
       await updateEmployeeStatus(employee._id, status);
 
-      toast.success("Cập nhật trạng thái thành công");
+      const updatedEmployee = { ...employee, status } as Employee;
+      syncEmployeeInState(updatedEmployee);
 
-      await loadEmployees();
+      toast.success("Cập nhật trạng thái thành công");
     } catch (error) {
       console.error("handleStatusChange:", error);
 
