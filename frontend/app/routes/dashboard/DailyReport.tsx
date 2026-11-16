@@ -1946,6 +1946,23 @@ const DailyReport = () => {
     const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
     const dates = sorted.map(d => d.date);
 
+    // Lũy kế tháng: cộng từ ngày đầu tháng đến ngày kết thúc đang được chọn.
+    // Không dùng totals của toàn bộ tháng vì chúng vẫn chứa dữ liệu các ngày phía sau.
+    const cumulativeMonthKey = selectedDailyEndDate.slice(0, 7);
+    const cumulativeData = cumulativeMonthKey
+      ? data.filter(r => r.date.slice(0, 7) === cumulativeMonthKey && r.date <= selectedDailyEndDate)
+      : [];
+
+    const cumulativeTotals = cumulativeData.reduce((acc, r) => {
+      acc.guest += Number(r.guestCount) || 0;
+      acc.totalGross += calculateTotalGross(r);
+      acc.preTax += Number(r.preTaxRevenue) || calculatePreTaxRevenue(r);
+      acc.foodRevenueDisplay += Math.round((Number(r.foodRevenue) || 0) * VAT_MULTIPLIER);
+      acc.drinkRevenueDisplay += Math.round((Number(r.drinkRevenue) || 0) * VAT_MULTIPLIER);
+      acc.otherRevenueDisplay += Math.round((Number(r.otherRevenue) || 0) * VAT_MULTIPLIER);
+      return acc;
+    }, { guest: 0, totalGross: 0, preTax: 0, foodRevenueDisplay: 0, drinkRevenueDisplay: 0, otherRevenueDisplay: 0 });
+
     const getRow = (date: string) => sorted.find(x => x.date === date);
 
     const buildGroupedRows = (
@@ -1978,18 +1995,18 @@ const DailyReport = () => {
       };
     };
 
-    const monthLunchGross = data.reduce((s, r) => s + sessionGross(r.lunch), 0);
-    const monthDinnerGross = data.reduce((s, r) => s + sessionGross(r.dinner), 0);
-    const monthLunchPreTax = data.reduce((s, r) => s + sessionPreTax(r.lunch), 0);
-    const monthDinnerPreTax = data.reduce((s, r) => s + sessionPreTax(r.dinner), 0);
-    const monthLunchFood = data.reduce((s, r) => s + Math.round((Number(r.lunch?.foodRevenue) || 0) * VAT_MULTIPLIER), 0);
-    const monthDinnerFood = data.reduce((s, r) => s + Math.round((Number(r.dinner?.foodRevenue) || 0) * VAT_MULTIPLIER), 0);
-    const monthLunchDrink = data.reduce((s, r) => s + Math.round((Number(r.lunch?.drinkRevenue) || 0) * VAT_MULTIPLIER), 0);
-    const monthDinnerDrink = data.reduce((s, r) => s + Math.round((Number(r.dinner?.drinkRevenue) || 0) * VAT_MULTIPLIER), 0);
-    const monthLunchOther = data.reduce((s, r) => s + Math.round((Number(r.lunch?.otherRevenue) || 0) * VAT_MULTIPLIER), 0);
-    const monthDinnerOther = data.reduce((s, r) => s + Math.round((Number(r.dinner?.otherRevenue) || 0) * VAT_MULTIPLIER), 0);
-    const monthLunchGuest = data.reduce((s, r) => s + (Number(r.lunch?.guestCount) || 0), 0);
-    const monthDinnerGuest = data.reduce((s, r) => s + (Number(r.dinner?.guestCount) || 0), 0);
+    const monthLunchGross = cumulativeData.reduce((s, r) => s + sessionGross(r.lunch), 0);
+    const monthDinnerGross = cumulativeData.reduce((s, r) => s + sessionGross(r.dinner), 0);
+    const monthLunchPreTax = cumulativeData.reduce((s, r) => s + sessionPreTax(r.lunch), 0);
+    const monthDinnerPreTax = cumulativeData.reduce((s, r) => s + sessionPreTax(r.dinner), 0);
+    const monthLunchFood = cumulativeData.reduce((s, r) => s + Math.round((Number(r.lunch?.foodRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthDinnerFood = cumulativeData.reduce((s, r) => s + Math.round((Number(r.dinner?.foodRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthLunchDrink = cumulativeData.reduce((s, r) => s + Math.round((Number(r.lunch?.drinkRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthDinnerDrink = cumulativeData.reduce((s, r) => s + Math.round((Number(r.dinner?.drinkRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthLunchOther = cumulativeData.reduce((s, r) => s + Math.round((Number(r.lunch?.otherRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthDinnerOther = cumulativeData.reduce((s, r) => s + Math.round((Number(r.dinner?.otherRevenue) || 0) * VAT_MULTIPLIER), 0);
+    const monthLunchGuest = cumulativeData.reduce((s, r) => s + (Number(r.lunch?.guestCount) || 0), 0);
+    const monthDinnerGuest = cumulativeData.reduce((s, r) => s + (Number(r.dinner?.guestCount) || 0), 0);
 
     const guestRows = buildGroupedRows(
       "Số lượt khách",
@@ -2003,7 +2020,7 @@ const DailyReport = () => {
       (n) => String(n || 0),
       monthLunchGuest,
       monthDinnerGuest,
-      totals.guest
+      cumulativeTotals.guest
     );
 
     const avgRows = buildGroupedRows(
@@ -2019,7 +2036,7 @@ const DailyReport = () => {
       (n) => formatAvgGuest(n) || "0 ₫",
       monthLunchGuest > 0 ? Math.round(monthLunchGross / monthLunchGuest) : 0,
       monthDinnerGuest > 0 ? Math.round(monthDinnerGross / monthDinnerGuest) : 0,
-      totals.guest > 0 ? Math.round(totals.totalGross / totals.guest) : 0
+      cumulativeTotals.guest > 0 ? Math.round(cumulativeTotals.totalGross / cumulativeTotals.guest) : 0
     );
 
     const foodRows = buildGroupedRows(
@@ -2034,7 +2051,7 @@ const DailyReport = () => {
       (n) => formatCurrency(n) || "0 ₫",
       monthLunchFood,
       monthDinnerFood,
-      totals.foodRevenueDisplay
+      cumulativeTotals.foodRevenueDisplay
     );
 
     const drinkRows = buildGroupedRows(
@@ -2049,7 +2066,7 @@ const DailyReport = () => {
       (n) => formatCurrency(n) || "0 ₫",
       monthLunchDrink,
       monthDinnerDrink,
-      totals.drinkRevenueDisplay
+      cumulativeTotals.drinkRevenueDisplay
     );
 
     const otherRows = buildGroupedRows(
@@ -2064,7 +2081,7 @@ const DailyReport = () => {
       (n) => formatCurrency(n) || "0 ₫",
       monthLunchOther,
       monthDinnerOther,
-      totals.otherRevenueDisplay
+      cumulativeTotals.otherRevenueDisplay
     );
 
     const footerTotals = dates.reduce((acc, date) => {
@@ -2089,17 +2106,17 @@ const DailyReport = () => {
       otherRows,
       footerTotals,
       hasData: sorted.length > 0,
-      monthGuest: totals.guest,
-      monthAvgGuest: totals.guest > 0 ? Math.round(totals.totalGross / totals.guest) : 0,
-      monthPreTax: totals.preTax,
-      monthGross: totals.totalGross,
+      monthGuest: cumulativeTotals.guest,
+      monthAvgGuest: cumulativeTotals.guest > 0 ? Math.round(cumulativeTotals.totalGross / cumulativeTotals.guest) : 0,
+      monthPreTax: cumulativeTotals.preTax,
+      monthGross: cumulativeTotals.totalGross,
       monthLunchPreTax,
       monthDinnerPreTax,
       monthLunchGross,
       monthDinnerGross,
       filteredDays: sorted.length,
     };
-  }, [data, selectedDailyStartDate, selectedDailyEndDate, totals]);
+  }, [data, selectedDailyStartDate, selectedDailyEndDate]);
 
   return (
     <div id="report-container" className="space-y-4 p-4 sm:p-6">
@@ -3052,4 +3069,4 @@ const DailyReport = () => {
   );
 };
 
-export default DailyReport;
+export default DailyReport; 
